@@ -14,10 +14,18 @@ type EditorMinutaProps = {
   rastroGeracaoAtual?: RastroGeracaoMinuta;
 };
 
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual, rastroGeracaoAtual }: EditorMinutaProps) {
   const [conteudo, setConteudo] = useState(minuta.conteudoAtual);
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
+  const fatosRelevantes = toArray<string>(contextoJuridico?.fatosRelevantes);
+  const cronologia = toArray<{ data: string; descricao: string; documentoId?: string }>(contextoJuridico?.cronologia);
+  const pontosControvertidos = toArray<string>(contextoJuridico?.pontosControvertidos);
+  const referenciasDocumentais = toArray<{ documentoId: string; titulo: string }>(contextoJuridico?.referenciasDocumentais);
 
   const versaoComparada = useMemo(
     () => minuta.versoes.find((versao) => versao.id === versaoComparadaId),
@@ -74,24 +82,24 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual, ra
                 <strong>Estratégia sugerida:</strong> {contextoJuridico.estrategiaSugerida}
               </p>
               <p>
-                <strong>Fatos relevantes:</strong> {contextoJuridico.fatosRelevantes.length}
+                <strong>Fatos relevantes:</strong> {fatosRelevantes.length}
               </p>
               <p>
-                <strong>Cronologia:</strong> {contextoJuridico.cronologia.length} eventos
+                <strong>Cronologia:</strong> {cronologia.length} eventos
               </p>
               <p>
-                <strong>Pontos controvertidos:</strong> {contextoJuridico.pontosControvertidos.length}
+                <strong>Pontos controvertidos:</strong> {pontosControvertidos.length}
               </p>
               <p>
-                <strong>Referências documentais:</strong> {contextoJuridico.referenciasDocumentais.length}
+                <strong>Referências documentais:</strong> {referenciasDocumentais.length}
               </p>
-              {contextoJuridico.referenciasDocumentais.length > 0 ? (
+              {referenciasDocumentais.length > 0 ? (
                 <div className="rounded-xl border border-[var(--color-border)] p-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
                     Referências principais
                   </p>
                   <ul className="mt-2 space-y-1 text-xs text-[var(--color-muted)]">
-                    {contextoJuridico.referenciasDocumentais.slice(0, 5).map((referencia) => (
+                    {referenciasDocumentais.slice(0, 5).map((referencia) => (
                       <li key={`${referencia.documentoId}-${referencia.titulo}`}>
                         {referencia.documentoId} • {referencia.titulo}
                       </li>

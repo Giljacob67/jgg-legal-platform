@@ -7,6 +7,14 @@ import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/o
 import { sincronizarPipelinePedido } from "@/modules/peticoes/application/operacional/sincronizarPipelinePedido";
 import { gerarMinutaEstruturada } from "@/modules/peticoes/application/operacional/gerarMinutaEstruturada";
 
+function logDebug(mensagem: string, detalhe?: unknown): void {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.warn(`[peticoes][editor] ${mensagem}`, detalhe);
+}
+
 export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
   minuta: Minuta;
   contextoJuridico: ContextoJuridicoPedido | null;
@@ -18,10 +26,28 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
     throw new Error("Minuta não encontrada.");
   }
 
-  await sincronizarPipelinePedido(minutaBase.pedidoId);
+  try {
+    await sincronizarPipelinePedido(minutaBase.pedidoId);
+  } catch (error) {
+    logDebug("Sincronização do pipeline falhou. Editor seguirá com fallback seguro.", {
+      minutaId,
+      pedidoId: minutaBase.pedidoId,
+      error,
+    });
+  }
 
   const infra = getPeticoesOperacionalInfra();
-  const contextoJuridico = await infra.contextoJuridicoPedidoRepository.obterUltimaVersao(minutaBase.pedidoId);
+  let contextoJuridico: ContextoJuridicoPedido | null = null;
+  try {
+    contextoJuridico = await infra.contextoJuridicoPedidoRepository.obterUltimaVersao(minutaBase.pedidoId);
+  } catch (error) {
+    logDebug("Não foi possível obter contexto jurídico persistido.", {
+      minutaId,
+      pedidoId: minutaBase.pedidoId,
+      error,
+    });
+  }
+
   const pedido = services.peticoesRepository.obterPedidoPorId(minutaBase.pedidoId);
   const caso = pedido ? services.casosRepository.obterCasoPorId(pedido.casoId) : undefined;
 
@@ -33,7 +59,16 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
       })
     : null;
 
-  const rastrosPersistidos = await infra.minutaRastroContextoRepository.listarPorMinuta(minutaBase.id);
+  const rastrosPersistidos = await infra.minutaRastroContextoRepository
+    .listarPorMinuta(minutaBase.id)
+    .catch((error) => {
+      logDebug("Não foi possível listar rastros persistidos da minuta.", {
+        minutaId,
+        pedidoId: minutaBase.pedidoId,
+        error,
+      });
+      return [];
+    });
   const rastrosMap = new Map(rastrosPersistidos.map((rastro) => [rastro.versaoId, rastro]));
   const versaoContextoPadrao = contextoJuridico?.versaoContexto ?? 1;
   const versaoMaisRecenteId = minutaBase.versoes.reduce((acumulador, item) => {
@@ -77,19 +112,27 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
       continue;
     }
 
-    await infra.minutaRastroContextoRepository.upsertVinculo({
-      minutaId: minuta.id,
-      versaoId: versao.id,
-      pedidoId: minuta.pedidoId,
-      numeroVersao: versao.numero,
-      contextoVersao: versao.contextoVersaoOrigem,
-      templateId: versao.templateIdOrigem,
-      templateNome: versao.templateNomeOrigem,
-      templateVersao: versao.templateVersaoOrigem,
-      tipoPecaCanonica: versao.tipoPecaCanonicaOrigem,
-      materiaCanonica: versao.materiaCanonicaOrigem,
-      referenciasDocumentais: versao.referenciasDocumentaisOrigem ?? [],
-    });
+    try {
+      await infra.minutaRastroContextoRepository.upsertVinculo({
+        minutaId: minuta.id,
+        versaoId: versao.id,
+        pedidoId: minuta.pedidoId,
+        numeroVersao: versao.numero,
+        contextoVersao: versao.contextoVersaoOrigem,
+        templateId: versao.templateIdOrigem,
+        templateNome: versao.templateNomeOrigem,
+        templateVersao: versao.templateVersaoOrigem,
+        tipoPecaCanonica: versao.tipoPecaCanonicaOrigem,
+        materiaCanonica: versao.materiaCanonicaOrigem,
+        referenciasDocumentais: versao.referenciasDocumentaisOrigem ?? [],
+      });
+    } catch (error) {
+      logDebug("Falha ao persistir rastro de versão da minuta.", {
+        minutaId,
+        versaoId: versao.id,
+        error,
+      });
+    }
   }
 
   return {

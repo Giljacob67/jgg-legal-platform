@@ -74,6 +74,31 @@ type ExecucaoEtapaRow = {
   criado_em: string;
 };
 
+function logDebug(mensagem: string, detalhe?: unknown): void {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.warn(`[documentos][real-infra] ${mensagem}`, detalhe);
+}
+
+function parseJsonValue<T>(value: unknown, fallback: T, campo: string): T {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch (error) {
+      logDebug(`Falha ao converter campo JSON "${campo}".`, { error, value });
+      return fallback;
+    }
+  }
+
+  return value as T;
+}
+
 function mapArquivo(row: ArquivoFisicoRow): ArquivoFisico {
   return {
     id: row.id,
@@ -101,7 +126,7 @@ function mapDocumento(row: DocumentoJuridicoRow): DocumentoJuridico {
     resumoJuridico: row.resumo_juridico ?? undefined,
     textoExtraido: row.texto_extraido ?? undefined,
     textoNormalizado: row.texto_normalizado ?? undefined,
-    metadados: row.metadados ?? {},
+    metadados: parseJsonValue<Record<string, unknown>>(row.metadados, {}, "documento_juridico.metadados"),
     criadoEm: row.criado_em,
     atualizadoEm: row.atualizado_em,
   };
@@ -127,8 +152,12 @@ function mapExecucao(row: ExecucaoEtapaRow): ExecucaoEtapaProcessamento {
     tentativa: row.tentativa,
     codigoErro: row.codigo_erro ?? undefined,
     mensagemErro: row.mensagem_erro ?? undefined,
-    entradaRef: row.entrada_ref ?? {},
-    saida: row.saida ?? {},
+    entradaRef: parseJsonValue<Record<string, unknown>>(
+      row.entrada_ref,
+      {},
+      "documento_processamento_etapa.entrada_ref",
+    ),
+    saida: parseJsonValue<Record<string, unknown>>(row.saida, {}, "documento_processamento_etapa.saida"),
     iniciadoEm: row.iniciado_em ?? undefined,
     finalizadoEm: row.finalizado_em ?? undefined,
     criadoEm: row.criado_em,

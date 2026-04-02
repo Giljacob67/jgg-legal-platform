@@ -48,14 +48,43 @@ type RastroRow = {
   referencias_documentais: string[] | null;
 };
 
+function logDebug(mensagem: string, detalhe?: unknown): void {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.warn(`[peticoes][real-infra] ${mensagem}`, detalhe);
+}
+
+function parseJsonValue<T>(value: unknown, fallback: T, campo: string): T {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch (error) {
+      logDebug(`Falha ao converter campo JSON "${campo}".`, { error, value });
+      return fallback;
+    }
+  }
+
+  return value as T;
+}
+
 function mapSnapshot(row: SnapshotRow): SnapshotPipelineEtapa {
   return {
     id: row.id,
     pedidoId: row.pedido_id,
     etapa: row.etapa,
     versao: row.versao,
-    entradaRef: row.entrada_ref ?? {},
-    saidaEstruturada: row.saida_estruturada ?? {},
+    entradaRef: parseJsonValue<Record<string, unknown>>(row.entrada_ref, {}, "pedido_pipeline_snapshot.entrada_ref"),
+    saidaEstruturada: parseJsonValue<Record<string, unknown>>(
+      row.saida_estruturada,
+      {},
+      "pedido_pipeline_snapshot.saida_estruturada",
+    ),
     status: row.status,
     executadoEm: row.executado_em ?? new Date().toISOString(),
     codigoErro: row.codigo_erro ?? undefined,
@@ -69,13 +98,35 @@ function mapContexto(row: ContextoRow): ContextoJuridicoPedido {
     id: row.id,
     pedidoId: row.pedido_id,
     versaoContexto: row.versao_contexto,
-    fatosRelevantes: row.fatos_relevantes ?? [],
-    cronologia: row.cronologia ?? [],
-    pontosControvertidos: row.pontos_controvertidos ?? [],
-    documentosChave: row.documentos_chave ?? [],
-    referenciasDocumentais: row.referencias_documentais ?? [],
+    fatosRelevantes: parseJsonValue<string[]>(
+      row.fatos_relevantes,
+      [],
+      "pedido_contexto_juridico_versao.fatos_relevantes",
+    ),
+    cronologia: parseJsonValue<Array<{ data: string; descricao: string; documentoId?: string }>>(
+      row.cronologia,
+      [],
+      "pedido_contexto_juridico_versao.cronologia",
+    ),
+    pontosControvertidos: parseJsonValue<string[]>(
+      row.pontos_controvertidos,
+      [],
+      "pedido_contexto_juridico_versao.pontos_controvertidos",
+    ),
+    documentosChave: parseJsonValue<Array<{ documentoId: string; titulo: string; tipoDocumento: string }>>(
+      row.documentos_chave,
+      [],
+      "pedido_contexto_juridico_versao.documentos_chave",
+    ),
+    referenciasDocumentais: parseJsonValue<
+      Array<{ documentoId: string; titulo: string; tipoDocumento: string; trecho?: string }>
+    >(row.referencias_documentais, [], "pedido_contexto_juridico_versao.referencias_documentais"),
     estrategiaSugerida: row.estrategia_sugerida,
-    fontesSnapshot: row.fontes_snapshot ?? [],
+    fontesSnapshot: parseJsonValue<Array<{ etapa: EtapaPipeline; versao: number }>>(
+      row.fontes_snapshot,
+      [],
+      "pedido_contexto_juridico_versao.fontes_snapshot",
+    ),
     criadoEm: row.criado_em,
   };
 }
@@ -343,7 +394,11 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
       templateVersao: row.template_versao ?? undefined,
       tipoPecaCanonica: row.tipo_peca_canonica ?? undefined,
       materiaCanonica: row.materia_canonica ?? undefined,
-      referenciasDocumentais: row.referencias_documentais ?? [],
+      referenciasDocumentais: parseJsonValue<string[]>(
+        row.referencias_documentais,
+        [],
+        "minuta_versao_contexto.referencias_documentais",
+      ),
     }));
   }
 }
