@@ -17,4 +17,13 @@ export class MockFileStorageGateway implements FileStorageGateway {
       sizeBytes: input.bytes.length,
     };
   }
+
+  async get(_input: { providerKey: string }): Promise<{
+    downloadUrl: string;
+    contentType?: string;
+    size?: number;
+  } | null> {
+    void _input;
+    return null;
+  }
 }

@@ -23,7 +23,7 @@ function toListItem(input: DocumentoComArquivoEVinculos): DocumentoListItem {
     dataUpload: input.arquivo.criadoEm,
     tamanhoMb: Number((input.arquivo.tamanhoBytes / (1024 * 1024)).toFixed(1)),
     resumo: input.documento.resumoJuridico ?? "Resumo pendente de processamento.",
-    urlArquivo: input.arquivo.url,
+    urlArquivo: `/api/documentos/${input.documento.id}/arquivo`,
     sha256: input.arquivo.sha256,
   };
 }

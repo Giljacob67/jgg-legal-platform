@@ -21,6 +21,11 @@ export interface FileStorageGateway {
     url: string;
     sizeBytes: number;
   }>;
+  get(input: { providerKey: string }): Promise<{
+    downloadUrl: string;
+    contentType?: string;
+    size?: number;
+  } | null>;
 }
 
 export interface FileHashService {

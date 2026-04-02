@@ -9,8 +9,15 @@ export async function GET(request: Request) {
     const pedidoId = searchParams.get("pedidoId") ?? undefined;
 
     const documentos = await listarDocumentosComDetalhes({ casoId, pedidoId });
+    const documentosResponse = documentos.map((item) => ({
+      ...item,
+      arquivo: {
+        ...item.arquivo,
+        url: `/api/documentos/${item.documento.id}/arquivo`,
+      },
+    }));
 
-    return NextResponse.json({ documentos });
+    return NextResponse.json({ documentos: documentosResponse });
   } catch (error) {
     return NextResponse.json(
       {

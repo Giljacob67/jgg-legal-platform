@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       documentoId: resultado.documento.id,
       arquivoId: resultado.arquivo.id,
-      url: resultado.arquivo.url,
+      url: `/api/documentos/${resultado.documento.id}/arquivo`,
       sha256: resultado.arquivo.sha256,
       vinculos: resultado.vinculos,
     });
