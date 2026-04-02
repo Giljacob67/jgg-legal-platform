@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --color-page: #f3f3f1;
+  --color-surface: #eceae5;
+  --color-surface-alt: #f8f7f4;
+  --color-ink: #1c2329;
+  --color-muted: #5c6873;
+  --color-border: #d5d9df;
+  --color-accent: #1f4a6b;
+  --color-accent-strong: #183950;
+}
+
+@theme inline {
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-merriweather);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
