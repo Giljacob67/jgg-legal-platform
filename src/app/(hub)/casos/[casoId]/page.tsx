@@ -19,7 +19,7 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
     notFound();
   }
 
-  const documentos = listarDocumentosPorCaso(caso.id);
+  const documentos = await listarDocumentosPorCaso(caso.id);
 
   return (
     <div className="space-y-6">

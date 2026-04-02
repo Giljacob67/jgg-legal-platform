@@ -5,7 +5,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
+import { listarDocumentosPorPedido } from "@/modules/documentos/application/listarDocumentosPorPedido";
 import { listarDocumentosPorCaso } from "@/modules/documentos/application/listarDocumentosPorCaso";
+import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
 import { formatarData } from "@/lib/utils";
 
 type PedidoDetalhePageProps = {
@@ -21,7 +23,9 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
   }
 
   const minuta = obterMinutaPorPedidoId(pedido.id);
-  const documentos = listarDocumentosPorCaso(pedido.casoId);
+  const documentosDoPedido = await listarDocumentosPorPedido(pedido.id);
+  const documentos =
+    documentosDoPedido.length > 0 ? documentosDoPedido : await listarDocumentosPorCaso(pedido.casoId);
 
   return (
     <div className="space-y-6">
@@ -72,6 +76,16 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         </Card>
       </section>
 
+      <DocumentoUploadPanel
+        titulo="Adicionar documento ao pedido"
+        descricao="Upload real com persistência e vínculo direto ao caso e ao pedido."
+        fixedVinculos={[
+          { tipoEntidade: "caso", entidadeId: pedido.casoId, papel: "principal" },
+          { tipoEntidade: "pedido_peca", entidadeId: pedido.id, papel: "apoio" },
+        ]}
+        mostrarSeletores={false}
+      />
+
       <Card title="Documentos utilizados">
         <div className="grid gap-3 md:grid-cols-2">
           {documentos.map((documento) => (
@@ -80,6 +94,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
               <p className="mt-1 text-sm text-[var(--color-muted)]">
                 {documento.tipo} • {documento.status}
               </p>
+              <p className="text-xs text-[var(--color-muted)]">Processamento: {documento.statusProcessamento}</p>
             </article>
           ))}
         </div>

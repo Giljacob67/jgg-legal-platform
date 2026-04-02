@@ -25,6 +25,10 @@ npm install
 npm run dev
 ```
 
+## Modo de dados (`DATA_MODE`)
+- `mock` (padrão): usa dados em memória para desenvolvimento rápido.
+- `real`: habilita upload real em Blob + persistência em Postgres.
+
 ## Qualidade obrigatória
 ```bash
 npm run lint
@@ -32,8 +36,17 @@ npm run typecheck
 npm run build
 ```
 
+## Migrations SQL
+```bash
+npm run db:migrate
+```
+As migrations ficam em `db/migrations` e são aplicadas em ordem.
+
 ## Variáveis de ambiente
 Use o arquivo `.env.example` como referência e crie um `.env.local` quando necessário.
+- `DATA_MODE=mock|real`
+- `DATABASE_URL` para Postgres
+- `BLOB_READ_WRITE_TOKEN` para upload via Vercel Blob
 
 ## Deploy na Vercel
 1. Conecte o repositório ao projeto na Vercel.
