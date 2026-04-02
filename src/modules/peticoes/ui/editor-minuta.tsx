@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/types";
+import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minuta";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
@@ -10,9 +11,10 @@ type EditorMinutaProps = {
   minuta: Minuta;
   contextoJuridico: ContextoJuridicoPedido | null;
   versaoContextoAtual?: number;
+  rastroGeracaoAtual?: RastroGeracaoMinuta;
 };
 
-export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: EditorMinutaProps) {
+export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual, rastroGeracaoAtual }: EditorMinutaProps) {
   const [conteudo, setConteudo] = useState(minuta.conteudoAtual);
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
@@ -40,7 +42,7 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
-      <Card title={minuta.titulo} subtitle="Editor de minuta com histórico mockado de versões.">
+      <Card title={minuta.titulo} subtitle="Editor de minuta com geração estruturada por contexto, template e matéria.">
         <textarea
           value={conteudo}
           onChange={(event) => setConteudo(event.target.value)}
@@ -101,6 +103,30 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
           )}
         </Card>
 
+        <Card title="Rastro da geração" subtitle="Rastreabilidade de template, contexto e referências utilizadas.">
+          {!rastroGeracaoAtual ? (
+            <p className="text-sm text-[var(--color-muted)]">Geração estruturada indisponível para esta minuta.</p>
+          ) : (
+            <div className="space-y-2 text-sm text-[var(--color-ink)]">
+              <p>
+                <strong>Template:</strong> {rastroGeracaoAtual.templateNome} (v{rastroGeracaoAtual.templateVersao})
+              </p>
+              <p>
+                <strong>Tipo de peça canônico:</strong> {rastroGeracaoAtual.tipoPecaCanonica}
+              </p>
+              <p>
+                <strong>Matéria canônica:</strong> {rastroGeracaoAtual.materiaCanonica}
+              </p>
+              <p>
+                <strong>Versão do contexto:</strong> v{rastroGeracaoAtual.contextoVersao ?? "n/d"}
+              </p>
+              <p>
+                <strong>Referências documentais:</strong> {rastroGeracaoAtual.referenciasDocumentais.length}
+              </p>
+            </div>
+          )}
+        </Card>
+
         <Card title="Comparação entre versões" subtitle="Base inicial para evolução do diff jurídico.">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-[var(--color-ink)]">Versão de referência</span>
@@ -136,6 +162,13 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
                   </p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
                     Contexto de origem: v{versao.contextoVersaoOrigem ?? versaoContextoAtual ?? "n/d"}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Template: {versao.templateNomeOrigem ?? "n/d"}{" "}
+                    {versao.templateVersaoOrigem ? `(v${versao.templateVersaoOrigem})` : ""}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Referências: {versao.referenciasDocumentaisOrigem?.length ?? 0}
                   </p>
                   <p className="mt-2 text-sm text-[var(--color-muted)]">{versao.resumoMudancas}</p>
                 </article>

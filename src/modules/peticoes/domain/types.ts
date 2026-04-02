@@ -1,4 +1,14 @@
-export type TipoPeca = "Petição inicial" | "Contestação" | "Réplica" | "Recurso" | "Manifestação";
+import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
+
+export type TipoPeca =
+  | "Petição inicial"
+  | "Contestação"
+  | "Manifestação"
+  | "Embargos à execução"
+  | "Apelação cível"
+  | "Recurso especial cível"
+  | "Réplica"
+  | "Recurso";
 
 export type PrioridadePedido = "baixa" | "média" | "alta";
 
@@ -88,6 +98,12 @@ export interface VersaoMinuta {
   resumoMudancas: string;
   conteudo: string;
   contextoVersaoOrigem?: number;
+  templateIdOrigem?: string;
+  templateNomeOrigem?: string;
+  templateVersaoOrigem?: number;
+  tipoPecaCanonicaOrigem?: TipoPecaCanonica;
+  materiaCanonicaOrigem?: MateriaCanonica;
+  referenciasDocumentaisOrigem?: string[];
 }
 
 export interface Minuta {

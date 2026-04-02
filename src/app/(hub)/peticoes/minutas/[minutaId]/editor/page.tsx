@@ -26,6 +26,7 @@ export default async function EditorMinutaPage({ params }: EditorMinutaPageProps
         minuta={minuta}
         contextoJuridico={editorData?.contextoJuridico ?? null}
         versaoContextoAtual={editorData?.versaoContextoAtual}
+        rastroGeracaoAtual={editorData?.rastroGeracaoAtual}
       />
     </div>
   );

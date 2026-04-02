@@ -186,6 +186,15 @@ export class MockPeticoesRepository implements PeticoesRepository {
   }
 
   listarTiposPeca(): TipoPeca[] {
-    return ["Petição inicial", "Contestação", "Réplica", "Recurso", "Manifestação"];
+    return [
+      "Petição inicial",
+      "Contestação",
+      "Manifestação",
+      "Embargos à execução",
+      "Apelação cível",
+      "Recurso especial cível",
+      "Réplica",
+      "Recurso",
+    ];
   }
 }

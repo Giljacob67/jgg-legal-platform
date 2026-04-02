@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSqlClient } from "@/lib/database/client";
+import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 import type {
   ContextoJuridicoPedidoRepository,
   MinutaRastroContextoRepository,
@@ -39,6 +40,12 @@ type ContextoRow = {
 type RastroRow = {
   versao_id: string;
   contexto_versao: number;
+  template_id: string | null;
+  template_nome: string | null;
+  template_versao: number | null;
+  tipo_peca_canonica: TipoPecaCanonica | null;
+  materia_canonica: MateriaCanonica | null;
+  referencias_documentais: string[] | null;
 };
 
 function mapSnapshot(row: SnapshotRow): SnapshotPipelineEtapa {
@@ -250,6 +257,12 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
     pedidoId: string;
     numeroVersao: number;
     contextoVersao: number;
+    templateId?: string;
+    templateNome?: string;
+    templateVersao?: number;
+    tipoPecaCanonica?: TipoPecaCanonica;
+    materiaCanonica?: MateriaCanonica;
+    referenciasDocumentais?: string[];
   }): Promise<void> {
     const sql = getSqlClient();
     await sql`
@@ -258,28 +271,66 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
         versao_id,
         pedido_id,
         numero_versao,
-        contexto_versao
+        contexto_versao,
+        template_id,
+        template_nome,
+        template_versao,
+        tipo_peca_canonica,
+        materia_canonica,
+        referencias_documentais
       )
       VALUES (
         ${input.minutaId},
         ${input.versaoId},
         ${input.pedidoId},
         ${input.numeroVersao},
-        ${input.contextoVersao}
+        ${input.contextoVersao},
+        ${input.templateId ?? null},
+        ${input.templateNome ?? null},
+        ${input.templateVersao ?? null},
+        ${input.tipoPecaCanonica ?? null},
+        ${input.materiaCanonica ?? null},
+        ${JSON.stringify(input.referenciasDocumentais ?? [])}::jsonb
       )
       ON CONFLICT (versao_id)
       DO UPDATE
       SET minuta_id = EXCLUDED.minuta_id,
           pedido_id = EXCLUDED.pedido_id,
           numero_versao = EXCLUDED.numero_versao,
-          contexto_versao = EXCLUDED.contexto_versao
+          contexto_versao = EXCLUDED.contexto_versao,
+          template_id = EXCLUDED.template_id,
+          template_nome = EXCLUDED.template_nome,
+          template_versao = EXCLUDED.template_versao,
+          tipo_peca_canonica = EXCLUDED.tipo_peca_canonica,
+          materia_canonica = EXCLUDED.materia_canonica,
+          referencias_documentais = EXCLUDED.referencias_documentais,
+          atualizado_em = NOW()
     `;
   }
 
-  async listarPorMinuta(minutaId: string): Promise<Array<{ versaoId: string; contextoVersao: number }>> {
+  async listarPorMinuta(minutaId: string): Promise<
+    Array<{
+      versaoId: string;
+      contextoVersao: number;
+      templateId?: string;
+      templateNome?: string;
+      templateVersao?: number;
+      tipoPecaCanonica?: TipoPecaCanonica;
+      materiaCanonica?: MateriaCanonica;
+      referenciasDocumentais: string[];
+    }>
+  > {
     const sql = getSqlClient();
     const rows = await sql<RastroRow[]>`
-      SELECT versao_id, contexto_versao
+      SELECT
+        versao_id,
+        contexto_versao,
+        template_id,
+        template_nome,
+        template_versao,
+        tipo_peca_canonica,
+        materia_canonica,
+        referencias_documentais
       FROM minuta_versao_contexto
       WHERE minuta_id = ${minutaId}
     `;
@@ -287,6 +338,12 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
     return rows.map((row) => ({
       versaoId: row.versao_id,
       contextoVersao: row.contexto_versao,
+      templateId: row.template_id ?? undefined,
+      templateNome: row.template_nome ?? undefined,
+      templateVersao: row.template_versao ?? undefined,
+      tipoPecaCanonica: row.tipo_peca_canonica ?? undefined,
+      materiaCanonica: row.materia_canonica ?? undefined,
+      referenciasDocumentais: row.referencias_documentais ?? [],
     }));
   }
 }
