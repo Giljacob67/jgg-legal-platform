@@ -3,6 +3,7 @@ import type {
   MinutaRastroContextoRepository,
   PipelineSnapshotRepository,
 } from "@/modules/peticoes/application/operacional/contracts";
+import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 import type { ContextoJuridicoPedido, EtapaPipeline, SnapshotPipelineEtapa } from "@/modules/peticoes/domain/types";
 
 interface MockPeticoesOperacionalStore {
@@ -14,6 +15,12 @@ interface MockPeticoesOperacionalStore {
     pedidoId: string;
     numeroVersao: number;
     contextoVersao: number;
+    templateId?: string;
+    templateNome?: string;
+    templateVersao?: number;
+    tipoPecaCanonica?: TipoPecaCanonica;
+    materiaCanonica?: MateriaCanonica;
+    referenciasDocumentais?: string[];
   }>;
 }
 
@@ -110,6 +117,12 @@ function criarSeed(): MockPeticoesOperacionalStore {
         pedidoId: "PED-2026-001",
         numeroVersao: 1,
         contextoVersao: 1,
+        templateId: "tpl-peticao-inicial-v1",
+        templateNome: "Template Petição Inicial",
+        templateVersao: 1,
+        tipoPecaCanonica: "peticao_inicial",
+        materiaCanonica: "civel",
+        referenciasDocumentais: ["DOC-001", "DOC-002"],
       },
       {
         minutaId: "MIN-2026-001",
@@ -117,6 +130,12 @@ function criarSeed(): MockPeticoesOperacionalStore {
         pedidoId: "PED-2026-001",
         numeroVersao: 2,
         contextoVersao: 1,
+        templateId: "tpl-peticao-inicial-v1",
+        templateNome: "Template Petição Inicial",
+        templateVersao: 1,
+        tipoPecaCanonica: "peticao_inicial",
+        materiaCanonica: "civel",
+        referenciasDocumentais: ["DOC-001", "DOC-002"],
       },
     ],
   };
@@ -213,6 +232,12 @@ class MockMinutaRastroContextoRepository implements MinutaRastroContextoReposito
     pedidoId: string;
     numeroVersao: number;
     contextoVersao: number;
+    templateId?: string;
+    templateNome?: string;
+    templateVersao?: number;
+    tipoPecaCanonica?: TipoPecaCanonica;
+    materiaCanonica?: MateriaCanonica;
+    referenciasDocumentais?: string[];
   }): Promise<void> {
     const store = getStore();
     const existente = store.rastros.find((item) => item.versaoId === input.versaoId);
@@ -222,17 +247,43 @@ class MockMinutaRastroContextoRepository implements MinutaRastroContextoReposito
       existente.pedidoId = input.pedidoId;
       existente.numeroVersao = input.numeroVersao;
       existente.minutaId = input.minutaId;
+      existente.templateId = input.templateId;
+      existente.templateNome = input.templateNome;
+      existente.templateVersao = input.templateVersao;
+      existente.tipoPecaCanonica = input.tipoPecaCanonica;
+      existente.materiaCanonica = input.materiaCanonica;
+      existente.referenciasDocumentais = input.referenciasDocumentais ?? [];
       return;
     }
 
     store.rastros.push(input);
   }
 
-  async listarPorMinuta(minutaId: string): Promise<Array<{ versaoId: string; contextoVersao: number }>> {
+  async listarPorMinuta(minutaId: string): Promise<
+    Array<{
+      versaoId: string;
+      contextoVersao: number;
+      templateId?: string;
+      templateNome?: string;
+      templateVersao?: number;
+      tipoPecaCanonica?: TipoPecaCanonica;
+      materiaCanonica?: MateriaCanonica;
+      referenciasDocumentais: string[];
+    }>
+  > {
     const store = getStore();
     return store.rastros
       .filter((item) => item.minutaId === minutaId)
-      .map((item) => ({ versaoId: item.versaoId, contextoVersao: item.contextoVersao }));
+      .map((item) => ({
+        versaoId: item.versaoId,
+        contextoVersao: item.contextoVersao,
+        templateId: item.templateId,
+        templateNome: item.templateNome,
+        templateVersao: item.templateVersao,
+        tipoPecaCanonica: item.tipoPecaCanonica,
+        materiaCanonica: item.materiaCanonica,
+        referenciasDocumentais: item.referenciasDocumentais ?? [],
+      }));
   }
 }
 

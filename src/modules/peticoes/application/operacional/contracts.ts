@@ -1,4 +1,5 @@
 import type { ContextoJuridicoPedido, EtapaPipeline, SnapshotPipelineEtapa } from "@/modules/peticoes/domain/types";
+import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 
 export interface PipelineSnapshotRepository {
   listarPorPedido(pedidoId: string): Promise<SnapshotPipelineEtapa[]>;
@@ -29,6 +30,23 @@ export interface MinutaRastroContextoRepository {
     pedidoId: string;
     numeroVersao: number;
     contextoVersao: number;
+    templateId?: string;
+    templateNome?: string;
+    templateVersao?: number;
+    tipoPecaCanonica?: TipoPecaCanonica;
+    materiaCanonica?: MateriaCanonica;
+    referenciasDocumentais?: string[];
   }): Promise<void>;
-  listarPorMinuta(minutaId: string): Promise<Array<{ versaoId: string; contextoVersao: number }>>;
+  listarPorMinuta(minutaId: string): Promise<
+    Array<{
+      versaoId: string;
+      contextoVersao: number;
+      templateId?: string;
+      templateNome?: string;
+      templateVersao?: number;
+      tipoPecaCanonica?: TipoPecaCanonica;
+      materiaCanonica?: MateriaCanonica;
+      referenciasDocumentais: string[];
+    }>
+  >;
 }

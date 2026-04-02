@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSqlClient } from "@/lib/database/client";
+import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 import type {
   ContextoJuridicoPedidoRepository,
   MinutaRastroContextoRepository,
@@ -39,7 +40,38 @@ type ContextoRow = {
 type RastroRow = {
   versao_id: string;
   contexto_versao: number;
+  template_id: string | null;
+  template_nome: string | null;
+  template_versao: number | null;
+  tipo_peca_canonica: TipoPecaCanonica | null;
+  materia_canonica: MateriaCanonica | null;
+  referencias_documentais: string[] | null;
 };
+
+function logDebug(mensagem: string, detalhe?: unknown): void {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.warn(`[peticoes][real-infra] ${mensagem}`, detalhe);
+}
+
+function parseJsonValue<T>(value: unknown, fallback: T, campo: string): T {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch (error) {
+      logDebug(`Falha ao converter campo JSON "${campo}".`, { error, value });
+      return fallback;
+    }
+  }
+
+  return value as T;
+}
 
 function mapSnapshot(row: SnapshotRow): SnapshotPipelineEtapa {
   return {
@@ -47,8 +79,12 @@ function mapSnapshot(row: SnapshotRow): SnapshotPipelineEtapa {
     pedidoId: row.pedido_id,
     etapa: row.etapa,
     versao: row.versao,
-    entradaRef: row.entrada_ref ?? {},
-    saidaEstruturada: row.saida_estruturada ?? {},
+    entradaRef: parseJsonValue<Record<string, unknown>>(row.entrada_ref, {}, "pedido_pipeline_snapshot.entrada_ref"),
+    saidaEstruturada: parseJsonValue<Record<string, unknown>>(
+      row.saida_estruturada,
+      {},
+      "pedido_pipeline_snapshot.saida_estruturada",
+    ),
     status: row.status,
     executadoEm: row.executado_em ?? new Date().toISOString(),
     codigoErro: row.codigo_erro ?? undefined,
@@ -62,13 +98,35 @@ function mapContexto(row: ContextoRow): ContextoJuridicoPedido {
     id: row.id,
     pedidoId: row.pedido_id,
     versaoContexto: row.versao_contexto,
-    fatosRelevantes: row.fatos_relevantes ?? [],
-    cronologia: row.cronologia ?? [],
-    pontosControvertidos: row.pontos_controvertidos ?? [],
-    documentosChave: row.documentos_chave ?? [],
-    referenciasDocumentais: row.referencias_documentais ?? [],
+    fatosRelevantes: parseJsonValue<string[]>(
+      row.fatos_relevantes,
+      [],
+      "pedido_contexto_juridico_versao.fatos_relevantes",
+    ),
+    cronologia: parseJsonValue<Array<{ data: string; descricao: string; documentoId?: string }>>(
+      row.cronologia,
+      [],
+      "pedido_contexto_juridico_versao.cronologia",
+    ),
+    pontosControvertidos: parseJsonValue<string[]>(
+      row.pontos_controvertidos,
+      [],
+      "pedido_contexto_juridico_versao.pontos_controvertidos",
+    ),
+    documentosChave: parseJsonValue<Array<{ documentoId: string; titulo: string; tipoDocumento: string }>>(
+      row.documentos_chave,
+      [],
+      "pedido_contexto_juridico_versao.documentos_chave",
+    ),
+    referenciasDocumentais: parseJsonValue<
+      Array<{ documentoId: string; titulo: string; tipoDocumento: string; trecho?: string }>
+    >(row.referencias_documentais, [], "pedido_contexto_juridico_versao.referencias_documentais"),
     estrategiaSugerida: row.estrategia_sugerida,
-    fontesSnapshot: row.fontes_snapshot ?? [],
+    fontesSnapshot: parseJsonValue<Array<{ etapa: EtapaPipeline; versao: number }>>(
+      row.fontes_snapshot,
+      [],
+      "pedido_contexto_juridico_versao.fontes_snapshot",
+    ),
     criadoEm: row.criado_em,
   };
 }
@@ -250,6 +308,12 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
     pedidoId: string;
     numeroVersao: number;
     contextoVersao: number;
+    templateId?: string;
+    templateNome?: string;
+    templateVersao?: number;
+    tipoPecaCanonica?: TipoPecaCanonica;
+    materiaCanonica?: MateriaCanonica;
+    referenciasDocumentais?: string[];
   }): Promise<void> {
     const sql = getSqlClient();
     await sql`
@@ -258,28 +322,66 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
         versao_id,
         pedido_id,
         numero_versao,
-        contexto_versao
+        contexto_versao,
+        template_id,
+        template_nome,
+        template_versao,
+        tipo_peca_canonica,
+        materia_canonica,
+        referencias_documentais
       )
       VALUES (
         ${input.minutaId},
         ${input.versaoId},
         ${input.pedidoId},
         ${input.numeroVersao},
-        ${input.contextoVersao}
+        ${input.contextoVersao},
+        ${input.templateId ?? null},
+        ${input.templateNome ?? null},
+        ${input.templateVersao ?? null},
+        ${input.tipoPecaCanonica ?? null},
+        ${input.materiaCanonica ?? null},
+        ${JSON.stringify(input.referenciasDocumentais ?? [])}::jsonb
       )
       ON CONFLICT (versao_id)
       DO UPDATE
       SET minuta_id = EXCLUDED.minuta_id,
           pedido_id = EXCLUDED.pedido_id,
           numero_versao = EXCLUDED.numero_versao,
-          contexto_versao = EXCLUDED.contexto_versao
+          contexto_versao = EXCLUDED.contexto_versao,
+          template_id = EXCLUDED.template_id,
+          template_nome = EXCLUDED.template_nome,
+          template_versao = EXCLUDED.template_versao,
+          tipo_peca_canonica = EXCLUDED.tipo_peca_canonica,
+          materia_canonica = EXCLUDED.materia_canonica,
+          referencias_documentais = EXCLUDED.referencias_documentais,
+          atualizado_em = NOW()
     `;
   }
 
-  async listarPorMinuta(minutaId: string): Promise<Array<{ versaoId: string; contextoVersao: number }>> {
+  async listarPorMinuta(minutaId: string): Promise<
+    Array<{
+      versaoId: string;
+      contextoVersao: number;
+      templateId?: string;
+      templateNome?: string;
+      templateVersao?: number;
+      tipoPecaCanonica?: TipoPecaCanonica;
+      materiaCanonica?: MateriaCanonica;
+      referenciasDocumentais: string[];
+    }>
+  > {
     const sql = getSqlClient();
     const rows = await sql<RastroRow[]>`
-      SELECT versao_id, contexto_versao
+      SELECT
+        versao_id,
+        contexto_versao,
+        template_id,
+        template_nome,
+        template_versao,
+        tipo_peca_canonica,
+        materia_canonica,
+        referencias_documentais
       FROM minuta_versao_contexto
       WHERE minuta_id = ${minutaId}
     `;
@@ -287,6 +389,16 @@ class RealMinutaRastroContextoRepository implements MinutaRastroContextoReposito
     return rows.map((row) => ({
       versaoId: row.versao_id,
       contextoVersao: row.contexto_versao,
+      templateId: row.template_id ?? undefined,
+      templateNome: row.template_nome ?? undefined,
+      templateVersao: row.template_versao ?? undefined,
+      tipoPecaCanonica: row.tipo_peca_canonica ?? undefined,
+      materiaCanonica: row.materia_canonica ?? undefined,
+      referenciasDocumentais: parseJsonValue<string[]>(
+        row.referencias_documentais,
+        [],
+        "minuta_versao_contexto.referencias_documentais",
+      ),
     }));
   }
 }

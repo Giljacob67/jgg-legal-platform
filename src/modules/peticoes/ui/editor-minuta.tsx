@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/types";
+import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minuta";
+import type { PainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/domain/types";
+import { PainelInteligenciaJuridicaView } from "@/modules/peticoes/inteligencia-juridica/ui/painel-inteligencia-juridica";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
@@ -10,12 +13,28 @@ type EditorMinutaProps = {
   minuta: Minuta;
   contextoJuridico: ContextoJuridicoPedido | null;
   versaoContextoAtual?: number;
+  rastroGeracaoAtual?: RastroGeracaoMinuta;
+  inteligenciaJuridica?: PainelInteligenciaJuridica | null;
 };
 
-export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: EditorMinutaProps) {
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function EditorMinuta({
+  minuta,
+  contextoJuridico,
+  versaoContextoAtual,
+  rastroGeracaoAtual,
+  inteligenciaJuridica = null,
+}: EditorMinutaProps) {
   const [conteudo, setConteudo] = useState(minuta.conteudoAtual);
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
+  const fatosRelevantes = toArray<string>(contextoJuridico?.fatosRelevantes);
+  const cronologia = toArray<{ data: string; descricao: string; documentoId?: string }>(contextoJuridico?.cronologia);
+  const pontosControvertidos = toArray<string>(contextoJuridico?.pontosControvertidos);
+  const referenciasDocumentais = toArray<{ documentoId: string; titulo: string }>(contextoJuridico?.referenciasDocumentais);
 
   const versaoComparada = useMemo(
     () => minuta.versoes.find((versao) => versao.id === versaoComparadaId),
@@ -40,7 +59,7 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
-      <Card title={minuta.titulo} subtitle="Editor de minuta com histórico mockado de versões.">
+      <Card title={minuta.titulo} subtitle="Editor de minuta com geração estruturada por contexto, template e matéria.">
         <textarea
           value={conteudo}
           onChange={(event) => setConteudo(event.target.value)}
@@ -72,24 +91,24 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
                 <strong>Estratégia sugerida:</strong> {contextoJuridico.estrategiaSugerida}
               </p>
               <p>
-                <strong>Fatos relevantes:</strong> {contextoJuridico.fatosRelevantes.length}
+                <strong>Fatos relevantes:</strong> {fatosRelevantes.length}
               </p>
               <p>
-                <strong>Cronologia:</strong> {contextoJuridico.cronologia.length} eventos
+                <strong>Cronologia:</strong> {cronologia.length} eventos
               </p>
               <p>
-                <strong>Pontos controvertidos:</strong> {contextoJuridico.pontosControvertidos.length}
+                <strong>Pontos controvertidos:</strong> {pontosControvertidos.length}
               </p>
               <p>
-                <strong>Referências documentais:</strong> {contextoJuridico.referenciasDocumentais.length}
+                <strong>Referências documentais:</strong> {referenciasDocumentais.length}
               </p>
-              {contextoJuridico.referenciasDocumentais.length > 0 ? (
+              {referenciasDocumentais.length > 0 ? (
                 <div className="rounded-xl border border-[var(--color-border)] p-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
                     Referências principais
                   </p>
                   <ul className="mt-2 space-y-1 text-xs text-[var(--color-muted)]">
-                    {contextoJuridico.referenciasDocumentais.slice(0, 5).map((referencia) => (
+                    {referenciasDocumentais.slice(0, 5).map((referencia) => (
                       <li key={`${referencia.documentoId}-${referencia.titulo}`}>
                         {referencia.documentoId} • {referencia.titulo}
                       </li>
@@ -100,6 +119,32 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
             </div>
           )}
         </Card>
+
+        <Card title="Rastro da geração" subtitle="Rastreabilidade de template, contexto e referências utilizadas.">
+          {!rastroGeracaoAtual ? (
+            <p className="text-sm text-[var(--color-muted)]">Geração estruturada indisponível para esta minuta.</p>
+          ) : (
+            <div className="space-y-2 text-sm text-[var(--color-ink)]">
+              <p>
+                <strong>Template:</strong> {rastroGeracaoAtual.templateNome} (v{rastroGeracaoAtual.templateVersao})
+              </p>
+              <p>
+                <strong>Tipo de peça canônico:</strong> {rastroGeracaoAtual.tipoPecaCanonica}
+              </p>
+              <p>
+                <strong>Matéria canônica:</strong> {rastroGeracaoAtual.materiaCanonica}
+              </p>
+              <p>
+                <strong>Versão do contexto:</strong> v{rastroGeracaoAtual.contextoVersao ?? "n/d"}
+              </p>
+              <p>
+                <strong>Referências documentais:</strong> {rastroGeracaoAtual.referenciasDocumentais.length}
+              </p>
+            </div>
+          )}
+        </Card>
+
+        <PainelInteligenciaJuridicaView inteligenciaJuridica={inteligenciaJuridica} />
 
         <Card title="Comparação entre versões" subtitle="Base inicial para evolução do diff jurídico.">
           <label className="flex flex-col gap-1 text-sm">
@@ -136,6 +181,13 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: 
                   </p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
                     Contexto de origem: v{versao.contextoVersaoOrigem ?? versaoContextoAtual ?? "n/d"}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Template: {versao.templateNomeOrigem ?? "n/d"}{" "}
+                    {versao.templateVersaoOrigem ? `(v${versao.templateVersaoOrigem})` : ""}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Referências: {versao.referenciasDocumentaisOrigem?.length ?? 0}
                   </p>
                   <p className="mt-2 text-sm text-[var(--color-muted)]">{versao.resumoMudancas}</p>
                 </article>
