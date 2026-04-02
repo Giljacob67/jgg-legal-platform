@@ -9,7 +9,7 @@ import type {
   TipoPecaCanonica,
 } from "@/modules/peticoes/domain/geracao-minuta";
 import { normalizarMateriaCanonica, normalizarTipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
-import { obterTemplateJuridicoAtivoPorTipoPeca } from "@/modules/peticoes/infrastructure/templates/catalogoTemplatesJuridicos";
+import { obterTemplateJuridicoAtivoParaGeracao } from "@/modules/peticoes/base-juridica-viva/application/useCases";
 
 const TITULO_TIPO_PECA: Record<TipoPecaCanonica, string> = {
   peticao_inicial: "PETIÇÃO INICIAL",
@@ -50,14 +50,17 @@ function montarReferenciasDocumentais(
     .map((item) => `${item.documentoId} - ${item.titulo} (${item.tipoDocumento})`);
 }
 
-export function gerarMinutaEstruturada(input: {
+export async function gerarMinutaEstruturada(input: {
   pedido: GerarMinutaEstruturadaInput["pedido"];
   caso?: Caso;
   contextoJuridico: GerarMinutaEstruturadaInput["contextoJuridico"];
-}): MinutaGeradaEstruturada {
+}): Promise<MinutaGeradaEstruturada> {
   const tipoPecaCanonica = normalizarTipoPecaCanonica(input.pedido.tipoPeca);
   const materiaCanonica = normalizarMateriaCanonica(input.caso?.materia);
-  const template = obterTemplateJuridicoAtivoPorTipoPeca(tipoPecaCanonica);
+  const template = await obterTemplateJuridicoAtivoParaGeracao({
+    tipoPecaCanonica,
+    materiaCanonica,
+  });
 
   const contexto = input.contextoJuridico;
   const estrategia =

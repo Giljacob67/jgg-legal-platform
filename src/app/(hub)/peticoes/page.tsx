@@ -27,6 +27,12 @@ export default function PeticoesPage() {
           >
             Novo pedido de peça
           </Link>
+          <Link
+            href="/peticoes/base-juridica"
+            className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-semibold hover:bg-[var(--color-surface-alt)]"
+          >
+            Base jurídica viva
+          </Link>
         </div>
       </Card>
 

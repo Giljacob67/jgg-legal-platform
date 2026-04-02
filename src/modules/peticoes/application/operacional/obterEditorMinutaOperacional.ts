@@ -2,10 +2,16 @@ import "server-only";
 
 import { services } from "@/services/container";
 import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/types";
-import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minuta";
+import {
+  normalizarMateriaCanonica,
+  normalizarTipoPecaCanonica,
+  type RastroGeracaoMinuta,
+} from "@/modules/peticoes/domain/geracao-minuta";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { sincronizarPipelinePedido } from "@/modules/peticoes/application/operacional/sincronizarPipelinePedido";
 import { gerarMinutaEstruturada } from "@/modules/peticoes/application/operacional/gerarMinutaEstruturada";
+import { avaliarPainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/application/avaliarPainelInteligenciaJuridica";
+import type { PainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/domain/types";
 
 function logDebug(mensagem: string, detalhe?: unknown): void {
   if (process.env.NODE_ENV !== "development") {
@@ -20,6 +26,7 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
   contextoJuridico: ContextoJuridicoPedido | null;
   versaoContextoAtual?: number;
   rastroGeracaoAtual?: RastroGeracaoMinuta;
+  inteligenciaJuridica: PainelInteligenciaJuridica | null;
 }> {
   const minutaBase = services.peticoesRepository.obterMinutaPorId(minutaId);
   if (!minutaBase) {
@@ -52,7 +59,7 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
   const caso = pedido ? services.casosRepository.obterCasoPorId(pedido.casoId) : undefined;
 
   const geracaoAtual = pedido
-    ? gerarMinutaEstruturada({
+    ? await gerarMinutaEstruturada({
         pedido,
         caso,
         contextoJuridico,
@@ -135,10 +142,29 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
     }
   }
 
+  let inteligenciaJuridica: PainelInteligenciaJuridica | null = null;
+  try {
+    const tipoPecaCanonica = geracaoAtual?.rastro.tipoPecaCanonica ?? normalizarTipoPecaCanonica(pedido?.tipoPeca ?? "");
+    const materiaCanonica = geracaoAtual?.rastro.materiaCanonica ?? normalizarMateriaCanonica(caso?.materia);
+    inteligenciaJuridica = await avaliarPainelInteligenciaJuridica({
+      minuta,
+      contextoJuridico,
+      tipoPecaCanonica,
+      materiaCanonica,
+    });
+  } catch (error) {
+    logDebug("Falha na avaliação de inteligência jurídica. Editor seguirá com fallback visual.", {
+      minutaId,
+      pedidoId: minuta.pedidoId,
+      error,
+    });
+  }
+
   return {
     minuta,
     contextoJuridico,
     versaoContextoAtual: contextoJuridico?.versaoContexto,
     rastroGeracaoAtual: geracaoAtual?.rastro,
+    inteligenciaJuridica,
   };
 }

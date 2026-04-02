@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/types";
 import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minuta";
+import type { PainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/domain/types";
+import { PainelInteligenciaJuridicaView } from "@/modules/peticoes/inteligencia-juridica/ui/painel-inteligencia-juridica";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
@@ -12,13 +14,20 @@ type EditorMinutaProps = {
   contextoJuridico: ContextoJuridicoPedido | null;
   versaoContextoAtual?: number;
   rastroGeracaoAtual?: RastroGeracaoMinuta;
+  inteligenciaJuridica?: PainelInteligenciaJuridica | null;
 };
 
 function toArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual, rastroGeracaoAtual }: EditorMinutaProps) {
+export function EditorMinuta({
+  minuta,
+  contextoJuridico,
+  versaoContextoAtual,
+  rastroGeracaoAtual,
+  inteligenciaJuridica = null,
+}: EditorMinutaProps) {
   const [conteudo, setConteudo] = useState(minuta.conteudoAtual);
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
@@ -134,6 +143,8 @@ export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual, ra
             </div>
           )}
         </Card>
+
+        <PainelInteligenciaJuridicaView inteligenciaJuridica={inteligenciaJuridica} />
 
         <Card title="Comparação entre versões" subtitle="Base inicial para evolução do diff jurídico.">
           <label className="flex flex-col gap-1 text-sm">
