@@ -16,7 +16,7 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
     notFound();
   }
 
-  const { etapas, historico } = obterPipelineDoPedido(pedido.id);
+  const { etapas, historico, snapshots, etapaAtual, contextoAtual } = await obterPipelineDoPedido(pedido.id);
 
   return (
     <div className="space-y-6">
@@ -24,7 +24,13 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
         title="Pipeline da Peça"
         description={`${pedido.id} • ${pedido.titulo}`}
       />
-      <PipelineWorkspace etapas={etapas} etapaInicial={pedido.etapaAtual} historico={historico} />
+      <PipelineWorkspace
+        etapas={etapas}
+        etapaInicial={etapaAtual}
+        historico={historico}
+        snapshots={snapshots}
+        contextoAtual={contextoAtual}
+      />
     </div>
   );
 }

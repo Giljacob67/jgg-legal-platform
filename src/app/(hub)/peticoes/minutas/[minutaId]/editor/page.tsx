@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
-import { obterMinutaPorId } from "@/modules/peticoes/application/obterMinutaPorId";
+import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { EditorMinuta } from "@/modules/peticoes/ui/editor-minuta";
 
 type EditorMinutaPageProps = {
@@ -9,7 +9,8 @@ type EditorMinutaPageProps = {
 
 export default async function EditorMinutaPage({ params }: EditorMinutaPageProps) {
   const { minutaId } = await params;
-  const minuta = obterMinutaPorId(minutaId);
+  const editorData = await obterEditorMinutaOperacional(minutaId).catch(() => null);
+  const minuta = editorData?.minuta;
 
   if (!minuta) {
     notFound();
@@ -21,7 +22,11 @@ export default async function EditorMinutaPage({ params }: EditorMinutaPageProps
         title="Editor de Minuta"
         description={`${minuta.id} • ${minuta.titulo}`}
       />
-      <EditorMinuta minuta={minuta} />
+      <EditorMinuta
+        minuta={minuta}
+        contextoJuridico={editorData?.contextoJuridico ?? null}
+        versaoContextoAtual={editorData?.versaoContextoAtual}
+      />
     </div>
   );
 }

@@ -1,12 +1,7 @@
-import { services } from "@/services/container";
-import type { EtapaPipelineInfo, HistoricoPipeline } from "@/modules/peticoes/domain/types";
+import "server-only";
 
-export function obterPipelineDoPedido(pedidoId: string): {
-  etapas: EtapaPipelineInfo[];
-  historico: HistoricoPipeline[];
-} {
-  return {
-    etapas: services.peticoesRepository.listarEtapasPipeline(),
-    historico: services.peticoesRepository.listarHistoricoPipeline(pedidoId),
-  };
+import { sincronizarPipelinePedido } from "@/modules/peticoes/application/operacional/sincronizarPipelinePedido";
+
+export async function obterPipelineDoPedido(pedidoId: string) {
+  return sincronizarPipelinePedido(pedidoId);
 }

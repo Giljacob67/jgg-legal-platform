@@ -1,16 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Minuta } from "@/modules/peticoes/domain/types";
+import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/types";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
 
 type EditorMinutaProps = {
   minuta: Minuta;
+  contextoJuridico: ContextoJuridicoPedido | null;
+  versaoContextoAtual?: number;
 };
 
-export function EditorMinuta({ minuta }: EditorMinutaProps) {
+export function EditorMinuta({ minuta, contextoJuridico, versaoContextoAtual }: EditorMinutaProps) {
   const [conteudo, setConteudo] = useState(minuta.conteudoAtual);
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
@@ -57,6 +59,48 @@ export function EditorMinuta({ minuta }: EditorMinutaProps) {
       </Card>
 
       <div className="space-y-6">
+        <Card title="Contexto jurídico estruturado" subtitle="Base consolidada por snapshots versionados do pipeline.">
+          {!contextoJuridico ? (
+            <p className="text-sm text-[var(--color-muted)]">Contexto não disponível para esta minuta.</p>
+          ) : (
+            <div className="space-y-3 text-sm text-[var(--color-ink)]">
+              <p className="text-xs text-[var(--color-muted)]">
+                Contexto v{versaoContextoAtual ?? contextoJuridico.versaoContexto} •{" "}
+                {formatarDataHora(contextoJuridico.criadoEm)}
+              </p>
+              <p>
+                <strong>Estratégia sugerida:</strong> {contextoJuridico.estrategiaSugerida}
+              </p>
+              <p>
+                <strong>Fatos relevantes:</strong> {contextoJuridico.fatosRelevantes.length}
+              </p>
+              <p>
+                <strong>Cronologia:</strong> {contextoJuridico.cronologia.length} eventos
+              </p>
+              <p>
+                <strong>Pontos controvertidos:</strong> {contextoJuridico.pontosControvertidos.length}
+              </p>
+              <p>
+                <strong>Referências documentais:</strong> {contextoJuridico.referenciasDocumentais.length}
+              </p>
+              {contextoJuridico.referenciasDocumentais.length > 0 ? (
+                <div className="rounded-xl border border-[var(--color-border)] p-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                    Referências principais
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-[var(--color-muted)]">
+                    {contextoJuridico.referenciasDocumentais.slice(0, 5).map((referencia) => (
+                      <li key={`${referencia.documentoId}-${referencia.titulo}`}>
+                        {referencia.documentoId} • {referencia.titulo}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </Card>
+
         <Card title="Comparação entre versões" subtitle="Base inicial para evolução do diff jurídico.">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-[var(--color-ink)]">Versão de referência</span>
@@ -89,6 +133,9 @@ export function EditorMinuta({ minuta }: EditorMinutaProps) {
                   </div>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
                     {versao.autor} • {formatarDataHora(versao.criadoEm)}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">
+                    Contexto de origem: v{versao.contextoVersaoOrigem ?? versaoContextoAtual ?? "n/d"}
                   </p>
                   <p className="mt-2 text-sm text-[var(--color-muted)]">{versao.resumoMudancas}</p>
                 </article>

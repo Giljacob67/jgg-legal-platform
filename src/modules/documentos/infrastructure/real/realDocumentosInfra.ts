@@ -43,6 +43,8 @@ type DocumentoJuridicoRow = {
   status_documento: StatusDocumento;
   status_processamento: StatusProcessamentoDocumental;
   resumo_juridico: string | null;
+  texto_extraido: string | null;
+  texto_normalizado: string | null;
   metadados: Record<string, unknown>;
   criado_em: string;
   atualizado_em: string;
@@ -97,6 +99,8 @@ function mapDocumento(row: DocumentoJuridicoRow): DocumentoJuridico {
     statusDocumento: row.status_documento,
     statusProcessamento: row.status_processamento,
     resumoJuridico: row.resumo_juridico ?? undefined,
+    textoExtraido: row.texto_extraido ?? undefined,
+    textoNormalizado: row.texto_normalizado ?? undefined,
     metadados: row.metadados ?? {},
     criadoEm: row.criado_em,
     atualizadoEm: row.atualizado_em,
@@ -279,6 +283,35 @@ class RealDocumentoJuridicoRepository implements DocumentoJuridicoRepository {
     `;
 
     return row ? mapDocumento(row) : null;
+  }
+
+  async atualizarConteudoProcessado(
+    id: string,
+    input: {
+      textoExtraido?: string;
+      textoNormalizado?: string;
+      resumoJuridico?: string;
+      statusDocumento?: StatusDocumento;
+    },
+  ): Promise<DocumentoJuridico> {
+    const sql = getSqlClient();
+
+    const [row] = await sql<DocumentoJuridicoRow[]>`
+      UPDATE documento_juridico
+      SET texto_extraido = COALESCE(${input.textoExtraido ?? null}, texto_extraido),
+          texto_normalizado = COALESCE(${input.textoNormalizado ?? null}, texto_normalizado),
+          resumo_juridico = COALESCE(${input.resumoJuridico ?? null}, resumo_juridico),
+          status_documento = COALESCE(${input.statusDocumento ?? null}, status_documento),
+          atualizado_em = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (!row) {
+      throw new Error("Documento não encontrado para atualização de conteúdo processado.");
+    }
+
+    return mapDocumento(row);
   }
 
   async atualizarStatusProcessamento(

@@ -126,6 +126,7 @@ export class MockPeticoesRepository implements PeticoesRepository {
           criadoEm: "2026-03-31T09:10:00-03:00",
           autor: "Mariana Couto",
           resumoMudancas: "Estrutura inicial da narrativa fática.",
+          contextoVersaoOrigem: 1,
           conteudo:
             "I. Dos fatos\n\nA parte autora celebrou contrato de fornecimento em 12/05/2024...",
         },
@@ -135,6 +136,7 @@ export class MockPeticoesRepository implements PeticoesRepository {
           criadoEm: "2026-04-01T16:45:00-03:00",
           autor: "Mariana Couto",
           resumoMudancas: "Inclusão de pedidos liminares e fundamento no CPC.",
+          contextoVersaoOrigem: 2,
           conteudo:
             "I. Dos fatos\n\nA parte autora celebrou contrato de fornecimento em 12/05/2024, com cláusula de entrega sob multa diária...\n\nII. Do direito\n\nNos termos dos artigos 300 e 497 do CPC...",
         },

@@ -79,6 +79,8 @@ function criarSeedStore(): MockDocumentStore {
       statusDocumento: "lido",
       statusProcessamento: "processado",
       resumoJuridico: "Instrumento com cláusulas de penalidade e prazo de entrega.",
+      textoExtraido: undefined,
+      textoNormalizado: undefined,
       metadados: {},
       criadoEm: "2026-03-29T11:20:00-03:00",
       atualizadoEm: "2026-03-29T11:20:00-03:00",
@@ -91,6 +93,8 @@ function criarSeedStore(): MockDocumentStore {
       statusDocumento: "extraído",
       statusProcessamento: "processado",
       resumoJuridico: "Comprovante de recebimento e prazo para resposta.",
+      textoExtraido: undefined,
+      textoNormalizado: undefined,
       metadados: {},
       criadoEm: "2026-03-30T09:50:00-03:00",
       atualizadoEm: "2026-03-30T09:50:00-03:00",
@@ -103,6 +107,8 @@ function criarSeedStore(): MockDocumentStore {
       statusDocumento: "pendente de leitura",
       statusProcessamento: "nao_iniciado",
       resumoJuridico: "Versão preliminar para alinhamento de estratégia.",
+      textoExtraido: undefined,
+      textoNormalizado: undefined,
       metadados: {},
       criadoEm: "2026-04-01T15:05:00-03:00",
       atualizadoEm: "2026-04-01T15:05:00-03:00",
@@ -204,6 +210,8 @@ class MockDocumentoJuridicoRepository implements DocumentoJuridicoRepository {
       statusDocumento: input.statusDocumento,
       statusProcessamento: "nao_iniciado",
       resumoJuridico: undefined,
+      textoExtraido: undefined,
+      textoNormalizado: undefined,
       metadados: input.metadados ?? {},
       criadoEm: agora,
       atualizadoEm: agora,
@@ -248,6 +256,43 @@ class MockDocumentoJuridicoRepository implements DocumentoJuridicoRepository {
   async obterPorId(id: string): Promise<DocumentoJuridico | null> {
     const store = getStore();
     return store.documentos.find((item) => item.id === id) ?? null;
+  }
+
+  async atualizarConteudoProcessado(
+    id: string,
+    input: {
+      textoExtraido?: string;
+      textoNormalizado?: string;
+      resumoJuridico?: string;
+      statusDocumento?: StatusDocumento;
+    },
+  ): Promise<DocumentoJuridico> {
+    const store = getStore();
+    const documento = store.documentos.find((item) => item.id === id);
+
+    if (!documento) {
+      throw new Error("Documento não encontrado para atualização de conteúdo processado.");
+    }
+
+    if (input.textoExtraido) {
+      documento.textoExtraido = input.textoExtraido;
+    }
+
+    if (input.textoNormalizado) {
+      documento.textoNormalizado = input.textoNormalizado;
+    }
+
+    if (input.resumoJuridico) {
+      documento.resumoJuridico = input.resumoJuridico;
+    }
+
+    if (input.statusDocumento) {
+      documento.statusDocumento = input.statusDocumento;
+    }
+
+    documento.atualizadoEm = new Date().toISOString();
+
+    return documento;
   }
 
   async atualizarStatusProcessamento(

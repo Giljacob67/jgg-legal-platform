@@ -15,6 +15,39 @@ function obterExtensao(filename: string): string | undefined {
   return filename.split(".").pop()?.toLowerCase();
 }
 
+function normalizarTexto(texto: string): string {
+  return texto
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function extrairTextoQuandoPossivel(input: { contentType: string; filename: string; bytes: Buffer }): {
+  textoExtraido?: string;
+  textoNormalizado?: string;
+} {
+  const extensao = obterExtensao(input.filename);
+  const podeExtrair =
+    input.contentType === "text/plain" ||
+    extensao === "txt" ||
+    (input.contentType === "application/octet-stream" && extensao === "txt");
+
+  if (!podeExtrair) {
+    return {};
+  }
+
+  const textoExtraido = input.bytes.toString("utf-8").trim();
+  if (!textoExtraido) {
+    return {};
+  }
+
+  return {
+    textoExtraido,
+    textoNormalizado: normalizarTexto(textoExtraido),
+  };
+}
+
 export async function uploadDocumento(payload: UploadDocumentoPayload): Promise<DocumentoComArquivoEVinculos> {
   validarArquivoPermitido(payload.filename, payload.contentType);
   validarTipoDocumento(payload.tipoDocumento);
@@ -46,7 +79,7 @@ export async function uploadDocumento(payload: UploadDocumentoPayload): Promise<
     checksumAlgoritmo: "sha256",
   });
 
-  const documento = await infra.documentoJuridicoRepository.criar({
+  let documento = await infra.documentoJuridicoRepository.criar({
     arquivoFisicoId: arquivo.id,
     titulo: payload.titulo,
     tipoDocumento: payload.tipoDocumento,
@@ -56,6 +89,20 @@ export async function uploadDocumento(payload: UploadDocumentoPayload): Promise<
       filename: payload.filename,
     },
   });
+
+  const conteudoProcessado = extrairTextoQuandoPossivel({
+    contentType: payload.contentType,
+    filename: payload.filename,
+    bytes: payload.bytes,
+  });
+
+  if (conteudoProcessado.textoExtraido || conteudoProcessado.textoNormalizado) {
+    documento = await infra.documentoJuridicoRepository.atualizarConteudoProcessado(documento.id, {
+      textoExtraido: conteudoProcessado.textoExtraido,
+      textoNormalizado: conteudoProcessado.textoNormalizado,
+      statusDocumento: "lido",
+    });
+  }
 
   const vinculos = await Promise.all(
     payload.vinculos.map((vinculo) =>

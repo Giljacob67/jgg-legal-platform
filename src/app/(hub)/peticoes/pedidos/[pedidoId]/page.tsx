@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
+import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { listarDocumentosPorPedido } from "@/modules/documentos/application/listarDocumentosPorPedido";
 import { listarDocumentosPorCaso } from "@/modules/documentos/application/listarDocumentosPorCaso";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
@@ -23,6 +24,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
   }
 
   const minuta = obterMinutaPorPedidoId(pedido.id);
+  const pipelineOperacional = await obterPipelineDoPedido(pedido.id).catch(() => null);
   const documentosDoPedido = await listarDocumentosPorPedido(pedido.id);
   const documentos =
     documentosDoPedido.length > 0 ? documentosDoPedido : await listarDocumentosPorCaso(pedido.casoId);
@@ -45,7 +47,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
               <strong>Prioridade:</strong> {pedido.prioridade}
             </p>
             <p>
-              <strong>Etapa atual:</strong> {pedido.etapaAtual.replaceAll("_", " ")}
+              <strong>Etapa atual:</strong> {(pipelineOperacional?.etapaAtual ?? pedido.etapaAtual).replaceAll("_", " ")}
             </p>
             <p>
               <strong>Responsável:</strong> {pedido.responsavel}

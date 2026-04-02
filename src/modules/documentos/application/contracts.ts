@@ -42,6 +42,15 @@ export interface DocumentoJuridicoRepository {
   }): Promise<DocumentoJuridico>;
   listar(filtro?: { casoId?: string; pedidoId?: string }): Promise<DocumentoJuridico[]>;
   obterPorId(id: string): Promise<DocumentoJuridico | null>;
+  atualizarConteudoProcessado(
+    id: string,
+    input: {
+      textoExtraido?: string;
+      textoNormalizado?: string;
+      resumoJuridico?: string;
+      statusDocumento?: StatusDocumento;
+    },
+  ): Promise<DocumentoJuridico>;
   atualizarStatusProcessamento(
     id: string,
     status: StatusProcessamentoDocumental,

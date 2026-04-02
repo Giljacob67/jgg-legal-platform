@@ -1,7 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { EtapaPipeline, EtapaPipelineInfo, HistoricoPipeline } from "@/modules/peticoes/domain/types";
+import { useMemo } from "react";
+import type {
+  ContextoJuridicoPedido,
+  EtapaPipeline,
+  EtapaPipelineInfo,
+  HistoricoPipeline,
+  SnapshotPipelineEtapa,
+} from "@/modules/peticoes/domain/types";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
@@ -10,81 +16,84 @@ type PipelineWorkspaceProps = {
   etapas: EtapaPipelineInfo[];
   etapaInicial: EtapaPipeline;
   historico: HistoricoPipeline[];
+  snapshots: SnapshotPipelineEtapa[];
+  contextoAtual: ContextoJuridicoPedido | null;
 };
 
 function toStatus(
   etapa: EtapaPipelineInfo,
+  snapshot: SnapshotPipelineEtapa | undefined,
   etapaAtual: EtapaPipeline,
-  priorizadas: EtapaPipelineInfo[],
 ): { label: string; variant: "sucesso" | "alerta" | "neutro" | "implantacao" } {
+  if (snapshot) {
+    if (snapshot.status === "concluido") {
+      return { label: "concluída", variant: "sucesso" };
+    }
+
+    if (snapshot.status === "erro") {
+      return { label: "erro", variant: "alerta" };
+    }
+
+    if (snapshot.status === "em_andamento") {
+      return { label: "em andamento", variant: "alerta" };
+    }
+
+    if (snapshot.status === "mock_controlado") {
+      return { label: "mockado", variant: "implantacao" };
+    }
+  }
+
+  if (etapa.id === etapaAtual) {
+    return { label: "em andamento", variant: "alerta" };
+  }
+
   if (!etapa.priorizadaMvp) {
     return { label: "mockado", variant: "implantacao" };
-  }
-
-  const indiceAtual = priorizadas.findIndex((item) => item.id === etapaAtual);
-  const indiceEtapa = priorizadas.findIndex((item) => item.id === etapa.id);
-
-  if (indiceEtapa < indiceAtual) {
-    return { label: "concluída", variant: "sucesso" };
-  }
-
-  if (indiceEtapa === indiceAtual) {
-    return { label: "em andamento", variant: "alerta" };
   }
 
   return { label: "pendente", variant: "neutro" };
 }
 
-export function PipelineWorkspace({ etapas, etapaInicial, historico }: PipelineWorkspaceProps) {
-  const etapasPriorizadas = useMemo(() => etapas.filter((etapa) => etapa.priorizadaMvp), [etapas]);
-
-  const etapaInicialValida = etapasPriorizadas.some((etapa) => etapa.id === etapaInicial)
-    ? etapaInicial
-    : etapasPriorizadas[0]?.id;
-
-  const [etapaAtual, setEtapaAtual] = useState<EtapaPipeline | undefined>(etapaInicialValida);
-
-  const indiceAtual = etapasPriorizadas.findIndex((etapa) => etapa.id === etapaAtual);
-
-  function avancarEtapa() {
-    if (indiceAtual < 0 || indiceAtual >= etapasPriorizadas.length - 1) {
-      return;
+export function PipelineWorkspace({
+  etapas,
+  etapaInicial,
+  historico,
+  snapshots,
+  contextoAtual,
+}: PipelineWorkspaceProps) {
+  const snapshotsMap = useMemo(() => {
+    const map = new Map<EtapaPipeline, SnapshotPipelineEtapa>();
+    for (const snapshot of snapshots) {
+      if (!map.has(snapshot.etapa)) {
+        map.set(snapshot.etapa, snapshot);
+      }
     }
 
-    setEtapaAtual(etapasPriorizadas[indiceAtual + 1].id);
-  }
-
-  function voltarEtapa() {
-    if (indiceAtual <= 0) {
-      return;
-    }
-
-    setEtapaAtual(etapasPriorizadas[indiceAtual - 1].id);
-  }
+    return map;
+  }, [snapshots]);
 
   return (
     <div className="space-y-6">
       <Card title="Pipeline de produção" subtitle="10 etapas visuais, com operação funcional priorizada em 6 etapas do MVP.">
         <div className="mb-4 flex flex-wrap gap-2">
           <button
-            onClick={voltarEtapa}
-            disabled={indiceAtual <= 0}
+            disabled
             className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Voltar etapa funcional
+            Etapas sincronizadas por snapshot
           </button>
           <button
-            onClick={avancarEtapa}
-            disabled={indiceAtual < 0 || indiceAtual >= etapasPriorizadas.length - 1}
+            disabled
             className="rounded-xl bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Avançar etapa funcional
+            Etapa atual: {etapaInicial.replaceAll("_", " ")}
           </button>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {etapas.map((etapa, index) => {
-            const status = etapaAtual ? toStatus(etapa, etapaAtual, etapasPriorizadas) : { label: "pendente", variant: "neutro" as const };
+            const snapshot = snapshotsMap.get(etapa.id);
+            const status = toStatus(etapa, snapshot, etapaInicial);
             return (
               <article key={etapa.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -98,6 +107,11 @@ export function PipelineWorkspace({ etapas, etapaInicial, historico }: PipelineW
                     ? "Etapa funcional nesta versão do MVP."
                     : "Etapa visível e tipada para evolução posterior."}
                 </p>
+                {snapshot ? (
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">
+                    Versão {snapshot.versao} • tentativa {snapshot.tentativa}
+                  </p>
+                ) : null}
               </article>
             );
           })}
@@ -117,6 +131,30 @@ export function PipelineWorkspace({ etapas, etapaInicial, historico }: PipelineW
             </article>
           ))}
         </div>
+      </Card>
+
+      <Card title="Contexto jurídico consolidado" subtitle="Consolidação versionada de fatos, cronologia e estratégia.">
+        {!contextoAtual ? (
+          <p className="text-sm text-[var(--color-muted)]">Contexto ainda não consolidado para este pedido.</p>
+        ) : (
+          <div className="space-y-3 text-sm text-[var(--color-ink)]">
+            <p className="text-xs text-[var(--color-muted)]">
+              Versão {contextoAtual.versaoContexto} • {formatarDataHora(contextoAtual.criadoEm)}
+            </p>
+            <p>
+              <strong>Estratégia sugerida:</strong> {contextoAtual.estrategiaSugerida}
+            </p>
+            <p>
+              <strong>Fatos relevantes:</strong> {contextoAtual.fatosRelevantes.length}
+            </p>
+            <p>
+              <strong>Pontos controvertidos:</strong> {contextoAtual.pontosControvertidos.length}
+            </p>
+            <p>
+              <strong>Referências documentais:</strong> {contextoAtual.referenciasDocumentais.length}
+            </p>
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -43,6 +43,43 @@ export interface HistoricoPipeline {
   responsavel: string;
 }
 
+export type StatusSnapshotPipeline = "pendente" | "em_andamento" | "concluido" | "erro" | "mock_controlado";
+
+export interface SnapshotPipelineEtapa {
+  id: string;
+  pedidoId: string;
+  etapa: EtapaPipeline;
+  versao: number;
+  entradaRef: Record<string, unknown>;
+  saidaEstruturada: Record<string, unknown>;
+  status: StatusSnapshotPipeline;
+  executadoEm: string;
+  codigoErro?: string;
+  mensagemErro?: string;
+  tentativa: number;
+}
+
+export interface ReferenciaDocumentalContexto {
+  documentoId: string;
+  titulo: string;
+  tipoDocumento: string;
+  trecho?: string;
+}
+
+export interface ContextoJuridicoPedido {
+  id: string;
+  pedidoId: string;
+  versaoContexto: number;
+  fatosRelevantes: string[];
+  cronologia: Array<{ data: string; descricao: string; documentoId?: string }>;
+  pontosControvertidos: string[];
+  documentosChave: Array<{ documentoId: string; titulo: string; tipoDocumento: string }>;
+  referenciasDocumentais: ReferenciaDocumentalContexto[];
+  estrategiaSugerida: string;
+  fontesSnapshot: Array<{ etapa: EtapaPipeline; versao: number }>;
+  criadoEm: string;
+}
+
 export interface VersaoMinuta {
   id: string;
   numero: number;
@@ -50,6 +87,7 @@ export interface VersaoMinuta {
   autor: string;
   resumoMudancas: string;
   conteudo: string;
+  contextoVersaoOrigem?: number;
 }
 
 export interface Minuta {

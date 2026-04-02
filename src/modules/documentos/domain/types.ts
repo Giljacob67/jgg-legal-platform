@@ -45,6 +45,8 @@ export interface DocumentoJuridico {
   statusDocumento: StatusDocumento;
   statusProcessamento: StatusProcessamentoDocumental;
   resumoJuridico?: string;
+  textoExtraido?: string;
+  textoNormalizado?: string;
   metadados: Record<string, unknown>;
   criadoEm: string;
   atualizadoEm: string;
