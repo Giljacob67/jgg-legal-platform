@@ -9,6 +9,7 @@ import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipel
 import { listarDocumentosPorPedido } from "@/modules/documentos/application/listarDocumentosPorPedido";
 import { listarDocumentosPorCaso } from "@/modules/documentos/application/listarDocumentosPorCaso";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
+import { getDataMode } from "@/lib/data-mode";
 import { formatarData } from "@/lib/utils";
 
 type PedidoDetalhePageProps = {
@@ -16,6 +17,7 @@ type PedidoDetalhePageProps = {
 };
 
 export default async function PedidoDetalhePage({ params }: PedidoDetalhePageProps) {
+  const dataMode = getDataMode();
   const { pedidoId } = await params;
   const pedido = obterPedidoDePeca(pedidoId);
 
@@ -86,6 +88,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
           { tipoEntidade: "pedido_peca", entidadeId: pedido.id, papel: "apoio" },
         ]}
         mostrarSeletores={false}
+        modoUpload={dataMode === "real" ? "cliente_blob" : "api"}
       />
 
       <Card title="Documentos utilizados">

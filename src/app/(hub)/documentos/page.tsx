@@ -8,9 +8,11 @@ import type { DocumentoListItem } from "@/modules/documentos/domain/types";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
+import { getDataMode } from "@/lib/data-mode";
 import { formatarDataHora } from "@/lib/utils";
 
 export default async function DocumentosPage() {
+  const dataMode = getDataMode();
   const [documentos, casos, pedidos] = await Promise.all([
     listarDocumentos(),
     Promise.resolve(listarCasos()),
@@ -34,7 +36,11 @@ export default async function DocumentosPage() {
         title="Documentos"
         description="Upload, leitura e rastreio documental para suportar a produção das peças."
       />
-      <DocumentoUploadPanel casos={opcoesCasos} pedidos={opcoesPedidos} />
+      <DocumentoUploadPanel
+        casos={opcoesCasos}
+        pedidos={opcoesPedidos}
+        modoUpload={dataMode === "real" ? "cliente_blob" : "api"}
+      />
 
       {documentos.length === 0 ? (
         <EmptyState title="Sem documentos" message="Faça upload de documentos para iniciar a triagem." />

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { upload as uploadBlobClient } from "@vercel/blob/client";
 import { Card } from "@/components/ui/card";
 import type { TipoDocumento } from "@/modules/documentos/domain/types";
 
@@ -29,6 +30,7 @@ type DocumentoUploadPanelProps = {
   pedidos?: PedidoOption[];
   fixedVinculos?: VinculoInput[];
   mostrarSeletores?: boolean;
+  modoUpload?: "api" | "cliente_blob";
 };
 
 const tiposDocumento: TipoDocumento[] = ["Contrato", "Petição", "Comprovante", "Procuração", "Parecer"];
@@ -55,6 +57,7 @@ export function DocumentoUploadPanel({
   pedidos = [],
   fixedVinculos = [],
   mostrarSeletores = true,
+  modoUpload = "api",
 }: DocumentoUploadPanelProps) {
   const router = useRouter();
 
@@ -83,7 +86,7 @@ export function DocumentoUploadPanel({
       return;
     }
 
-    if (arquivo.size > LIMITE_UPLOAD_BYTES) {
+    if (modoUpload === "api" && arquivo.size > LIMITE_UPLOAD_BYTES) {
       setErro("Arquivo excede o limite de 4 MB para upload nesta versão.");
       return;
     }
@@ -115,37 +118,56 @@ export function DocumentoUploadPanel({
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.set("file", arquivo);
-      formData.set("titulo", tituloDocumento);
-      formData.set("tipoDocumento", tipoDocumento);
-      formData.set("vinculos", JSON.stringify(vinculos));
+      if (modoUpload === "cliente_blob") {
+        const pathname = `jgg/${Date.now()}-${arquivo.name}`;
+        const blob = await uploadBlobClient(pathname, arquivo, {
+          access: "private",
+          handleUploadUrl: "/api/documentos/client-upload",
+          clientPayload: JSON.stringify({
+            filename: arquivo.name,
+            sizeBytes: arquivo.size,
+            titulo: tituloDocumento.trim(),
+            tipoDocumento,
+            vinculos,
+          }),
+          multipart: arquivo.size > 5 * 1024 * 1024,
+        });
 
-      const response = await fetch("/api/documentos/upload", {
-        method: "POST",
-        body: formData,
-      });
+        setMensagem(`Documento enviado com sucesso (${blob.pathname}).`);
+      } else {
+        const formData = new FormData();
+        formData.set("file", arquivo);
+        formData.set("titulo", tituloDocumento);
+        formData.set("tipoDocumento", tipoDocumento);
+        formData.set("vinculos", JSON.stringify(vinculos));
 
-      const responseText = await response.text();
-      let payload: { error?: string; documentoId?: string } = {};
+        const response = await fetch("/api/documentos/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (responseText) {
-        try {
-          payload = JSON.parse(responseText) as { error?: string; documentoId?: string };
-        } catch {
-          payload = { error: responseText };
+        const responseText = await response.text();
+        let payload: { error?: string; documentoId?: string } = {};
+
+        if (responseText) {
+          try {
+            payload = JSON.parse(responseText) as { error?: string; documentoId?: string };
+          } catch {
+            payload = { error: responseText };
+          }
         }
+
+        if (!response.ok) {
+          if (response.status === 413) {
+            throw new Error("Arquivo muito grande para o upload atual. Reduza o arquivo e tente novamente.");
+          }
+
+          throw new Error(payload.error ?? "Não foi possível enviar o documento.");
+        }
+
+        setMensagem(`Documento ${payload.documentoId ?? ""} enviado com sucesso.`);
       }
 
-      if (!response.ok) {
-        if (response.status === 413) {
-          throw new Error("Arquivo muito grande para o upload atual. Reduza o arquivo e tente novamente.");
-        }
-
-        throw new Error(payload.error ?? "Não foi possível enviar o documento.");
-      }
-
-      setMensagem(`Documento ${payload.documentoId ?? ""} enviado com sucesso.`);
       setTituloDocumento("");
       setPedidoSelecionado("");
       setArquivo(null);
@@ -236,7 +258,11 @@ export function DocumentoUploadPanel({
             className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2"
             required
           />
-          <span className="text-xs text-[var(--color-muted)]">Limite atual de upload: 4 MB por arquivo.</span>
+          <span className="text-xs text-[var(--color-muted)]">
+            {modoUpload === "api"
+              ? "Limite atual de upload via API: 4 MB por arquivo."
+              : "Upload direto para Blob privado (suporta arquivos maiores)."}
+          </span>
         </label>
 
         <button
