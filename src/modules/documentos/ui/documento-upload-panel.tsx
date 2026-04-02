@@ -32,6 +32,7 @@ type DocumentoUploadPanelProps = {
 };
 
 const tiposDocumento: TipoDocumento[] = ["Contrato", "Petição", "Comprovante", "Procuração", "Parecer"];
+const LIMITE_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 function deduplicarVinculos(vinculos: VinculoInput[]): VinculoInput[] {
   const mapa = new Map<string, VinculoInput>();
@@ -82,6 +83,11 @@ export function DocumentoUploadPanel({
       return;
     }
 
+    if (arquivo.size > LIMITE_UPLOAD_BYTES) {
+      setErro("Arquivo excede o limite de 4 MB para upload nesta versão.");
+      return;
+    }
+
     if (!tituloDocumento.trim()) {
       setErro("Informe um título para o documento.");
       return;
@@ -120,9 +126,22 @@ export function DocumentoUploadPanel({
         body: formData,
       });
 
-      const payload = (await response.json()) as { error?: string; documentoId?: string };
+      const responseText = await response.text();
+      let payload: { error?: string; documentoId?: string } = {};
+
+      if (responseText) {
+        try {
+          payload = JSON.parse(responseText) as { error?: string; documentoId?: string };
+        } catch {
+          payload = { error: responseText };
+        }
+      }
 
       if (!response.ok) {
+        if (response.status === 413) {
+          throw new Error("Arquivo muito grande para o upload atual. Reduza o arquivo e tente novamente.");
+        }
+
         throw new Error(payload.error ?? "Não foi possível enviar o documento.");
       }
 
@@ -217,6 +236,7 @@ export function DocumentoUploadPanel({
             className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2"
             required
           />
+          <span className="text-xs text-[var(--color-muted)]">Limite atual de upload: 4 MB por arquivo.</span>
         </label>
 
         <button
