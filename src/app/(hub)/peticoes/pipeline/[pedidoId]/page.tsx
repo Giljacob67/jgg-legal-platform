@@ -25,6 +25,7 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
         description={`${pedido.id} • ${pedido.titulo}`}
       />
       <PipelineWorkspace
+        pedidoId={pedido.id}
         etapas={etapas}
         etapaInicial={etapaAtual}
         historico={historico}
