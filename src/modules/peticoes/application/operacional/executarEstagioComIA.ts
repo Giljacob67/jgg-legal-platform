@@ -12,18 +12,13 @@ export type EstagioExecutavel =
   | "estrategia"
   | "minuta";
 
-const MAPA_ESTAGIO_PIPELINE: Record<EstagioExecutavel, EtapaPipeline> = {
+export const MAPA_ESTAGIO_PIPELINE: Record<EstagioExecutavel, EtapaPipeline> = {
   triagem: "classificacao",
   "extracao-fatos": "extracao_de_fatos",
   "analise-adversa": "analise_adversa",
   estrategia: "estrategia_juridica",
   minuta: "redacao",
 };
-
-export interface ResultadoEstagioIA {
-  stream: ReadableStream<string>;
-  onComplete: (texto: string) => Promise<void>;
-}
 
 export async function executarEstagioComIA(
   pedidoId: string,
@@ -32,7 +27,7 @@ export async function executarEstagioComIA(
     system: string;
     prompt: string;
   },
-): Promise<ResultadoEstagioIA> {
+): Promise<ReadableStream<string>> {
   const provider = getAIProvider();
   if (!provider) {
     throw new Error("AI não configurada. Defina OPENROUTER_API_KEY no ambiente.");
@@ -86,19 +81,22 @@ export async function executarEstagioComIA(
         await onComplete(textoCompleto);
         controller.close();
       } catch (err) {
-        await infra.pipelineSnapshotRepository.salvarNovaVersao({
-          pedidoId,
-          etapa: etapaPipeline,
-          entradaRef: { origem: "ia_streaming", estagio },
-          saidaEstruturada: {},
-          status: "erro",
-          mensagemErro: err instanceof Error ? err.message : "Erro desconhecido",
-          tentativa: 1,
-        });
-        controller.error(err);
+        try {
+          await infra.pipelineSnapshotRepository.salvarNovaVersao({
+            pedidoId,
+            etapa: etapaPipeline,
+            entradaRef: { origem: "ia_streaming", estagio },
+            saidaEstruturada: {},
+            status: "erro",
+            mensagemErro: err instanceof Error ? err.message : "Erro desconhecido",
+            tentativa: 1,
+          });
+        } finally {
+          controller.error(err);
+        }
       }
     },
   });
 
-  return { stream, onComplete };
+  return stream;
 }
