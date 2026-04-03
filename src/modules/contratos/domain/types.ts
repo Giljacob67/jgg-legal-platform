@@ -14,6 +14,11 @@ export type TipoContrato =
   | "honorarios_advocaticios"
   | "nda_confidencialidade"
   | "society_constituicao"
+  | "empreitada"
+  | "representacao_comercial"
+  | "joint_venture"
+  | "acordo_acionistas"
+  | "licenciamento_software"
   | "outro";
 
 export const LABEL_TIPO_CONTRATO: Record<TipoContrato, string> = {
@@ -28,6 +33,11 @@ export const LABEL_TIPO_CONTRATO: Record<TipoContrato, string> = {
   honorarios_advocaticios: "Contrato de Honorários Advocatícios",
   nda_confidencialidade: "NDA / Confidencialidade",
   society_constituicao: "Constituição de Sociedade",
+  empreitada: "Empreitada",
+  representacao_comercial: "Representação Comercial",
+  joint_venture: "Joint Venture",
+  acordo_acionistas: "Acordo de Acionistas",
+  licenciamento_software: "Licenciamento de Software",
   outro: "Outro",
 };
 

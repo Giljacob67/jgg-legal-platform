@@ -104,6 +104,50 @@ export const CLAUSULAS_PADRAO: Record<TipoContrato, Omit<Clausula, "id">[]> = {
     { numero: 6, titulo: "Do Foro", tipo: "essencial", conteudo: "Fica eleito o foro da Comarca de [CIDADE/ESTADO] para dirimir conflitos societários." },
   ],
 
+  empreitada: [
+    { numero: 1, titulo: "Do Objeto e Especificações", tipo: "essencial", conteudo: "O presente contrato tem por objeto a execução de [DESCREVER OBRA/SERVIÇO], conforme memorial descritivo, projetos e especificações técnicas constantes do Anexo I." },
+    { numero: 2, titulo: "Do Preço e Modalidade", tipo: "essencial", conteudo: "O preço total da empreitada é de R$ [VALOR], na modalidade [POR PREÇO GLOBAL/POR MEDIÇÃO], com pagamento conforme cronograma físico-financeiro do Anexo II." },
+    { numero: 3, titulo: "Do Prazo de Execução", tipo: "essencial", conteudo: "O prazo de execução é de [PRAZO] dias corridos a partir da emissão da Ordem de Serviço, admitida prorrogação por caso fortuito, força maior ou alteração de escopo formalizada." },
+    { numero: 4, titulo: "Da Responsabilidade Técnica", tipo: "essencial", conteudo: "A EMPREITEIRA responde pela solidez e segurança da obra por 5 (cinco) anos, nos termos do art. 618 do Código Civil, incluídos os vícios ocultos." },
+    { numero: 5, titulo: "Das Alterações de Escopo", tipo: "negociavel", conteudo: "Quaisquer alterações de escopo deverão ser formalizadas por aditivo contratual, com reajuste de prazo e preço proporcionais." },
+    { numero: 6, titulo: "Do Foro", tipo: "essencial", conteudo: "Fica eleito o foro da Comarca de [CIDADE/ESTADO] para dirimir quaisquer controvérsias." },
+  ],
+
+  representacao_comercial: [
+    { numero: 1, titulo: "Do Objeto da Representação", tipo: "essencial", conteudo: "O REPRESENTANTE promove, em caráter não exclusivo/exclusivo, por conta e risco do REPRESENTADO, a colocação de pedidos dos produtos/serviços descritos no Anexo I, na zona geográfica do Anexo II." },
+    { numero: 2, titulo: "Da Comissão", tipo: "essencial", conteudo: "O REPRESENTANTE fará jus à comissão de [X]% sobre o valor líquido de cada pedido aceito e adimplido, creditada até o [X]º dia útil do mês seguinte ao recebimento." },
+    { numero: 3, titulo: "Das Obrigações do Representante", tipo: "essencial", conteudo: "O REPRESENTANTE obriga-se a: (i) dedicar esforços à promoção dos produtos; (ii) prestar contas mensalmente; (iii) não representar produtos concorrentes na mesma zona." },
+    { numero: 4, titulo: "Da Indenização Rescisória", tipo: "essencial", conteudo: "A rescisão imotivada pelo REPRESENTADO assegura ao REPRESENTANTE indenização de 1/12 das comissões auferidas durante toda a vigência, nos termos do art. 27, j, da Lei 4.886/65." },
+    { numero: 5, titulo: "Do Foro", tipo: "essencial", conteudo: "Fica eleito o foro da Comarca de [CIDADE/ESTADO]." },
+  ],
+
+  joint_venture: [
+    { numero: 1, titulo: "Do Objeto e Propósito", tipo: "essencial", conteudo: "As partes constituem entre si uma associação (joint venture) sem personalidade jurídica, com o propósito específico de [DESCREVER PROJETO/NEGÓCIO], pelo prazo previsto neste instrumento." },
+    { numero: 2, titulo: "Da Participação e Aportes", tipo: "essencial", conteudo: "Cada parte aportará os recursos descritos no Anexo I, sendo a participação de [X]% para [PARTE A] e [Y]% para [PARTE B] nos resultados e responsabilidades." },
+    { numero: 3, titulo: "Da Gestão e Decisões", tipo: "essencial", conteudo: "As decisões estratégicas exigem aprovação unânime ou por quórum de [X]%. A gestão operacional caberá a [GESTOR DESIGNADO], com poderes definidos em Anexo." },
+    { numero: 4, titulo: "Da Distribuição de Resultados", tipo: "essencial", conteudo: "Os lucros e perdas serão distribuídos na proporção das participações, após dedução de custos operacionais e reservas acordadas." },
+    { numero: 5, titulo: "Da Dissolução", tipo: "essencial", conteudo: "A joint venture se dissolve pelo término do projeto, pelo mútuo acordo ou por resolução judicial, com apuração e liquidação dos ativos e passivos comuns." },
+    { numero: 6, titulo: "Do Foro", tipo: "essencial", conteudo: "Fica eleito o foro da Comarca de [CIDADE/ESTADO]." },
+  ],
+
+  acordo_acionistas: [
+    { numero: 1, titulo: "Do Objeto", tipo: "essencial", conteudo: "O presente Acordo de Acionistas disciplina o exercício do direito de voto e o direito de preferência na alienação de ações da [NOME DA SOCIEDADE], nos termos do art. 118 da Lei 6.404/76." },
+    { numero: 2, titulo: "Do Tag Along e Drag Along", tipo: "essencial", conteudo: "Em caso de alienação de controle, os demais signatários têm direito de vender suas ações nas mesmas condições (tag along). O controlador poderá exigir venda conjunta (drag along) mediante notificação prévia." },
+    { numero: 3, titulo: "Do Direito de Primeira Oferta (ROFR)", tipo: "negociavel", conteudo: "Antes de alienar ações a terceiros, o acionista alienante deverá ofertá-las aos demais signatários pelo mesmo preço e condições, que terão [X] dias para exercer o direito." },
+    { numero: 4, titulo: "Do Voto em Bloco", tipo: "negociavel", conteudo: "Os signatários obrigam-se a votar em bloco nas deliberações sobre matérias elencadas no Anexo I, conforme orientação prévia acordada." },
+    { numero: 5, titulo: "Do Prazo", tipo: "essencial", conteudo: "O presente acordo vigorará por [PRAZO] anos, renovando-se automaticamente por iguais períodos salvo denúncia com antecedência de [X] meses." },
+    { numero: 6, titulo: "Do Foro", tipo: "essencial", conteudo: "Fica eleito o foro da Comarca de [CIDADE/ESTADO]." },
+  ],
+
+  licenciamento_software: [
+    { numero: 1, titulo: "Do Objeto da Licença", tipo: "essencial", conteudo: "O LICENCIANTE concede ao LICENCIADO uma licença [EXCLUSIVA/NÃO EXCLUSIVA] e intransferível para uso do software [NOME DO SOFTWARE], versão [X], conforme documentação técnica do Anexo I." },
+    { numero: 2, titulo: "Do Escopo e Restrições de Uso", tipo: "essencial", conteudo: "O LICENCIADO poderá instalar o software em [Nº] dispositivos/usuários. É expressamente vedada a cópia, sublicença, engenharia reversa ou qualquer forma de redistribuição." },
+    { numero: 3, titulo: "Do Preço e Forma de Pagamento", tipo: "essencial", conteudo: "Pela licença, o LICENCIADO pagará [VALOR ÚNICO/ASSINATURA MENSAL/ANUAL] de R$ [VALOR], conforme cronograma do Anexo II." },
+    { numero: 4, titulo: "Do Suporte e Atualizações", tipo: "negociavel", conteudo: "O LICENCIANTE prestará suporte técnico por [CANAIS/PRAZO] e disponibilizará atualizações de segurança sem custo adicional durante a vigência." },
+    { numero: 5, titulo: "Da Propriedade Intelectual", tipo: "essencial", conteudo: "O software é de propriedade exclusiva do LICENCIANTE, protegido pela Lei 9.609/98 (Lei do Software). A licença não implica cessão de qualquer direito de propriedade intelectual." },
+    { numero: 6, titulo: "Do Foro", tipo: "essencial", conteudo: "Fica eleito o foro da Comarca de [CIDADE/ESTADO]." },
+  ],
+
   outro: [
     { numero: 1, titulo: "Do Objeto", tipo: "essencial", conteudo: "O presente contrato tem por objeto [DESCREVER OBJETO]." },
     { numero: 2, titulo: "Das Obrigações das Partes", tipo: "essencial", conteudo: "As partes obrigam-se a cumprir os termos e condições estabelecidos neste instrumento de boa-fé." },
