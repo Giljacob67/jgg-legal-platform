@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 
 export async function POST(
@@ -24,15 +24,15 @@ export async function POST(
       return NextResponse.json({ error: `Pedido ${pedidoId} não encontrado.` }, { status: 404 });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isAIAvailable()) {
       return NextResponse.json({
-        sugestao: `[Sugestão simulada] ${selecao}\n\n→ Reformulado conforme instrução: "${instrucao}". Configure OPENAI_API_KEY para sugestões reais.`,
-        aviso: "OPENAI_API_KEY não configurada",
+        sugestao: `[Sugestão simulada] ${selecao}\n\n→ Reformulado conforme instrução: "${instrucao}". Configure OPENAI_API_KEY ou OPENROUTER_API_KEY para sugestões reais.`,
+        aviso: "Nenhuma chave AI configurada",
       });
     }
 
     const result = streamText({
-      model: openai("gpt-4o-mini"),
+      model: getLLM(),
       system: `Você é um assistente jurídico especializado em redação de peças processuais brasileiras.
 Você está auxiliando na redação de uma ${pedido.tipoPeca} para o pedido "${pedido.titulo}".
 Responda APENAS com o texto reformulado, sem explicações, sem markdown, sem prefixos.

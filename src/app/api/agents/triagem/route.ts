@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
+import { getLLM, isAIAvailable, getConfigAtual } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
@@ -159,7 +159,7 @@ ${equipeStr}
 6. Sinalize alertas críticos`;
 
     // Modo sem chave: triagem mock inteligente
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isAIAvailable()) {
       const today = new Date();
       const prazoDefault = new Date(today.setDate(today.getDate() + 10)).toISOString().split("T")[0];
       
@@ -188,7 +188,7 @@ ${equipeStr}
     }
 
     const { object: triagem } = await generateObject({
-      model: openai("gpt-4o-mini"),
+      model: getLLM(),
       schema: TriagemSchema,
       prompt,
     });
