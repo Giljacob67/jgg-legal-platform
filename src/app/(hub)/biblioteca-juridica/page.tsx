@@ -1,53 +1,28 @@
-import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { listarItensPorTipo } from "@/modules/biblioteca/application/listarItensBiblioteca";
-import { formatarData } from "@/lib/utils";
+import { BibliotecaConhecimento } from "@/modules/biblioteca-conhecimento/ui/biblioteca-conhecimento";
+import { getBibliotecaRepo } from "@/modules/biblioteca-conhecimento/infrastructure/mockBibliotecaRepository";
+import { isDriveConfigurado } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
 
-const secoes = [
-  { tipo: "template" as const, titulo: "Templates" },
-  { tipo: "tese" as const, titulo: "Teses" },
-  { tipo: "checklist" as const, titulo: "Checklists" },
-];
+export default async function BibliotecaJuridicaPage() {
+  const repo = getBibliotecaRepo();
+  const [documentos, stats] = await Promise.all([repo.listar(), repo.contar()]);
 
-export default function BibliotecaJuridicaPage() {
+  const driveConfigurado = isDriveConfigurado();
+  const driveFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID ?? null;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Biblioteca Jurídica"
-        description="Acervo base do MVP com templates, teses e checklists mockados."
+        title="Biblioteca de Conhecimento"
+        description="Base vetorial do escritório — petições aprovadas, contratos, teses e jurisprudência indexados para uso nos agentes de IA."
       />
-
-      <section className="space-y-6">
-        {secoes.map((secao) => {
-          const itens = listarItensPorTipo(secao.tipo);
-
-          return (
-            <Card key={secao.tipo} title={secao.titulo}>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {itens.map((item) => (
-                  <article key={item.id} className="rounded-xl border border-[var(--color-border)] bg-white p-3">
-                    <p className="font-semibold text-[var(--color-ink)]">{item.titulo}</p>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">
-                      {item.materia} • atualizado em {formatarData(item.ultimaAtualizacao)}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--color-muted)]">{item.resumo}</p>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {item.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-[var(--color-surface-alt)] px-2 py-0.5 text-xs text-[var(--color-muted)]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </Card>
-          );
-        })}
-      </section>
+      <BibliotecaConhecimento
+        documentosIniciais={documentos}
+        statsIniciais={stats}
+        driveConfigurado={driveConfigurado}
+        driveFolderId={driveFolderId}
+        ultimaSync={null}
+      />
     </div>
   );
 }
