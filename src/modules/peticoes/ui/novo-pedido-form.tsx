@@ -7,7 +7,7 @@ import {
   INTENCOES_POR_DOCUMENTO,
   LABEL_INTENCAO,
 } from "@/modules/peticoes/domain/types";
-import { simularCriacaoPedido } from "@/modules/peticoes/application/simularCriacaoPedido";
+// simularCriacaoPedido moved to server-side API route /api/peticoes
 import { Card } from "@/components/ui/card";
 import { SelectInput } from "@/components/ui/select-input";
 import { TextInput } from "@/components/ui/text-input";
@@ -38,7 +38,7 @@ export function NovoPedidoForm({
   const [intencaoCustom, setIntencaoCustom] = useState(""); // campo livre quando intencao = 'outro'
   const [usarAgentTriagem, setUsarAgentTriagem] = useState(true);
 
-  const [pedidoGerado, setPedidoGerado] = useState<Awaited<ReturnType<typeof simularCriacaoPedido>> | null>(null);
+  const [pedidoGerado, setPedidoGerado] = useState<import("@/modules/peticoes/domain/types").PedidoDePeca | null>(null);
   const [resultadoTriagem, setResultadoTriagem] = useState<Record<string, unknown> | null>(null);
   const [loadingTriagem, setLoadingTriagem] = useState(false);
   const [erro, setErro] = useState("");
@@ -134,16 +134,22 @@ export function NovoPedidoForm({
           });
         }
       } else {
-        // Criação direta sem IA
-        const novoPedido = await simularCriacaoPedido({
-          casoId,
-          titulo: titulo || `${tipoPeca} — ${casoId}`,
-          tipoPeca,
-          prioridade,
-          prazoFinal: prazoFinal || new Date().toISOString().split("T")[0],
-          intencaoProcessual,
+        // Criação direta sem IA — chama API server-side
+        const res = await fetch("/api/peticoes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            casoId,
+            titulo: titulo || `${tipoPeca} — ${casoId}`,
+            tipoPeca,
+            prioridade,
+            prazoFinal: prazoFinal || new Date().toISOString().split("T")[0],
+            intencaoProcessual,
+          }),
         });
-        setPedidoGerado(novoPedido);
+        const data = await res.json() as { pedido?: import("@/modules/peticoes/domain/types").PedidoDePeca; error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Erro ao criar pedido.");
+        if (data.pedido) setPedidoGerado(data.pedido);
       }
     } catch (error) {
       setPedidoGerado(null);
