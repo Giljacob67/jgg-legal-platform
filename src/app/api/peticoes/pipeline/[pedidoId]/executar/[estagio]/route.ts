@@ -5,6 +5,18 @@ import {
   executarEstagioComIA,
   type EstagioExecutavel,
 } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
+import {
+  buildTriagemPrompt,
+  buildExtracaoFatosPrompt,
+  buildAnaliseAdversaPrompt,
+  buildEstrategiaPrompt,
+  buildMinutaPrompt,
+} from "@/lib/ai/prompts";
+import {
+  normalizarMateriaCanonica,
+  normalizarTipoPecaCanonica,
+} from "@/modules/peticoes/domain/geracao-minuta";
+import type { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 
 export const maxDuration = 300; // Vercel Pro: até 300s para streaming
 
@@ -15,6 +27,40 @@ const ESTAGIOS_VALIDOS: EstagioExecutavel[] = [
   "estrategia",
   "minuta",
 ];
+
+type Pipeline = Awaited<ReturnType<typeof obterPipelineDoPedido>>;
+
+function buildPromptParaEstagio(
+  estagio: EstagioExecutavel,
+  pipeline: Pipeline,
+): { system: string; prompt: string } {
+  const triagem = (pipeline.snapshots.find((s) => s.etapa === "classificacao")?.saidaEstruturada ?? {}) as Record<string, unknown>;
+  const extracaoFatos = pipeline.snapshots.find((s) => s.etapa === "extracao_de_fatos")?.saidaEstruturada ?? {};
+  const analiseAdversa = pipeline.snapshots.find((s) => s.etapa === "analise_adversa")?.saidaEstruturada ?? {};
+  const estrategia = pipeline.snapshots.find((s) => s.etapa === "estrategia_juridica")?.saidaEstruturada ?? {};
+
+  const tipoPecaRaw = (triagem.tipo_peca as string | undefined) ?? "peticao_inicial";
+  const materiaRaw = (triagem.materia as string | undefined) ?? "civel";
+  const tipoPeca = normalizarTipoPecaCanonica(tipoPecaRaw);
+  const materia = normalizarMateriaCanonica(materiaRaw);
+
+  switch (estagio) {
+    case "triagem":
+      return buildTriagemPrompt(pipeline.snapshots);
+    case "extracao-fatos":
+      return buildExtracaoFatosPrompt(pipeline.contextoAtual, tipoPeca);
+    case "analise-adversa":
+      return buildAnaliseAdversaPrompt(pipeline.contextoAtual, extracaoFatos);
+    case "estrategia":
+      return buildEstrategiaPrompt(extracaoFatos, analiseAdversa, materia, tipoPeca);
+    case "minuta": {
+      if (!pipeline.contextoAtual) {
+        throw new Error("Contexto jurídico não disponível para gerar minuta. Execute os estágios anteriores primeiro.");
+      }
+      return buildMinutaPrompt(pipeline.contextoAtual, estrategia, materia, tipoPeca);
+    }
+  }
+}
 
 export async function POST(
   _req: NextRequest,
@@ -47,10 +93,7 @@ export async function POST(
     const stream = await executarEstagioComIA(
       pedidoId,
       estagio as EstagioExecutavel,
-      (pipeline) => ({
-        system: "Você é um assistente jurídico especializado em direito brasileiro.",
-        prompt: `Execute o estágio "${estagio}" para o pedido ${pedidoId}. Contexto atual: ${JSON.stringify(pipeline.contextoAtual ?? {}, null, 2)}`,
-      }),
+      (pipeline) => buildPromptParaEstagio(estagio as EstagioExecutavel, pipeline),
     );
 
     return new Response(stream, {

@@ -1,2 +1,6 @@
 export { SYSTEM_PROMPT_BASE } from "./base";
-// Individual stage exports added in Task 2.2:
+export { buildTriagemPrompt } from "./triagem";
+export { buildExtracaoFatosPrompt } from "./extracao-fatos";
+export { buildAnaliseAdversaPrompt } from "./analise-adversa";
+export { buildEstrategiaPrompt } from "./estrategia";
+export { buildMinutaPrompt } from "./minuta";
