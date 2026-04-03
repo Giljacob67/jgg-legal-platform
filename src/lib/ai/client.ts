@@ -4,19 +4,18 @@ import { createOpenAI } from "@ai-sdk/openai";
 const DEFAULT_MODEL = process.env.AI_DEFAULT_MODEL ?? "anthropic/claude-sonnet-4-6";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
-export interface AIConfig {
-  model: string;
-  provider: "openrouter";
+function isValidApiKey(key: string): boolean {
+  return key.length > 10 && !key.startsWith("sk-or-...");
 }
 
 /**
  * Retorna provider configurado via OpenRouter.
  * Lê OPENROUTER_API_KEY do ambiente.
  */
-export function getAIProvider(config?: AIConfig) {
+export function getAIProvider() {
   const apiKey = process.env.OPENROUTER_API_KEY;
 
-  if (!apiKey || apiKey.startsWith("sk-or-...")) {
+  if (!apiKey || !isValidApiKey(apiKey)) {
     return null;
   }
 
@@ -41,5 +40,5 @@ export function getDefaultModelId(): string {
 
 export function isAIAvailable(): boolean {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  return Boolean(apiKey && !apiKey.startsWith("sk-or-...") && apiKey.length > 10);
+  return Boolean(apiKey && isValidApiKey(apiKey));
 }
