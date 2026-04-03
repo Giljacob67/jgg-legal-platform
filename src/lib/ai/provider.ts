@@ -199,10 +199,15 @@ function criarClienteIA() {
 
 /**
  * Retorna o modelo de linguagem (LLM) configurado, pronto para uso nos agentes.
- * 
+ * Aceita QUALQUER ID de modelo válido — OpenAI ou qualquer modelo do OpenRouter
+ * (incluindo os gratuitos como meta-llama/llama-3.1-8b-instruct:free).
+ *
+ * @param modeloOverride - ID explícito do modelo. Se não fornecido, usa AI_MODEL env ou padrão.
  * @example
- * import { getLLM } from "@/lib/ai/provider";
- * const result = await generateObject({ model: getLLM(), schema, prompt });
+ * getLLM()                                         // usa env AI_MODEL
+ * getLLM("anthropic/claude-3.5-sonnet")             // Claude via OpenRouter
+ * getLLM("meta-llama/llama-3.1-8b-instruct:free")  // Llama GRATUITO via OpenRouter
+ * getLLM("google/gemini-2.0-flash-lite:free")      // Gemini Flash GRATUITO
  */
 export function getLLM(modeloOverride?: string): LanguageModel {
   const cliente = criarClienteIA();
