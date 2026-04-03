@@ -26,37 +26,72 @@ interface OpenRouterModelsResponse {
 
 /**
  * GET /api/ai/models
- * Busca todos os modelos disponíveis no OpenRouter, incluindo os gratuitos.
+ * Busca todos os modelos disponíveis no OpenRouter e/ou KiloCode, incluindo os gratuitos.
  * Filtra, ordena e anota cada modelo com metadados úteis.
  */
 export async function GET() {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  const kiloKey = process.env.KILO_API_KEY;
 
-  if (!apiKey) {
+  if (!openrouterKey && !kiloKey) {
     return NextResponse.json(
-      { error: "OPENROUTER_API_KEY não configurada.", modelos: [] },
-      { status: 200 } // retorna 200 com lista vazia para UI não quebrar
+      { error: "Nenhuma chave de gateway configurada (OPENROUTER_API_KEY ou KILO_API_KEY).", modelos: [] },
+      { status: 200 }
     );
   }
 
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/models", {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://jgg.adv.br",
-        "X-Title": "JGG Legal Platform",
-      },
-      // Cache por 10 minutos no servidor — modelos não mudam com frequência
-      next: { revalidate: 600 },
-    });
+    // Busca paralela: OpenRouter + KiloCode (se chaves configuradas)
+    const fetches: Promise<Response>[] = [];
 
-    if (!res.ok) {
-      throw new Error(`OpenRouter respondeu com status ${res.status}`);
+    if (openrouterKey) {
+      fetches.push(
+        fetch("https://openrouter.ai/api/v1/models", {
+          headers: {
+            Authorization: `Bearer ${openrouterKey}`,
+            "HTTP-Referer": "https://jgg.adv.br",
+            "X-Title": "JGG Legal Platform",
+          },
+          next: { revalidate: 600 },
+        })
+      );
     }
 
-    const json = (await res.json()) as OpenRouterModelsResponse;
+    if (kiloKey) {
+      fetches.push(
+        fetch("https://api.kilo.ai/api/gateway/models", {
+          headers: {
+            Authorization: `Bearer ${kiloKey}`,
+            "HTTP-Referer": "https://jgg.adv.br",
+            "X-Title": "JGG Legal Platform",
+          },
+          next: { revalidate: 600 },
+        }).catch(() => new Response(JSON.stringify({ data: [] }), { status: 200 }))
+        // KiloCode pode não ter /models endpoint público — falha silenciosa
+      );
+    }
 
-    const modelos = json.data.map((m) => {
+    const respostas = await Promise.allSettled(fetches);
+    const todosModelos: OpenRouterModel[] = [];
+
+    for (const resp of respostas) {
+      if (resp.status === "fulfilled" && resp.value.ok) {
+        const json = (await resp.value.json()) as OpenRouterModelsResponse;
+        if (Array.isArray(json.data)) {
+          todosModelos.push(...json.data);
+        }
+      }
+    }
+
+    // Deduplicar por ID
+    const vistos = new Set<string>();
+    const modelosUnicos = todosModelos.filter((m) => {
+      if (vistos.has(m.id)) return false;
+      vistos.add(m.id);
+      return true;
+    });
+
+    const modelos = modelosUnicos.map((m: OpenRouterModel) => {
       // Preço por 1M tokens em prompt (string "0.0000001" → número)
       const precoPorMilhao = m.pricing?.prompt
         ? parseFloat(m.pricing.prompt) * 1_000_000

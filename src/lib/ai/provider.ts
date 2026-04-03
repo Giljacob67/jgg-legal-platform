@@ -143,19 +143,23 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
 /** Modelo padrão quando nenhum está configurado */
 const MODELO_PADRAO_OPENAI = "gpt-4o-mini";
 const MODELO_PADRAO_OPENROUTER = "anthropic/claude-3.5-sonnet";
+const MODELO_PADRAO_KILOCODE = "anthropic/claude-3.5-sonnet"; // KiloCode suporta os mesmos modelos
 
-export type ProvedorIA = "openai" | "openrouter";
+export type ProvedorIA = "openai" | "openrouter" | "kilocode";
 
 /**
  * Retorna o provedor configurado baseado nas variáveis de ambiente.
  * Prioridade: AI_PROVIDER env > detecção automática por chaves disponíveis
+ * Ordem de auto-detecção: kilocode > openrouter > openai
  */
 export function getProvedor(): ProvedorIA {
   const envProvedor = process.env.AI_PROVIDER as ProvedorIA | undefined;
   if (envProvedor === "openrouter") return "openrouter";
+  if (envProvedor === "kilocode") return "kilocode";
   if (envProvedor === "openai") return "openai";
 
-  // Auto-detectar: se tem chave OpenRouter, usar; senão OpenAI
+  // Auto-detectar pela chave disponível
+  if (process.env.KILO_API_KEY) return "kilocode";
   if (process.env.OPENROUTER_API_KEY) return "openrouter";
   return "openai";
 }
@@ -167,12 +171,14 @@ export function getProvedor(): ProvedorIA {
 export function getModeloId(): string {
   if (process.env.AI_MODEL) return process.env.AI_MODEL;
   const provedor = getProvedor();
-  return provedor === "openrouter" ? MODELO_PADRAO_OPENROUTER : MODELO_PADRAO_OPENAI;
+  if (provedor === "openrouter") return MODELO_PADRAO_OPENROUTER;
+  if (provedor === "kilocode") return MODELO_PADRAO_KILOCODE;
+  return MODELO_PADRAO_OPENAI;
 }
 
 /**
  * Cria e retorna a instância do cliente AI com o provedor configurado.
- * Suporta OpenAI direto e OpenRouter (acesso a Claude, Gemini, Llama, Mistral, etc.)
+ * Suporta OpenAI direto, OpenRouter e KiloCode AI Gateway.
  */
 function criarClienteIA() {
   const provedor = getProvedor();
@@ -180,7 +186,6 @@ function criarClienteIA() {
   if (provedor === "openrouter") {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada.");
-
     return createOpenAI({
       baseURL: "https://openrouter.ai/api/v1",
       apiKey,
@@ -191,7 +196,22 @@ function criarClienteIA() {
     });
   }
 
-  // Default: OpenAI
+  if (provedor === "kilocode") {
+    const apiKey = process.env.KILO_API_KEY;
+    if (!apiKey) throw new Error("KILO_API_KEY não configurada.");
+    return createOpenAI({
+      // Gateway OpenAI-compatível do KiloCode
+      // Docs: https://kilo.ai/docs/api-gateway
+      baseURL: "https://api.kilo.ai/api/gateway",
+      apiKey,
+      headers: {
+        "HTTP-Referer": "https://jgg.adv.br",
+        "X-Title": "JGG Legal Platform",
+      },
+    });
+  }
+
+  // Default: OpenAI direto
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY não configurada.");
   return createOpenAI({ apiKey });
@@ -230,12 +250,15 @@ export function getEmbeddingModel() {
  * Verifica se IA está disponível (alguma chave configurada)
  */
 export function isAIAvailable(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
+  return Boolean(
+    process.env.OPENAI_API_KEY ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.KILO_API_KEY
+  );
 }
 
 /**
  * Retorna informações sobre a configuração atual do provedor IA.
- * Útil para expor em endpoints de health check ou UI de settings.
  */
 export function getConfigAtual(): {
   provedor: ProvedorIA;
@@ -245,10 +268,25 @@ export function getConfigAtual(): {
 } {
   const provedor = getProvedor();
   const modeloId = getModeloId();
+  const provedorLabel: Record<ProvedorIA, string> = {
+    openai: "OpenAI",
+    openrouter: "OpenRouter",
+    kilocode: "KiloCode AI Gateway",
+  };
   return {
     provedor,
     modeloId,
-    modeloInfo: MODELOS_CATALOGADOS.find((m) => m.id === modeloId),
+    modeloInfo: MODELOS_CATALOGADOS.find((m) => m.id === modeloId) ?? {
+      id: modeloId,
+      label: modeloId,
+      provedor: provedor === "openai" ? "openai" : "openrouter",
+      provedorLabel: provedorLabel[provedor],
+      descricao: "Modelo personalizado configurado via env AI_MODEL.",
+      suportaVisao: false,
+      suportaStructuredOutput: true,
+      custo: "desconhecido" as never,
+      recomendado: false,
+    },
     disponivel: isAIAvailable(),
   };
 }
