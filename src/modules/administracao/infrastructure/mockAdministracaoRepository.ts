@@ -1,0 +1,158 @@
+import type { IAdministracaoRepository } from "../domain/IAdministracaoRepository";
+import type {
+  Usuario,
+  ConviteUsuario,
+  PerfilUsuario,
+  RegistroAuditoria,
+  ConfiguracaoSistema,
+} from "../domain/types";
+
+const USUARIOS_MOCK: Usuario[] = [
+  {
+    id: "usr-001",
+    nome: "Gilberto Jacob",
+    email: "gilberto@jgg.adv.br",
+    iniciais: "GJ",
+    perfil: "socio_direcao",
+    ativo: true,
+    ultimoAcesso: new Date().toISOString(),
+    criadoEm: "2026-01-15T08:00:00Z",
+  },
+  {
+    id: "usr-002",
+    nome: "Ana Paula Mendes",
+    email: "ana.paula@jgg.adv.br",
+    iniciais: "AP",
+    perfil: "coordenador_juridico",
+    ativo: true,
+    ultimoAcesso: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    criadoEm: "2026-02-01T08:00:00Z",
+  },
+  {
+    id: "usr-003",
+    nome: "Rafael Costa",
+    email: "rafael.costa@jgg.adv.br",
+    iniciais: "RC",
+    perfil: "advogado",
+    ativo: true,
+    ultimoAcesso: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    criadoEm: "2026-02-10T08:00:00Z",
+  },
+  {
+    id: "usr-004",
+    nome: "Maria Luiza Faria",
+    email: "maria.luiza@jgg.adv.br",
+    iniciais: "ML",
+    perfil: "estagiario_assistente",
+    ativo: true,
+    ultimoAcesso: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+    criadoEm: "2026-03-01T08:00:00Z",
+  },
+  {
+    id: "usr-005",
+    nome: "Carlos Henrique",
+    email: "carlos@jgg.adv.br",
+    iniciais: "CH",
+    perfil: "operacional_admin",
+    ativo: false,
+    criadoEm: "2026-01-20T08:00:00Z",
+  },
+];
+
+const AUDITORIA_MOCK: RegistroAuditoria[] = [
+  {
+    id: "aud-001",
+    userId: "usr-001",
+    userNome: "Gilberto Jacob",
+    acao: "alterar_perfil",
+    entidade: "usuario",
+    entidadeId: "usr-002",
+    detalhes: { perfilAnterior: "advogado", perfilNovo: "coordenador_juridico" },
+    criadoEm: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+  },
+  {
+    id: "aud-002",
+    userId: "usr-001",
+    userNome: "Gilberto Jacob",
+    acao: "convidar_usuario",
+    entidade: "usuario",
+    entidadeId: "usr-003",
+    detalhes: { email: "rafael.costa@jgg.adv.br" },
+    criadoEm: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+  },
+];
+
+const CONFIGURACOES_MOCK: ConfiguracaoSistema[] = [
+  { chave: "nome_escritorio", valor: "JGG Group — Advocacia e Consultoria", descricao: "Nome do escritório exibido na plataforma" },
+  { chave: "ai_provider", valor: process.env.AI_PROVIDER ?? "openai", descricao: "Provedor de IA ativo" },
+  { chave: "ai_model", valor: process.env.AI_MODEL ?? "gpt-4o-mini", descricao: "Modelo de IA padrão" },
+  { chave: "prazo_alerta_dias", valor: "5", descricao: "Dias de antecedência para emitir alertas de prazo" },
+  { chave: "tema", valor: "sistema", descricao: "Tema da interface: 'claro', 'escuro' ou 'sistema'" },
+];
+
+let usuariosStore = [...USUARIOS_MOCK];
+let configuracoesStore = [...CONFIGURACOES_MOCK];
+
+export class MockAdministracaoRepository implements IAdministracaoRepository {
+  async listarUsuarios(): Promise<Usuario[]> {
+    return [...usuariosStore].sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  async obterUsuarioPorId(id: string): Promise<Usuario | null> {
+    return usuariosStore.find((u) => u.id === id) ?? null;
+  }
+
+  async convidarUsuario(convite: ConviteUsuario): Promise<Usuario> {
+    const novoId = `usr-${String(usuariosStore.length + 1).padStart(3, "0")}`;
+    const iniciais = convite.nome
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join("")
+      .toUpperCase();
+
+    const novo: Usuario = {
+      id: novoId,
+      nome: convite.nome,
+      email: convite.email,
+      iniciais,
+      perfil: convite.perfil,
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+    };
+    usuariosStore.push(novo);
+    return novo;
+  }
+
+  async atualizarPerfil(id: string, perfil: PerfilUsuario): Promise<Usuario> {
+    const idx = usuariosStore.findIndex((u) => u.id === id);
+    if (idx === -1) throw new Error(`Usuário ${id} não encontrado.`);
+    usuariosStore[idx] = { ...usuariosStore[idx], perfil };
+    return usuariosStore[idx];
+  }
+
+  async ativarDesativar(id: string, ativo: boolean): Promise<Usuario> {
+    const idx = usuariosStore.findIndex((u) => u.id === id);
+    if (idx === -1) throw new Error(`Usuário ${id} não encontrado.`);
+    usuariosStore[idx] = { ...usuariosStore[idx], ativo };
+    return usuariosStore[idx];
+  }
+
+  async listarAuditoria(limite = 50): Promise<RegistroAuditoria[]> {
+    return AUDITORIA_MOCK.slice(0, limite);
+  }
+
+  async obterConfiguracoes(): Promise<ConfiguracaoSistema[]> {
+    return [...configuracoesStore];
+  }
+
+  async atualizarConfiguracao(chave: string, valor: string): Promise<void> {
+    const idx = configuracoesStore.findIndex((c) => c.chave === chave);
+    if (idx !== -1) {
+      configuracoesStore[idx] = { ...configuracoesStore[idx], valor };
+    } else {
+      configuracoesStore.push({ chave, valor });
+    }
+  }
+}
