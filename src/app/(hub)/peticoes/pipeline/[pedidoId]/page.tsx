@@ -10,7 +10,7 @@ type PipelinePedidoPageProps = {
 
 export default async function PipelinePedidoPage({ params }: PipelinePedidoPageProps) {
   const { pedidoId } = await params;
-  const pedido = obterPedidoDePeca(pedidoId);
+  const pedido = await obterPedidoDePeca(pedidoId);
 
   if (!pedido) {
     notFound();

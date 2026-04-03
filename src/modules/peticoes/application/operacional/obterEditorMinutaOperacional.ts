@@ -28,7 +28,7 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
   rastroGeracaoAtual?: RastroGeracaoMinuta;
   inteligenciaJuridica: PainelInteligenciaJuridica | null;
 }> {
-  const minutaBase = services.peticoesRepository.obterMinutaPorId(minutaId);
+  const minutaBase = await services.peticoesRepository.obterMinutaPorId(minutaId);
   if (!minutaBase) {
     throw new Error("Minuta não encontrada.");
   }
@@ -55,8 +55,8 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
     });
   }
 
-  const pedido = services.peticoesRepository.obterPedidoPorId(minutaBase.pedidoId);
-  const caso = pedido ? services.casosRepository.obterCasoPorId(pedido.casoId) : undefined;
+  const pedido = await services.peticoesRepository.obterPedidoPorId(minutaBase.pedidoId);
+  const caso = pedido ? await services.casosRepository.obterCasoPorId(pedido.casoId) : undefined;
 
   const geracaoAtual = pedido
     ? await gerarMinutaEstruturada({

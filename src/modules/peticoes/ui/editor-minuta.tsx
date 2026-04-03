@@ -1,10 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Highlight from "@tiptap/extension-highlight";
+import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
+import Underline from "@tiptap/extension-underline";
 import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/types";
 import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minuta";
 import type { PainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/domain/types";
 import { PainelInteligenciaJuridicaView } from "@/modules/peticoes/inteligencia-juridica/ui/painel-inteligencia-juridica";
+import { EditorToolbar } from "@/modules/peticoes/ui/editor-toolbar";
+import { VersionDiff } from "@/modules/peticoes/ui/version-diff";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
@@ -15,6 +23,7 @@ type EditorMinutaProps = {
   versaoContextoAtual?: number;
   rastroGeracaoAtual?: RastroGeracaoMinuta;
   inteligenciaJuridica?: PainelInteligenciaJuridica | null;
+  pedidoId?: string;
 };
 
 function toArray<T>(value: unknown): T[] {
@@ -27,44 +36,118 @@ export function EditorMinuta({
   versaoContextoAtual,
   rastroGeracaoAtual,
   inteligenciaJuridica = null,
+  pedidoId,
 }: EditorMinutaProps) {
-  const [conteudo, setConteudo] = useState(minuta.conteudoAtual);
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
+  const [selecaoTexto, setSelecaoTexto] = useState("");
+  const [instrucaoIA, setInstrucaoIA] = useState("");
+  const [sugestaoIA, setSugestaoIA] = useState("");
+  const [loadingIA, setLoadingIA] = useState(false);
+  const [painelIAAberto, setPainelIAAberto] = useState(false);
+
   const fatosRelevantes = toArray<string>(contextoJuridico?.fatosRelevantes);
   const cronologia = toArray<{ data: string; descricao: string; documentoId?: string }>(contextoJuridico?.cronologia);
   const pontosControvertidos = toArray<string>(contextoJuridico?.pontosControvertidos);
   const referenciasDocumentais = toArray<{ documentoId: string; titulo: string }>(contextoJuridico?.referenciasDocumentais);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      Highlight,
+      Underline,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      Placeholder.configure({
+        placeholder: "Comece a redigir a minuta aqui...",
+      }),
+    ],
+    content: minuta.conteudoAtual
+      .split("\n")
+      .map((p) => `<p>${p}</p>`)
+      .join(""),
+    editorProps: {
+      attributes: {
+        class:
+          "prose prose-sm max-w-none min-h-[420px] w-full p-4 text-[var(--color-ink)] outline-none focus:outline-none",
+      },
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to } = editor.state.selection;
+      if (from !== to) {
+        const texto = editor.state.doc.textBetween(from, to, " ");
+        if (texto.trim().length > 10) {
+          setSelecaoTexto(texto.trim());
+        }
+      }
+    },
+  });
 
   const versaoComparada = useMemo(
     () => minuta.versoes.find((versao) => versao.id === versaoComparadaId),
     [minuta.versoes, versaoComparadaId],
   );
 
-  const comparacao = useMemo(() => {
-    if (!versaoComparada) {
-      return "Selecione uma versão para comparar.";
-    }
-
-    if (versaoComparada.conteudo === conteudo) {
-      return "Sem diferenças relevantes entre a versão selecionada e o texto atual.";
-    }
-
-    return "Diferenças detectadas: o texto atual possui ajustes adicionais em relação à versão selecionada.";
-  }, [conteudo, versaoComparada]);
+  const conteudoAtualTexto = editor?.getText() ?? minuta.conteudoAtual;
 
   function salvarRascunho() {
     setMensagemSalvar(`Rascunho salvo localmente às ${new Date().toLocaleTimeString("pt-BR")}.`);
   }
 
+  async function solicitarSugestaoIA() {
+    if (!selecaoTexto || !instrucaoIA || !pedidoId) return;
+    setLoadingIA(true);
+    setSugestaoIA("");
+
+    try {
+      const res = await fetch(`/api/agents/sugestao-ia/${pedidoId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selecao: selecaoTexto, instrucao: instrucaoIA }),
+      });
+
+      if (!res.body) {
+        const json = await res.json();
+        setSugestaoIA(json.sugestao ?? "Sem resposta.");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let texto = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        texto += decoder.decode(value, { stream: true });
+        setSugestaoIA(texto);
+      }
+    } catch (e) {
+      setSugestaoIA("Erro ao conectar com a IA.");
+    } finally {
+      setLoadingIA(false);
+    }
+  }
+
+  function aplicarSugestaoNoEditor() {
+    if (!editor || !sugestaoIA) return;
+    const { from, to } = editor.state.selection;
+    editor.chain().focus().deleteRange({ from, to }).insertContent(sugestaoIA).run();
+    setPainelIAAberto(false);
+    setSugestaoIA("");
+    setInstrucaoIA("");
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
-      <Card title={minuta.titulo} subtitle="Editor de minuta com geração estruturada por contexto, template e matéria.">
-        <textarea
-          value={conteudo}
-          onChange={(event) => setConteudo(event.target.value)}
-          className="min-h-[420px] w-full rounded-xl border border-[var(--color-border)] bg-white p-4 text-sm leading-6 text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
-        />
+      <Card title={minuta.titulo} subtitle="Editor de minuta com formatação rica, geração estruturada por contexto, template e matéria.">
+        <EditorToolbar editor={editor} />
+        <div className="rounded-b-xl border border-t-0 border-[var(--color-border)] bg-white">
+          <EditorContent editor={editor} />
+        </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
@@ -73,8 +156,74 @@ export function EditorMinuta({
           >
             Salvar rascunho
           </button>
+
+          {selecaoTexto && pedidoId && (
+            <button
+              onClick={() => setPainelIAAberto(true)}
+              className="flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+            >
+              ✨ Sugestão IA
+            </button>
+          )}
+
           {mensagemSalvar ? <p className="text-xs text-[var(--color-muted)]">{mensagemSalvar}</p> : null}
         </div>
+
+        {/* Painel de Sugestão IA */}
+        {painelIAAberto && (
+          <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-violet-800">✨ Assistente IA — Sugestão de Reescrita</p>
+              <button
+                onClick={() => setPainelIAAberto(false)}
+                className="text-xs text-violet-500 hover:text-violet-800"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="rounded-lg bg-white border border-violet-100 p-3">
+              <p className="text-xs font-medium text-violet-600 mb-1">Trecho selecionado:</p>
+              <p className="text-sm text-gray-700 italic line-clamp-3">"{selecaoTexto}"</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-violet-700">O que você quer melhorar?</label>
+              <textarea
+                className="mt-1 w-full rounded-lg border border-violet-200 bg-white p-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-violet-300"
+                rows={2}
+                placeholder='Ex: "Reformule de forma mais técnica e objetiva" ou "Adicione a referência ao art. 5º da CF"'
+                value={instrucaoIA}
+                onChange={(e) => setInstrucaoIA(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={solicitarSugestaoIA}
+                disabled={loadingIA || !instrucaoIA}
+                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:bg-violet-700"
+              >
+                {loadingIA ? "Consultando IA..." : "Reescrever"}
+              </button>
+              {sugestaoIA && (
+                <button
+                  onClick={aplicarSugestaoNoEditor}
+                  className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                >
+                  ✅ Aplicar no editor
+                </button>
+              )}
+            </div>
+
+            {sugestaoIA && (
+              <div className="rounded-lg bg-white border border-green-200 p-3">
+                <p className="text-xs font-medium text-green-700 mb-1">Sugestão da IA:</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{sugestaoIA}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       <div className="space-y-6">
@@ -146,7 +295,7 @@ export function EditorMinuta({
 
         <PainelInteligenciaJuridicaView inteligenciaJuridica={inteligenciaJuridica} />
 
-        <Card title="Comparação entre versões" subtitle="Base inicial para evolução do diff jurídico.">
+        <Card title="Comparação entre versões" subtitle="Diff visual com destaque de adições e remoções.">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-[var(--color-ink)]">Versão de referência</span>
             <select
@@ -162,7 +311,20 @@ export function EditorMinuta({
             </select>
           </label>
 
-          <p className="text-sm text-[var(--color-muted)]">{comparacao}</p>
+          {versaoComparada ? (
+            <div className="mt-3">
+              <VersionDiff
+                oldText={versaoComparada.conteudo}
+                newText={conteudoAtualTexto}
+                oldLabel={`Versão ${versaoComparada.numero}`}
+                newLabel="Texto atual"
+              />
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-[var(--color-muted)]">
+              Selecione uma versão para comparar.
+            </p>
+          )}
         </Card>
 
         <Card title="Histórico de versões" subtitle="Rastreabilidade de alterações do documento.">

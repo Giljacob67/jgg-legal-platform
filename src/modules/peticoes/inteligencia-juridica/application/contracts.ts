@@ -11,6 +11,7 @@ export interface CatalogoTesesRepository {
   listarPorTipoEMateria(input: {
     tipoPecaCanonica: TipoPecaCanonica;
     materiaCanonica: MateriaCanonica;
+    contextoTexto?: string;
   }): Promise<TeseJuridicaCatalogo[]>;
 }
 

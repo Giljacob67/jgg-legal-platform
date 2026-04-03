@@ -8,23 +8,48 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "node scripts/run-migrations.mjs"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "db:migrate": "node scripts/run-migrations.mjs",
+    "db:seed": "node scripts/seed.mjs",
+    "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.50",
+    "@sentry/nextjs": "^10.47.0",
+    "@tiptap/extension-highlight": "^3.22.1",
+    "@tiptap/extension-placeholder": "^3.22.1",
+    "@tiptap/extension-text-align": "^3.22.1",
+    "@tiptap/extension-underline": "^3.22.1",
+    "@tiptap/pm": "^3.22.1",
+    "@tiptap/react": "^3.22.1",
+    "@tiptap/starter-kit": "^3.22.1",
     "@vercel/blob": "^2.3.2",
+    "ai": "^6.0.144",
+    "diff-match-patch": "^1.0.5",
+    "drizzle-orm": "^0.45.2",
     "next": "16.2.2",
+    "next-auth": "^5.0.0-beta.30",
     "postgres": "^3.4.8",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
+    "@types/diff-match-patch": "^1.0.36",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.1",
+    "dotenv": "^17.4.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.2"
   }
 }

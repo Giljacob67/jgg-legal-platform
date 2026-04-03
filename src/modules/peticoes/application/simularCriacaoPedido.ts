@@ -2,7 +2,7 @@ import { services } from "@/services/container";
 import type { NovoPedidoPayload, PedidoDePeca } from "@/modules/peticoes/domain/types";
 import { validarNovoPedidoPayload } from "@/modules/peticoes/domain/validarNovoPedidoPayload";
 
-export function simularCriacaoPedido(payload: NovoPedidoPayload): PedidoDePeca {
+export async function simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
   validarNovoPedidoPayload(payload);
-  return services.peticoesRepository.simularCriacaoPedido(payload);
+  return await services.peticoesRepository.simularCriacaoPedido(payload);
 }

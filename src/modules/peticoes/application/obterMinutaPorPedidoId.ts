@@ -1,6 +1,6 @@
 import { services } from "@/services/container";
 import type { Minuta } from "@/modules/peticoes/domain/types";
 
-export function obterMinutaPorPedidoId(pedidoId: string): Minuta | undefined {
-  return services.peticoesRepository.obterMinutaPorPedidoId(pedidoId);
+export async function obterMinutaPorPedidoId(pedidoId: string): Promise<Minuta | undefined> {
+  return await services.peticoesRepository.obterMinutaPorPedidoId(pedidoId);
 }

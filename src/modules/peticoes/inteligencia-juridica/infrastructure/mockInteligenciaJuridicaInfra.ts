@@ -50,6 +50,7 @@ class MockCatalogoTesesRepository implements CatalogoTesesRepository {
   async listarPorTipoEMateria(input: {
     tipoPecaCanonica: TipoPecaCanonica;
     materiaCanonica: TeseJuridicaCatalogo["materias"][number];
+    contextoTexto?: string;
   }): Promise<TeseJuridicaCatalogo[]> {
     return listarTesesJuridicasAtivas({
       tipoPecaCanonica: input.tipoPecaCanonica,

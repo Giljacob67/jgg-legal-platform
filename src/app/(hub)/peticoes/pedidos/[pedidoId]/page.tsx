@@ -19,13 +19,13 @@ type PedidoDetalhePageProps = {
 export default async function PedidoDetalhePage({ params }: PedidoDetalhePageProps) {
   const dataMode = getDataMode();
   const { pedidoId } = await params;
-  const pedido = obterPedidoDePeca(pedidoId);
+  const pedido = await obterPedidoDePeca(pedidoId);
 
   if (!pedido) {
     notFound();
   }
 
-  const minuta = obterMinutaPorPedidoId(pedido.id);
+  const minuta = await obterMinutaPorPedidoId(pedidoId);
   const pipelineOperacional = await obterPipelineDoPedido(pedido.id).catch(() => null);
   const documentosDoPedido = await listarDocumentosPorPedido(pedido.id);
   const documentos =

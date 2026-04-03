@@ -13,7 +13,7 @@ type CasoDetalhePageProps = {
 
 export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) {
   const { casoId } = await params;
-  const caso = obterCasoPorId(casoId);
+  const caso = await obterCasoPorId(casoId);
 
   if (!caso) {
     notFound();

@@ -7,10 +7,10 @@ import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
 import { formatarData } from "@/lib/utils";
 
-export default function DashboardPage() {
-  const visao = obterVisaoDashboard();
-  const casos = listarCasos().slice(0, 3);
-  const pedidos = listarPedidosDePeca();
+export default async function DashboardPage() {
+  const visao = await obterVisaoDashboard();
+  const casos = (await listarCasos()).slice(0, 3);
+  const pedidos = await listarPedidosDePeca();
 
   return (
     <div className="space-y-6">

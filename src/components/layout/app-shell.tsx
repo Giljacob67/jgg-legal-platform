@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import type { ModuloNavegacao } from "@/modules/hub/domain/types";
-import type { SessaoMock } from "@/modules/auth/domain/types";
+import type { Sessao, SessaoMock } from "@/modules/auth/domain/types";
 import { SideNav } from "@/components/layout/side-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
 type AppShellProps = {
   modulos: ModuloNavegacao[];
-  sessao: SessaoMock;
+  sessao: Sessao | SessaoMock;
   children: ReactNode;
 };
 

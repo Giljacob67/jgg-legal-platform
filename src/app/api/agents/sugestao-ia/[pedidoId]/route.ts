@@ -1,0 +1,54 @@
+import { NextResponse } from "next/server";
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { services } from "@/services/container";
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ pedidoId: string }> }
+) {
+  try {
+    const { pedidoId } = await params;
+    const body = await request.json();
+    const { selecao, instrucao } = body as { selecao: string; instrucao: string };
+
+    if (!selecao || !instrucao) {
+      return NextResponse.json(
+        { error: "selecao e instrucao são obrigatórios." },
+        { status: 400 }
+      );
+    }
+
+    const pedido = await services.peticoesRepository.obterPedidoPorId(pedidoId);
+    if (!pedido) {
+      return NextResponse.json({ error: `Pedido ${pedidoId} não encontrado.` }, { status: 404 });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({
+        sugestao: `[Sugestão simulada] ${selecao}\n\n→ Reformulado conforme instrução: "${instrucao}". Configure OPENAI_API_KEY para sugestões reais.`,
+        aviso: "OPENAI_API_KEY não configurada",
+      });
+    }
+
+    const result = streamText({
+      model: openai("gpt-4o-mini"),
+      system: `Você é um assistente jurídico especializado em redação de peças processuais brasileiras.
+Você está auxiliando na redação de uma ${pedido.tipoPeca} para o pedido "${pedido.titulo}".
+Responda APENAS com o texto reformulado, sem explicações, sem markdown, sem prefixos.
+Preserve o estilo formal, jurídico e objetivo. Mantenha citações legais se presentes.
+Use português jurídico brasileiro padrão.`,
+      prompt: `Texto selecionado pelo advogado:\n"${selecao}"\n\nInstrução de melhoria:\n${instrucao}\n\nReformule o texto selecionado conforme a instrução:`,
+      maxOutputTokens: 800,
+    });
+
+    return result.toTextStreamResponse();
+
+  } catch (error) {
+    console.error("[AI Suggestion] Erro:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro interno na sugestão de IA." },
+      { status: 500 }
+    );
+  }
+}

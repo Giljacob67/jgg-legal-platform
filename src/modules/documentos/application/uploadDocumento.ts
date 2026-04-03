@@ -6,6 +6,7 @@ import type {
 } from "@/modules/documentos/domain/types";
 import { validarArquivoPermitido, validarTipoDocumento } from "@/modules/documentos/application/validation";
 import { getDocumentosInfra } from "@/modules/documentos/infrastructure/provider.server";
+import { extrairTextoDocumentoViaAI } from "@/modules/processamento-documental/infrastructure/pdfExtractor";
 
 function obterExtensao(filename: string): string | undefined {
   if (!filename.includes(".")) {
@@ -23,28 +24,32 @@ function normalizarTexto(texto: string): string {
     .trim();
 }
 
-function extrairTextoQuandoPossivel(input: { contentType: string; filename: string; bytes: Buffer }): {
+async function extrairTextoQuandoPossivel(input: { contentType: string; filename: string; bytes: Buffer }): Promise<{
   textoExtraido?: string;
   textoNormalizado?: string;
-} {
+}> {
   const extensao = obterExtensao(input.filename);
-  const podeExtrair =
+  const conteudoHeuristico =
     input.contentType === "text/plain" ||
     extensao === "txt" ||
     (input.contentType === "application/octet-stream" && extensao === "txt");
 
-  if (!podeExtrair) {
-    return {};
+  let textoBruto = "";
+
+  if (conteudoHeuristico) {
+    textoBruto = input.bytes.toString("utf-8").trim();
+  } else if (input.contentType === "application/pdf" || input.contentType.startsWith("image/")) {
+    const ocr = await extrairTextoDocumentoViaAI(input.filename, input.contentType, input.bytes);
+    textoBruto = ocr.textoExtraido;
   }
 
-  const textoExtraido = input.bytes.toString("utf-8").trim();
-  if (!textoExtraido) {
+  if (!textoBruto) {
     return {};
   }
 
   return {
-    textoExtraido,
-    textoNormalizado: normalizarTexto(textoExtraido),
+    textoExtraido: textoBruto,
+    textoNormalizado: normalizarTexto(textoBruto),
   };
 }
 
@@ -90,7 +95,7 @@ export async function uploadDocumento(payload: UploadDocumentoPayload): Promise<
     },
   });
 
-  const conteudoProcessado = extrairTextoQuandoPossivel({
+  const conteudoProcessado = await extrairTextoQuandoPossivel({
     contentType: payload.contentType,
     filename: payload.filename,
     bytes: payload.bytes,

@@ -6,6 +6,7 @@ export type PerfilUsuario =
   | "Operacional / Administrativo"
   | "Administrador do sistema";
 
+/** @deprecated Use Sessao instead */
 export interface SessaoMock {
   usuarioId: string;
   nome: string;
@@ -13,3 +14,13 @@ export interface SessaoMock {
   perfil: PerfilUsuario;
   ativo: boolean;
 }
+
+export interface Sessao {
+  usuarioId: string;
+  nome: string;
+  email: string;
+  iniciais: string;
+  perfil: PerfilUsuario;
+  ativo: boolean;
+}
+

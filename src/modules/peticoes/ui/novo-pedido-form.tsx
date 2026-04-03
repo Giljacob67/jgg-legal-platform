@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { PrioridadePedido, TipoPeca } from "@/modules/peticoes/domain/types";
+import type { PrioridadePedido, TipoPeca, IntencaoProcessual } from "@/modules/peticoes/domain/types";
+import {
+  INTENCOES_POR_DOCUMENTO,
+  LABEL_INTENCAO,
+} from "@/modules/peticoes/domain/types";
 import { simularCriacaoPedido } from "@/modules/peticoes/application/simularCriacaoPedido";
 import { Card } from "@/components/ui/card";
 import { SelectInput } from "@/components/ui/select-input";
@@ -14,17 +18,29 @@ import { formatarDataHora } from "@/lib/utils";
 type NovoPedidoFormProps = {
   tiposPeca: TipoPeca[];
   casoIdPadrao: string;
+  poloRepresentado?: "ativo" | "passivo" | "indefinido";
+  clienteNome?: string;
 };
 
-export function NovoPedidoForm({ tiposPeca, casoIdPadrao }: NovoPedidoFormProps) {
+export function NovoPedidoForm({
+  tiposPeca,
+  casoIdPadrao,
+  poloRepresentado = "indefinido",
+  clienteNome,
+}: NovoPedidoFormProps) {
   const [casoId, setCasoId] = useState(casoIdPadrao);
-  const [titulo, setTitulo] = useState("Pedido de peça para estratégia inicial");
+  const [titulo, setTitulo] = useState("");
   const [tipoPeca, setTipoPeca] = useState<TipoPeca>(tiposPeca[0]);
   const [prioridade, setPrioridade] = useState<PrioridadePedido>("média");
-  const [prazoFinal, setPrazoFinal] = useState("2026-04-12");
-  const [contexto, setContexto] = useState("Destacar fundamentos para tutela de urgência e pedidos principais.");
+  const [prazoFinal, setPrazoFinal] = useState("");
+  const [contexto, setContexto] = useState("");
+  const [intencaoProcessual, setIntencaoProcessual] = useState<IntencaoProcessual | "">("");
+  const [intencaoCustom, setIntencaoCustom] = useState(""); // campo livre quando intencao = 'outro'
+  const [usarAgentTriagem, setUsarAgentTriagem] = useState(true);
 
-  const [pedidoGerado, setPedidoGerado] = useState<ReturnType<typeof simularCriacaoPedido> | null>(null);
+  const [pedidoGerado, setPedidoGerado] = useState<Awaited<ReturnType<typeof simularCriacaoPedido>> | null>(null);
+  const [resultadoTriagem, setResultadoTriagem] = useState<Record<string, unknown> | null>(null);
+  const [loadingTriagem, setLoadingTriagem] = useState(false);
   const [erro, setErro] = useState("");
 
   const opcoesTipos = useMemo(
@@ -32,51 +48,146 @@ export function NovoPedidoForm({ tiposPeca, casoIdPadrao }: NovoPedidoFormProps)
     [tiposPeca],
   );
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  // Sugere intenções relevantes com base no tipo de peça selecionado
+  const intencoesSugeridas: IntencaoProcessual[] = useMemo(() => {
+    const sugestoes = INTENCOES_POR_DOCUMENTO[tipoPeca] ?? INTENCOES_POR_DOCUMENTO["default"] ?? [];
+    // Filtra por polo: polo passivo prioriza defesa, polo ativo prioriza ataque
+    if (poloRepresentado === "passivo") {
+      const defensivas: IntencaoProcessual[] = [
+        "redigir_contestacao", "redigir_impugnacao", "redigir_embargos",
+        "redigir_excecao_executividade", "analisar_documento_adverso", "avaliar_riscos",
+      ];
+      return [...sugestoes.filter((i) => defensivas.includes(i)), ...sugestoes.filter((i) => !defensivas.includes(i))];
+    }
+    if (poloRepresentado === "ativo") {
+      const ofensivas: IntencaoProcessual[] = [
+        "redigir_peticao_inicial", "redigir_recurso", "redigir_agravo",
+        "redigir_mandado_seguranca", "redigir_replica", "extrair_fatos",
+      ];
+      return [...sugestoes.filter((i) => ofensivas.includes(i)), ...sugestoes.filter((i) => !ofensivas.includes(i))];
+    }
+    return sugestoes;
+  }, [tipoPeca, poloRepresentado]);
+
+  const poloBadgeColor = {
+    ativo: "bg-blue-100 text-blue-800 border-blue-200",
+    passivo: "bg-amber-100 text-amber-800 border-amber-200",
+    indefinido: "bg-gray-100 text-gray-600 border-gray-200",
+  }[poloRepresentado];
+
+  const poloLabel = {
+    ativo: "⚔️ Polo Ativo — Representa o Autor",
+    passivo: "🛡️ Polo Passivo — Representa o Réu",
+    indefinido: "❓ Polo não identificado",
+  }[poloRepresentado];
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErro("");
+    setResultadoTriagem(null);
+
+    if (!intencaoProcessual) {
+      setErro("Selecione o objetivo processual (o que o agente deve fazer).");
+      return;
+    }
+
+    if (intencaoProcessual === "outro" && !intencaoCustom.trim()) {
+      setErro("Descreva o objetivo quando selecionar \u2018Outro\u2019.");
+      return;
+    }
 
     try {
-      const novoPedido = simularCriacaoPedido({
-        casoId,
-        titulo,
-        tipoPeca,
-        prioridade,
-        prazoFinal,
-      });
+      if (usarAgentTriagem) {
+        // Usar Agente de Triagem com IA
+        setLoadingTriagem(true);
+        const res = await fetch("/api/agents/triagem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            casoId,
+            descricaoProblema: intencaoProcessual === "outro"
+              ? `[OBJETIVO LIVRE] ${intencaoCustom}\n\n${contexto}`.trim()
+              : contexto || titulo,
+            prazoInformadoCliente: prazoFinal || undefined,
+            intencaoExplicita: intencaoProcessual !== "outro" ? intencaoProcessual : undefined,
+            intencaoCustom: intencaoProcessual === "outro" ? intencaoCustom : undefined,
+          }),
+        });
 
-      setPedidoGerado(novoPedido);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Erro na triagem.");
+        
+        setResultadoTriagem(data);
+        if (data.pedidoCriado) {
+          setPedidoGerado({
+            id: data.pedidoCriado,
+            casoId,
+            titulo: titulo || `${tipoPeca} — ${casoId}`,
+            tipoPeca,
+            prioridade: (data.triagem?.prioridade as PrioridadePedido) ?? prioridade,
+            status: "em triagem",
+            etapaAtual: "classificacao",
+            responsavel: data.triagem?.responsavelSugerido ?? "",
+            prazoFinal: data.triagem?.prazoSugerido ?? prazoFinal,
+            criadoEm: new Date().toISOString(),
+            intencaoProcessual,
+          });
+        }
+      } else {
+        // Criação direta sem IA
+        const novoPedido = await simularCriacaoPedido({
+          casoId,
+          titulo: titulo || `${tipoPeca} — ${casoId}`,
+          tipoPeca,
+          prioridade,
+          prazoFinal: prazoFinal || new Date().toISOString().split("T")[0],
+          intencaoProcessual,
+        });
+        setPedidoGerado(novoPedido);
+      }
     } catch (error) {
       setPedidoGerado(null);
-      setErro(error instanceof Error ? error.message : "Não foi possível simular o pedido.");
+      setErro(error instanceof Error ? error.message : "Não foi possível criar o pedido.");
+    } finally {
+      setLoadingTriagem(false);
     }
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.25fr,1fr]">
-      <Card title="Novo pedido de peça" subtitle="Fluxo inicial de produção jurídica com dados simulados.">
+      <Card title="Novo pedido de peça" subtitle="Defina o objetivo processual para que o agente de IA saiba o que fazer.">
+
+        {/* Banner do polo representado */}
+        <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${poloBadgeColor}`}>
+          <span>{poloLabel}</span>
+          {clienteNome && <span className="font-normal opacity-75">• Cliente: {clienteNome}</span>}
+        </div>
+
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
-            <TextInput label="ID do caso" value={casoId} onChange={(event) => setCasoId(event.target.value)} required />
+            <TextInput label="ID do caso" value={casoId} onChange={(e) => setCasoId(e.target.value)} required />
             <TextInput
-              label="Prazo final"
+              label="Prazo final (opcional com triagem IA)"
               type="date"
               value={prazoFinal}
-              onChange={(event) => setPrazoFinal(event.target.value)}
-              required
+              onChange={(e) => setPrazoFinal(e.target.value)}
             />
           </div>
 
-          <TextInput label="Título do pedido" value={titulo} onChange={(event) => setTitulo(event.target.value)} required />
+          <TextInput
+            label="Título do pedido (opcional com triagem IA)"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ex: Contestação ao pedido de rescisão contratual"
+          />
 
           <div className="grid gap-4 md:grid-cols-2">
             <SelectInput
               label="Tipo de peça"
               value={tipoPeca}
               options={opcoesTipos}
-              onChange={(event) => setTipoPeca(event.target.value as TipoPeca)}
+              onChange={(e) => setTipoPeca(e.target.value as TipoPeca)}
             />
-
             <SelectInput
               label="Prioridade"
               value={prioridade}
@@ -85,57 +196,202 @@ export function NovoPedidoForm({ tiposPeca, casoIdPadrao }: NovoPedidoFormProps)
                 { value: "média", label: "Média" },
                 { value: "alta", label: "Alta" },
               ]}
-              onChange={(event) => setPrioridade(event.target.value as PrioridadePedido)}
+              onChange={(e) => setPrioridade(e.target.value as PrioridadePedido)}
             />
           </div>
 
+          {/* ─── SELEÇÃO DE INTENÇÃO PROCESSUAL ─────────────────────── */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-[var(--color-ink)]">
+              🎯 Objetivo processual — O que o agente deve fazer?
+              <span className="ml-1 font-normal text-rose-600">*</span>
+            </label>
+            <p className="mb-2 text-xs text-[var(--color-muted)]">
+              Selecione exatamente o que você quer que o agente faça com o documento.
+              {poloRepresentado !== "indefinido" && ` As sugestões estão ordenadas por relevância para o polo ${poloRepresentado === "ativo" ? "ativo (autor)" : "passivo (réu)"}.`}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {intencoesSugeridas.map((intencao) => (
+                <button
+                  type="button"
+                  key={intencao}
+                  onClick={() => {
+                    setIntencaoProcessual(intencao);
+                    if (intencao !== "outro") setIntencaoCustom("");
+                  }}
+                  className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                    intencaoProcessual === intencao
+                      ? "border-violet-500 bg-violet-50 font-semibold text-violet-800 ring-2 ring-violet-300"
+                      : "border-[var(--color-border)] bg-white text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
+                  }`}
+                >
+                  {LABEL_INTENCAO[intencao]}
+                </button>
+              ))}
+
+              {/* Botão Outro sempre presente no final */}
+              {!intencoesSugeridas.includes("outro") && (
+                <button
+                  type="button"
+                  onClick={() => setIntencaoProcessual("outro")}
+                  className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                    intencaoProcessual === "outro"
+                      ? "border-violet-500 bg-violet-50 font-semibold text-violet-800 ring-2 ring-violet-300"
+                      : "border-dashed border-[var(--color-border)] bg-white text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)]"
+                  }`}
+                >
+                  ✏️ Outro — descrever livremente
+                </button>
+              )}
+            </div>
+
+            {/* Campo livre expandido quando 'outro' está selecionado */}
+            {intencaoProcessual === "outro" && (
+              <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3">
+                <label className="text-xs font-semibold text-violet-800">
+                  Descreva o que você quer que o agente faça: <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  className="mt-2 w-full rounded-lg border border-violet-200 bg-white p-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-violet-300"
+                  rows={3}
+                  placeholder='Ex: "Quero uma notificação extrajudicial antes de ajuizar" ou "Analise a viabilidade de ação coletiva"'
+                  value={intencaoCustom}
+                  onChange={(e) => setIntencaoCustom(e.target.value)}
+                  autoFocus
+                />
+                <p className="mt-1 text-xs text-violet-600">
+                  💡 O agente usará sua descrição para calibrar a análise. Seja específico e objetivo.
+                </p>
+              </div>
+            )}
+
+            {intencaoProcessual && intencaoProcessual !== "outro" && (
+              <p className="mt-2 text-xs text-violet-700">
+                ✅ Selecionado: <strong>{LABEL_INTENCAO[intencaoProcessual]}</strong>
+              </p>
+            )}
+          </div>
+
           <TextareaInput
-            label="Contexto para a equipe"
+            label="Contexto para o agente (descreva o problema ou o que você enviou)"
             value={contexto}
-            onChange={(event) => setContexto(event.target.value)}
+            onChange={(e) => setContexto(e.target.value)}
+            placeholder="Ex: Recebi a contestação da parte adversa ontem. Ela alega que o contrato era verbal e que não existe prova documental do serviço prestado..."
           />
+
+          {/* Opção de usar triagem com IA */}
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={usarAgentTriagem}
+              onChange={(e) => setUsarAgentTriagem(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 accent-violet-600"
+            />
+            <span className="font-medium text-[var(--color-ink)]">Usar Agente de Triagem com IA</span>
+            <span className="text-xs text-[var(--color-muted)]">(analisa o caso e enriquece a triagem automaticamente)</span>
+          </label>
 
           <button
             type="submit"
-            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-strong)]"
+            disabled={loadingTriagem}
+            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-strong)] disabled:opacity-60"
           >
-            Simular criação do pedido
+            {loadingTriagem ? "⏳ Agente analisando..." : usarAgentTriagem ? "🤖 Criar com Triagem IA" : "Criar pedido"}
           </button>
           {erro ? <p className="text-sm font-medium text-rose-700">{erro}</p> : null}
         </form>
       </Card>
 
-      <Card title="Prévia do pedido" subtitle="Resultado mockado da camada de aplicação.">
-        {!pedidoGerado ? (
-          <p className="text-sm text-[var(--color-muted)]">
-            Preencha o formulário e clique em simular para gerar um pedido de peça de exemplo.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-[var(--color-ink)]">{pedidoGerado.id}</p>
-              <StatusBadge label={pedidoGerado.status} variant="implantacao" />
-            </div>
-            <p className="text-sm text-[var(--color-muted)]">{pedidoGerado.titulo}</p>
-            <p className="text-xs text-[var(--color-muted)]">Criado em: {formatarDataHora(pedidoGerado.criadoEm)}</p>
+      {/* Painel de resultado */}
+      <div className="space-y-4">
+        <Card title="Resultado da triagem" subtitle="Análise do agente orientada pelo polo representado.">
+          {!pedidoGerado && !resultadoTriagem ? (
+            <p className="text-sm text-[var(--color-muted)]">
+              Preencha o formulário e defina o objetivo processual para criar um pedido.
+            </p>
+          ) : null}
 
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Link
-                href={`/peticoes/pedidos/PED-2026-001`}
-                className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
-              >
-                Abrir detalhe de pedido exemplo
-              </Link>
-              <Link
-                href={`/peticoes/pipeline/PED-2026-001`}
-                className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
-              >
-                Abrir pipeline exemplo
-              </Link>
+          {resultadoTriagem && (
+            <div className="space-y-3 text-sm">
+              {/* Polo confirmado */}
+              <div className={`rounded-lg border px-3 py-2 ${poloBadgeColor}`}>
+                <p className="font-semibold">
+                  Polo Confirmado: {(resultadoTriagem.triagem as Record<string, unknown>)?.poloDetectado as string}
+                </p>
+                <p className="text-xs opacity-75">
+                  {(resultadoTriagem.triagem as Record<string, unknown>)?.justificativaPolo as string}
+                </p>
+              </div>
+
+              {/* Intenção detectada */}
+              <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+                <p className="text-xs font-medium text-violet-600">Objetivo detectado:</p>
+                <p className="font-semibold text-violet-800">
+                  {LABEL_INTENCAO[(resultadoTriagem.triagem as Record<string, unknown>)?.intencaoDetectada as IntencaoProcessual]}
+                </p>
+              </div>
+
+              {/* Resumo */}
+              <p className="text-[var(--color-muted)]">
+                {(resultadoTriagem.triagem as Record<string, unknown>)?.resumoJustificativa as string}
+              </p>
+
+              {/* Pontos vulneráveis do adversário */}
+              {Array.isArray((resultadoTriagem.triagem as Record<string, unknown>)?.pontosVulneraveisAdverso) &&
+                ((resultadoTriagem.triagem as Record<string, unknown>)?.pontosVulneraveisAdverso as string[]).length > 0 && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-rose-700 mb-1">⚠️ Pontos vulneráveis do adversário:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-xs text-rose-800">
+                      {((resultadoTriagem.triagem as Record<string, unknown>)?.pontosVulneraveisAdverso as string[]).map((p, i) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              {/* Alertas */}
+              {Array.isArray((resultadoTriagem.triagem as Record<string, unknown>)?.alertas) &&
+                ((resultadoTriagem.triagem as Record<string, unknown>)?.alertas as string[]).length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-amber-700 mb-1">🔔 Alertas:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-xs text-amber-800">
+                      {((resultadoTriagem.triagem as Record<string, unknown>)?.alertas as string[]).map((a, i) => (
+                        <li key={i}>{a}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
             </div>
-          </div>
-        )}
-      </Card>
+          )}
+
+          {pedidoGerado && (
+            <div className="mt-4 space-y-3 border-t border-[var(--color-border)] pt-4">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-[var(--color-ink)]">{pedidoGerado.id}</p>
+                <StatusBadge label={pedidoGerado.status} variant="implantacao" />
+              </div>
+              <p className="text-sm text-[var(--color-muted)]">{pedidoGerado.titulo}</p>
+              <p className="text-xs text-[var(--color-muted)]">Responsável: {pedidoGerado.responsavel}</p>
+              <p className="text-xs text-[var(--color-muted)]">Criado em: {formatarDataHora(pedidoGerado.criadoEm)}</p>
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Link
+                  href={`/peticoes/pedidos/${pedidoGerado.id}`}
+                  className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
+                >
+                  Abrir pedido
+                </Link>
+                <Link
+                  href={`/peticoes/pipeline/${pedidoGerado.id}`}
+                  className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
+                >
+                  Abrir pipeline
+                </Link>
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

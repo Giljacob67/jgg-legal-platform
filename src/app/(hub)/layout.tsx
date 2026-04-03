@@ -1,14 +1,24 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { obterSessaoMock } from "@/modules/auth/application/obterSessaoMock";
+import { auth } from "@/lib/auth";
 import { listarModulosNavegacao } from "@/modules/hub/application/listarModulosNavegacao";
+import type { Sessao } from "@/modules/auth/domain/types";
 
-export default function HubLayout({ children }: { children: React.ReactNode }) {
-  const sessao = obterSessaoMock();
+export default async function HubLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
 
-  if (!sessao) {
-    redirect("/acesso-negado");
+  if (!session?.user) {
+    redirect("/login");
   }
+
+  const sessao: Sessao = {
+    usuarioId: session.user.id,
+    nome: session.user.name ?? "Usuário",
+    email: session.user.email ?? "",
+    iniciais: session.user.initials ?? "??",
+    perfil: session.user.role ?? "Advogado",
+    ativo: true,
+  };
 
   const modulos = listarModulosNavegacao();
 
@@ -18,3 +28,4 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
     </AppShell>
   );
 }
+

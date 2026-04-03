@@ -412,12 +412,12 @@ export async function sincronizarPipelinePedido(pedidoId: string): Promise<{
   etapaAtual: EtapaPipeline;
   contextoAtual: ContextoJuridicoPedido | null;
 }> {
-  const pedido = services.peticoesRepository.obterPedidoPorId(pedidoId);
+  const pedido = await services.peticoesRepository.obterPedidoPorId(pedidoId);
   if (!pedido) {
     return {
-      etapas: services.peticoesRepository.listarEtapasPipeline(),
+      etapas: await services.peticoesRepository.listarEtapasPipeline(),
       snapshots: [],
-      historico: services.peticoesRepository.listarHistoricoPipeline(pedidoId),
+      historico: await services.peticoesRepository.listarHistoricoPipeline(pedidoId),
       etapaAtual: "classificacao",
       contextoAtual: null,
     };
@@ -522,14 +522,14 @@ export async function sincronizarPipelinePedido(pedidoId: string): Promise<{
 
   const snapshotsAtualizados = await infra.pipelineSnapshotRepository.listarPorPedido(pedido.id);
   const historicoPersistido = snapshotsAtualizados.map(toHistoricoSnapshot);
-  const historicoLegado = services.peticoesRepository.listarHistoricoPipeline(pedido.id);
+  const historicoLegado = await services.peticoesRepository.listarHistoricoPipeline(pedido.id);
 
   const historico = [...historicoPersistido, ...historicoLegado].sort(
     (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime(),
   );
 
   return {
-    etapas: services.peticoesRepository.listarEtapasPipeline(),
+    etapas: await services.peticoesRepository.listarEtapasPipeline(),
     snapshots: snapshotsAtualizados,
     historico,
     etapaAtual: toEtapaAtual(snapshotsAtualizados),

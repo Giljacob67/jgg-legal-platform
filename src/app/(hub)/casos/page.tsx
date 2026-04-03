@@ -7,8 +7,8 @@ import { listarCasos } from "@/modules/casos/application/listarCasos";
 import type { Caso } from "@/modules/casos/domain/types";
 import { formatarData } from "@/lib/utils";
 
-export default function CasosPage() {
-  const casos = listarCasos();
+export default async function CasosPage() {
+  const casos = await listarCasos();
 
   return (
     <div className="space-y-6">

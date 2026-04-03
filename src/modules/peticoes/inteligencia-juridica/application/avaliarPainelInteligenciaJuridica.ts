@@ -441,16 +441,6 @@ function montarResumoExecutivo(input: {
 export async function avaliarPainelInteligenciaJuridica(
   input: EntradaMotorInteligenciaJuridica,
 ): Promise<PainelInteligenciaJuridica> {
-  const infra = getInteligenciaJuridicaInfra();
-  const [teses, itensChecklist, pesos] = await Promise.all([
-    infra.catalogoTesesRepository.listarPorTipoEMateria({
-      tipoPecaCanonica: input.tipoPecaCanonica,
-      materiaCanonica: input.materiaCanonica,
-    }),
-    infra.checklistRepository.listarPorTipoPeca({ tipoPecaCanonica: input.tipoPecaCanonica }),
-    infra.configScoreRepository.obterPesos(),
-  ]);
-
   const contexto = input.contextoJuridico;
   const fatosRelevantes = contexto?.fatosRelevantes ?? [];
   const pontosControvertidos = contexto?.pontosControvertidos ?? [];
@@ -469,6 +459,17 @@ export async function avaliarPainelInteligenciaJuridica(
   ]
     .filter((item) => item.trim().length > 0)
     .join("\n\n");
+
+  const infra = getInteligenciaJuridicaInfra();
+  const [teses, itensChecklist, pesos] = await Promise.all([
+    infra.catalogoTesesRepository.listarPorTipoEMateria({
+      tipoPecaCanonica: input.tipoPecaCanonica,
+      materiaCanonica: input.materiaCanonica,
+      contextoTexto: input.minuta.conteudoAtual + "\n" + contextoTexto,
+    }),
+    infra.checklistRepository.listarPorTipoPeca({ tipoPecaCanonica: input.tipoPecaCanonica }),
+    infra.configScoreRepository.obterPesos(),
+  ]);
 
   const secoes = extrairSecoesMinuta(input.minuta.conteudoAtual);
 

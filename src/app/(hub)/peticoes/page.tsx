@@ -5,8 +5,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
 import { formatarData } from "@/lib/utils";
 
-export default function PeticoesPage() {
-  const pedidos = listarPedidosDePeca();
+export default async function PeticoesPage() {
+  const pedidos = await listarPedidosDePeca();
 
   return (
     <div className="space-y-6">

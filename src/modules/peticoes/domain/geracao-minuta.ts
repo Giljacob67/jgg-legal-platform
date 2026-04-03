@@ -12,12 +12,33 @@ export type BlocoMinutaId =
 export type TipoPecaCanonica =
   | "peticao_inicial"
   | "contestacao"
-  | "manifestacao"
+  | "replica"
   | "embargos_execucao"
+  | "impugnacao"
+  | "manifestacao"
   | "apelacao_civel"
-  | "recurso_especial_civel";
+  | "recurso_especial_civel"
+  | "agravo_instrumento"
+  | "agravo_interno"
+  | "embargos_declaracao"
+  | "mandado_seguranca"
+  | "habeas_corpus"
+  | "reconvencao"
+  | "excecao_pre_executividade"
+  | "tutela_urgencia"
+  | "contrarrazoes";
 
-export type MateriaCanonica = "civel" | "agrario_agronegocio" | "bancario";
+export type MateriaCanonica =
+  | "civel"
+  | "trabalhista"
+  | "tributario"
+  | "criminal"
+  | "consumidor"
+  | "empresarial"
+  | "familia"
+  | "ambiental"
+  | "agrario_agronegocio"
+  | "bancario";
 
 export interface BlocoTemplateJuridico {
   id: BlocoMinutaId;
@@ -88,29 +109,23 @@ function normalizarParaComparacao(valor: string): string {
 export function normalizarTipoPecaCanonica(tipoPeca: string): TipoPecaCanonica {
   const base = normalizarParaComparacao(tipoPeca);
 
-  if (base.includes("peticao inicial")) {
-    return "peticao_inicial";
-  }
-
-  if (base.includes("contestacao")) {
-    return "contestacao";
-  }
-
-  if (base.includes("embargos") && base.includes("execucao")) {
-    return "embargos_execucao";
-  }
-
-  if (base.includes("apelacao") && base.includes("civel")) {
-    return "apelacao_civel";
-  }
-
-  if (base.includes("recurso especial") && base.includes("civel")) {
-    return "recurso_especial_civel";
-  }
-
-  if (base.includes("manifestacao") || base.includes("replica") || base === "recurso") {
-    return "manifestacao";
-  }
+  if (base.includes("peticao inicial")) return "peticao_inicial";
+  if (base.includes("contestacao")) return "contestacao";
+  if (base.includes("replica")) return "replica";
+  if (base.includes("embargos") && base.includes("execucao")) return "embargos_execucao";
+  if (base.includes("impugnacao")) return "impugnacao";
+  if (base.includes("apelacao") && base.includes("civel")) return "apelacao_civel";
+  if (base.includes("recurso especial") && base.includes("civel")) return "recurso_especial_civel";
+  if (base.includes("agravo") && base.includes("instrumento")) return "agravo_instrumento";
+  if (base.includes("agravo") && base.includes("interno")) return "agravo_interno";
+  if (base.includes("embargos") && base.includes("declaracao")) return "embargos_declaracao";
+  if (base.includes("mandado") && base.includes("seguranca")) return "mandado_seguranca";
+  if (base.includes("habeas") && base.includes("corpus")) return "habeas_corpus";
+  if (base.includes("reconvencao")) return "reconvencao";
+  if (base.includes("excecao") && base.includes("pre")) return "excecao_pre_executividade";
+  if (base.includes("tutela") && base.includes("urgencia")) return "tutela_urgencia";
+  if (base.includes("contrarrazoes")) return "contrarrazoes";
+  if (base.includes("manifestacao") || base === "recurso") return "manifestacao";
 
   return "manifestacao";
 }
@@ -118,13 +133,15 @@ export function normalizarTipoPecaCanonica(tipoPeca: string): TipoPecaCanonica {
 export function normalizarMateriaCanonica(materia?: string): MateriaCanonica {
   const base = normalizarParaComparacao(materia ?? "");
 
-  if (base.includes("agrar") || base.includes("agro")) {
-    return "agrario_agronegocio";
-  }
-
-  if (base.includes("banc")) {
-    return "bancario";
-  }
+  if (base.includes("trabalh")) return "trabalhista";
+  if (base.includes("tribut")) return "tributario";
+  if (base.includes("criminal") || base.includes("penal")) return "criminal";
+  if (base.includes("consumidor") || base.includes("consum")) return "consumidor";
+  if (base.includes("empresar") || base.includes("societar")) return "empresarial";
+  if (base.includes("famil") || base.includes("divorcio") || base.includes("alimentos")) return "familia";
+  if (base.includes("ambient")) return "ambiental";
+  if (base.includes("agrar") || base.includes("agro")) return "agrario_agronegocio";
+  if (base.includes("banc")) return "bancario";
 
   return "civel";
 }

@@ -14,14 +14,32 @@ import { obterTemplateJuridicoAtivoParaGeracao } from "@/modules/peticoes/base-j
 const TITULO_TIPO_PECA: Record<TipoPecaCanonica, string> = {
   peticao_inicial: "PETIÇÃO INICIAL",
   contestacao: "CONTESTAÇÃO",
-  manifestacao: "MANIFESTAÇÃO",
+  replica: "RÉPLICA",
   embargos_execucao: "EMBARGOS À EXECUÇÃO",
+  impugnacao: "IMPUGNAÇÃO AO CUMPRIMENTO DE SENTENÇA",
+  manifestacao: "MANIFESTAÇÃO",
   apelacao_civel: "APELAÇÃO CÍVEL",
   recurso_especial_civel: "RECURSO ESPECIAL CÍVEL",
+  agravo_instrumento: "AGRAVO DE INSTRUMENTO",
+  agravo_interno: "AGRAVO INTERNO",
+  embargos_declaracao: "EMBARGOS DE DECLARAÇÃO",
+  mandado_seguranca: "MANDADO DE SEGURANÇA",
+  habeas_corpus: "HABEAS CORPUS",
+  reconvencao: "RECONVENÇÃO",
+  excecao_pre_executividade: "EXCEÇÃO DE PRÉ-EXECUTIVIDADE",
+  tutela_urgencia: "PEDIDO DE TUTELA DE URGÊNCIA",
+  contrarrazoes: "CONTRARRAZÕES",
 };
 
 const NOME_MATERIA: Record<MateriaCanonica, string> = {
   civel: "Cível",
+  trabalhista: "Trabalhista",
+  tributario: "Tributário",
+  criminal: "Criminal",
+  consumidor: "Consumidor",
+  empresarial: "Empresarial",
+  familia: "Família",
+  ambiental: "Ambiental",
   agrario_agronegocio: "Agrário / Agronegócio",
   bancario: "Bancário",
 };
