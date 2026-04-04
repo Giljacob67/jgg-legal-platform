@@ -21,13 +21,22 @@ const FINANCEIRO_MOCK: MetricaFinanceira = {
 
 const JURIDICO_MOCK: MetricaJuridica = {
   casosPorMateria: [
-    { materia: "Direito Agrário", count: 3 },
-    { materia: "Execução Civil", count: 2 },
-    { materia: "Societário", count: 1 },
+    { materia: "Agrário / Agronegócio", count: 8 },
+    { materia: "Cível Empresarial", count: 1 },
+    { materia: "Trabalhista", count: 1 },
+    { materia: "Tributário", count: 1 },
+    { materia: "Consumidor", count: 1 },
+    { materia: "Família", count: 1 },
+    { materia: "Criminal", count: 1 },
+    { materia: "Empresarial", count: 1 },
+    { materia: "Bancário", count: 1 },
+    { materia: "Ambiental", count: 1 },
   ],
   casosPorStatus: [
-    { status: "em análise", count: 3 },
-    { status: "novo", count: 1 },
+    { status: "estratégia", count: 4 },
+    { status: "em análise", count: 5 },
+    { status: "minuta em elaboração", count: 3 },
+    { status: "novo", count: 3 },
     { status: "encerrado", count: 2 },
   ],
   pedidosPorTipo: [
@@ -37,7 +46,7 @@ const JURIDICO_MOCK: MetricaJuridica = {
     { tipo: "Petição Simples", count: 1 },
   ],
   tempoMedioConclusaoDias: 18,
-  totalJurisprudenciasCadastradas: 7,
+  totalJurisprudenciasCadastradas: 13,
 };
 
 const INSIGHTS_MOCK: InsightIA[] = [
@@ -63,8 +72,8 @@ const INSIGHTS_MOCK: InsightIA[] = [
     geradoEm: new Date().toISOString(),
   },
   {
-    titulo: "Base jurisprudencial pequena",
-    descricao: "Apenas 7 precedentes cadastrados. Recomenda-se enriquecer a base de jurisprudência para fortalecer os argumentos das petições.",
+    titulo: "Base jurisprudencial em expansão",
+    descricao: "13 precedentes cadastrados. Continue enriquecendo a base de jurisprudência — especialmente em agrário e tributário — para fortalecer os argumentos das petições.",
     tipo: "recomendacao",
     prioridade: "media",
     geradoEm: new Date().toISOString(),

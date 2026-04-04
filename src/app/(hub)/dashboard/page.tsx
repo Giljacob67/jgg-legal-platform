@@ -7,6 +7,19 @@ import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
 import { formatarData } from "@/lib/utils";
 
+function formatarTimestamp(iso: string): string {
+  const d = new Date(iso);
+  const hoje = new Date();
+  const ontem = new Date(hoje);
+  ontem.setDate(hoje.getDate() - 1);
+
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  if (d.toDateString() === hoje.toDateString()) return `Hoje • ${hora}`;
+  if (d.toDateString() === ontem.toDateString()) return `Ontem • ${hora}`;
+  return `${formatarData(d.toISOString().split("T")[0])} • ${hora}`;
+}
+
 export default async function DashboardPage() {
   const visao = await obterVisaoDashboard();
   const casos = (await listarCasos()).slice(0, 3);
@@ -18,6 +31,34 @@ export default async function DashboardPage() {
         title="Dashboard"
         description="Painel executivo da operação jurídica com foco em produção, prazos e revisão técnica."
       />
+
+      {/* Quick actions */}
+      <section className="flex flex-wrap gap-3">
+        <Link
+          href="/peticoes/novo"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-accent)] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+        >
+          ⚖️ Novo pedido
+        </Link>
+        <Link
+          href="/casos"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-ink)] shadow-sm transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+        >
+          📁 Novo caso
+        </Link>
+        <Link
+          href="/documentos"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-ink)] shadow-sm transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+        >
+          🗂️ Upload documento
+        </Link>
+        <Link
+          href="/contratos"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-ink)] shadow-sm transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+        >
+          📄 Novo contrato
+        </Link>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {visao.indicadores.map((indicador) => (
@@ -67,8 +108,8 @@ export default async function DashboardPage() {
           {visao.atividadesRecentes.map((atividade) => (
             <div key={atividade.id} className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3">
               <p className="text-sm text-[var(--color-ink)]">{atividade.titulo}</p>
-              <p className="text-xs text-[var(--color-muted)]">
-                {atividade.modulo} • {atividade.horario}
+              <p className="whitespace-nowrap text-xs text-[var(--color-muted)]">
+                {atividade.modulo} • {formatarTimestamp(atividade.timestamp)}
               </p>
             </div>
           ))}

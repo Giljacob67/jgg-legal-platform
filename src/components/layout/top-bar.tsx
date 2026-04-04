@@ -23,7 +23,14 @@ const labels: Record<string, string> = {
 };
 
 function formatarSegmento(segmento: string): string {
-  if (segmento.startsWith("CAS-") || segmento.startsWith("PED-") || segmento.startsWith("MIN-")) {
+  if (
+    segmento.startsWith("CAS-") ||
+    segmento.startsWith("PED-") ||
+    segmento.startsWith("MIN-") ||
+    segmento.startsWith("CTR-") ||
+    segmento.startsWith("JD-") ||
+    segmento.startsWith("CLI-")
+  ) {
     return segmento;
   }
 

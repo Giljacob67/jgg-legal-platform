@@ -24,7 +24,7 @@ export function MobileNav({ modulos }: { modulos: ModuloNavegacao[] }) {
                   : "border-[var(--color-border)] text-[var(--color-ink)]",
               )}
             >
-              {modulo.nome}
+              <span className="mr-1">{modulo.icone}</span>{modulo.nome}
             </Link>
           );
         })}
