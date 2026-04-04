@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { listarJurisprudencias, pesquisarJurisprudencias, criarJurisprudencia } from "@/modules/jurisprudencia/application";
 import type { TipoDecisao, Jurisprudencia } from "@/modules/jurisprudencia/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q");
   const tribunal = searchParams.get("tribunal") ?? undefined;
@@ -17,6 +21,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const body = (await request.json()) as Omit<Jurisprudencia, "id" | "criadoEm">;
     if (!body.titulo || !body.ementa || !body.tribunal) {

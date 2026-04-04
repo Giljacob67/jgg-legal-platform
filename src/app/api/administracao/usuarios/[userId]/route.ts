@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { atualizarPerfilUsuario, ativarDesativarUsuario } from "@/modules/administracao/application";
 import type { PerfilUsuario } from "@/modules/administracao/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ userId: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { userId } = await params;
   try {
     const body = (await request.json()) as { perfil?: PerfilUsuario; ativo?: boolean };

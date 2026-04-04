@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { obterConfiguracoes, atualizarConfiguracao } from "@/modules/administracao/application";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const configuracoes = await obterConfiguracoes();
   return NextResponse.json({ configuracoes });
 }
 
 export async function PATCH(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const body = (await request.json()) as { chave: string; valor: string };
     if (!body.chave || body.valor === undefined) {

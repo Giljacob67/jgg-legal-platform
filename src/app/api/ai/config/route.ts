@@ -4,13 +4,16 @@ import {
   getConfigAtual,
   isAIAvailable,
 } from "@/lib/ai/provider";
+import { requireAuth } from "@/lib/api-auth";
 
 /**
  * GET /api/ai/config
  * Retorna configuração atual do provedor IA e catálogo de modelos disponíveis.
- * Útil para a página de configurações e o seletor de modelo na UI.
  */
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const configAtual = getConfigAtual();
 
   return NextResponse.json({

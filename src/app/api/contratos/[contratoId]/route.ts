@@ -4,13 +4,17 @@ import { z } from "zod";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { obterContratoPorId, salvarAnaliseRisco, atualizarStatusContrato } from "@/modules/contratos/application";
 import type { StatusContrato } from "@/modules/contratos/domain/types";
-import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClasuulas";
+import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClausulas";
+import { requireAuth } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ contratoId: string }> };
 
 // ─── GET: obter contrato ──────────────────────────────────────
 
 export async function GET(_req: Request, { params }: Params) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { contratoId } = await params;
   const contrato = await obterContratoPorId(contratoId);
   if (!contrato) return NextResponse.json({ error: "Contrato não encontrado." }, { status: 404 });
@@ -20,6 +24,9 @@ export async function GET(_req: Request, { params }: Params) {
 // ─── PATCH: atualizar status ──────────────────────────────────
 
 export async function PATCH(request: Request, { params }: Params) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { contratoId } = await params;
   try {
     const body = (await request.json()) as { status?: StatusContrato };
@@ -32,7 +39,6 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 // ─── POST /analisar-risco: agente IA ─────────────────────────
-// (chamado via rota separada para clareza; ver route analisar-risco)
 
 const AnaliseSchema = z.object({
   pontuacaoRisco: z.number().min(0).max(100),
@@ -48,6 +54,9 @@ const AnaliseSchema = z.object({
 });
 
 export async function POST(request: Request, { params }: Params) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { contratoId } = await params;
   const body = (await request.json()) as { acao?: string };
 

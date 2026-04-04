@@ -1,5 +1,5 @@
 import { MockContratosRepository } from "../infrastructure/mockContratosRepository";
-import type { NovoCOntratoPPayload, StatusContrato, Contrato } from "../domain/types";
+import type { NovoContratoPayload, StatusContrato, Contrato } from "../domain/types";
 
 let _repo: MockContratosRepository | null = null;
 function getRepo() {
@@ -12,7 +12,7 @@ export const listarContratos = (filtros?: { status?: StatusContrato; tipo?: Cont
 
 export const obterContratoPorId = (id: string) => getRepo().obterPorId(id);
 
-export const criarContrato = (payload: NovoCOntratoPPayload) => getRepo().criar(payload);
+export const criarContrato = (payload: NovoContratoPayload) => getRepo().criar(payload);
 
 export const atualizarStatusContrato = (id: string, status: StatusContrato) =>
   getRepo().atualizarStatus(id, status);

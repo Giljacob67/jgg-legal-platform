@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { listarContratos, criarContrato } from "@/modules/contratos/application";
-import type { NovoCOntratoPPayload } from "@/modules/contratos/domain/types";
+import type { NovoContratoPayload } from "@/modules/contratos/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") ?? undefined;
   const tipo = searchParams.get("tipo") ?? undefined;
@@ -14,8 +18,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
-    const body = (await request.json()) as NovoCOntratoPPayload;
+    const body = (await request.json()) as NovoContratoPayload;
     if (!body.titulo || !body.tipo || !body.objeto) {
       return NextResponse.json({ error: "titulo, tipo e objeto são obrigatórios." }, { status: 400 });
     }

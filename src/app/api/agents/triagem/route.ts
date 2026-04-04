@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { getLLM, isAIAvailable, getConfigAtual } from "@/lib/ai/provider";
+import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 const TriagemSchema = z.object({
   poloDetectado: z.enum(["ativo", "passivo", "indefinido"]).describe(
@@ -59,7 +60,7 @@ Isso significa que:
 - A peça deve ser OFENSIVA: provar fatos, fundamentar direitos, pedir condenação
 - Prazos prioritários: impetração, protocolos, tutelas de urgência`;
   }
-  
+
   if (polo === "passivo") {
     return `O ESCRITÓRIO REPRESENTA O POLO PASSIVO (RÉU/REQUERIDO).
 Isso significa que:
@@ -68,12 +69,15 @@ Isso significa que:
 - A peça deve ser DEFENSIVA: questionar pressupostos, apresentar contradita, exceções processuais
 - Prazos prioritários: contestação (15 dias JEC / 30 dias CPC), embargos, exceções`;
   }
-  
+
   return `O POLO NÃO FOI DETERMINADO AUTOMATICAMENTE.
 Por segurança, analise AMBAS as perspectivas e sinalize que o advogado deve confirmar qual polo representa.`;
 }
 
 export async function POST(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const body = await request.json();
     const {
@@ -88,8 +92,8 @@ export async function POST(request: Request) {
       descricaoProblema: string;
       prazoInformadoCliente?: string;
       documentosAnexados?: string[];
-      textoDocumentoAdverso?: string;  // Texto OCR do documento adverso (se houver)
-      intencaoExplicita?: IntencaoProcessual; // Intenção informada manualmente pelo advogado
+      textoDocumentoAdverso?: string;
+      intencaoExplicita?: IntencaoProcessual;
     };
 
     if (!casoId || !descricaoProblema) {
@@ -104,7 +108,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Caso ${casoId} não encontrado.` }, { status: 404 });
     }
 
-    // ── Detectar polo automaticamente pelo cruzamento cliente↔partes ─────────
     const poloDetectado = detectarPoloRepresentado(caso);
     const contextoPolo = construirContextoPolo(poloDetectado);
 
@@ -158,12 +161,11 @@ ${equipeStr}
 5. Defina prioridade real considerando o tribunal e prazo
 6. Sinalize alertas críticos`;
 
-    // Modo sem chave: triagem mock inteligente
     if (!isAIAvailable()) {
       const today = new Date();
       const prazoDefault = new Date(today.setDate(today.getDate() + 10)).toISOString().split("T")[0];
-      
-      const intencaoMock: IntencaoProcessual = intencaoExplicita ?? 
+
+      const intencaoMock: IntencaoProcessual = intencaoExplicita ??
         (poloDetectado === "passivo" ? "redigir_contestacao" : "analisar_documento_adverso");
 
       return NextResponse.json({
@@ -193,7 +195,6 @@ ${equipeStr}
       prompt,
     });
 
-    // Criar automaticamente o pedido de peça no sistema com todos os metadados
     const novoPedido = await services.peticoesRepository.simularCriacaoPedido({
       casoId,
       titulo: `${triagem.tipoPecaClassificado} — ${caso.titulo}`,

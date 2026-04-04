@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { vincularDocumento } from "@/modules/documentos/application/vincularDocumento";
+import { requireAuth } from "@/lib/api-auth";
 
 type VincularDocumentoRequestBody = {
   tipoEntidade: "caso" | "pedido_peca";
@@ -11,6 +12,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<Record<string, string>> },
 ) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const params = await context.params;
     const documentoId = params.documentoId;

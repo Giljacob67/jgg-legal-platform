@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 
 interface OpenRouterModel {
   id: string;
@@ -27,9 +28,11 @@ interface OpenRouterModelsResponse {
 /**
  * GET /api/ai/models
  * Busca todos os modelos disponíveis no OpenRouter e/ou KiloCode, incluindo os gratuitos.
- * Filtra, ordena e anota cada modelo com metadados úteis.
  */
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   const kiloKey = process.env.KILO_API_KEY;
 
@@ -41,7 +44,6 @@ export async function GET() {
   }
 
   try {
-    // Busca paralela: OpenRouter + KiloCode (se chaves configuradas)
     const fetches: Promise<Response>[] = [];
 
     if (openrouterKey) {
@@ -67,7 +69,6 @@ export async function GET() {
           },
           next: { revalidate: 600 },
         }).catch(() => new Response(JSON.stringify({ data: [] }), { status: 200 }))
-        // KiloCode pode não ter /models endpoint público — falha silenciosa
       );
     }
 
@@ -83,7 +84,6 @@ export async function GET() {
       }
     }
 
-    // Deduplicar por ID
     const vistos = new Set<string>();
     const modelosUnicos = todosModelos.filter((m) => {
       if (vistos.has(m.id)) return false;
@@ -92,7 +92,6 @@ export async function GET() {
     });
 
     const modelos = modelosUnicos.map((m: OpenRouterModel) => {
-      // Preço por 1M tokens em prompt (string "0.0000001" → número)
       const precoPorMilhao = m.pricing?.prompt
         ? parseFloat(m.pricing.prompt) * 1_000_000
         : null;
@@ -111,10 +110,8 @@ export async function GET() {
         ? "alto"
         : "desconhecido";
 
-      // Detectar se suporta visão (multimodal)
       const suportaVisao = m.architecture?.modality?.includes("image") ?? false;
 
-      // Extrair provider do ID (ex: "anthropic/claude-3.5-sonnet" → "Anthropic")
       const [provedorSlug] = m.id.split("/");
       const provedorLabel = provedorSlug
         ? provedorSlug.charAt(0).toUpperCase() + provedorSlug.slice(1)
@@ -133,7 +130,6 @@ export async function GET() {
       };
     });
 
-    // Ordenação: gratuitos primeiro, depois por custo crescente, depois alfabético
     modelos.sort((a, b) => {
       const ordemCusto: Record<string, number> = {
         gratuito: 0,
@@ -153,7 +149,7 @@ export async function GET() {
       modelos,
     });
   } catch (error) {
-    console.error("[/api/ai/models] Erro ao buscar modelos do OpenRouter:", error);
+    console.error("[/api/ai/models] Erro ao buscar modelos:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Erro desconhecido",

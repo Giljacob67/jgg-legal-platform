@@ -46,7 +46,7 @@ export interface Cliente {
   atualizadoEm: string;
 }
 
-export interface NovoCLientePayload {
+export interface NovoClientePayload {
   nome: string;
   tipo: TipoCliente;
   cpfCnpj?: string;

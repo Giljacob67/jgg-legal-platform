@@ -139,7 +139,7 @@ export interface AnaliseRiscoContrato {
 
 // ─── Payload para criação ──────────────────────────────────────
 
-export interface NovoCOntratoPPayload {
+export interface NovoContratoPayload {
   titulo: string;
   tipo: TipoContrato;
   objeto: string;

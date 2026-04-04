@@ -40,21 +40,25 @@ export async function processarDocumento(
     // 4. Deletar chunks anteriores do documento (re-processamento idempotente)
     await sql`DELETE FROM biblioteca_chunks WHERE documento_id = ${documentoId}`;
 
-    // 5. Inserir chunks com embeddings
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const embedding = embeddings[i];
-      const vectorStr = `[${embedding.join(",")}]`;
+    // 5. Inserir chunks com embeddings em lote
+    if (chunks.length > 0) {
+      const rows = chunks.map((chunk, i) => ({
+        documentoId,
+        sequencia: chunk.sequencia,
+        conteudo: chunk.conteudo,
+        vectorStr: `[${embeddings[i].join(",")}]`,
+      }));
 
       await sql`
         INSERT INTO biblioteca_chunks (id, documento_id, sequencia, conteudo, embedding)
-        VALUES (
+        SELECT
           gen_random_uuid()::TEXT,
-          ${documentoId},
-          ${chunk.sequencia},
-          ${chunk.conteudo},
-          ${vectorStr}::vector
-        )
+          t.documento_id,
+          t.sequencia,
+          t.conteudo,
+          t.vector_str::vector
+        FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb)
+          AS t(documento_id TEXT, sequencia INT, conteudo TEXT, vector_str TEXT)
       `;
     }
 

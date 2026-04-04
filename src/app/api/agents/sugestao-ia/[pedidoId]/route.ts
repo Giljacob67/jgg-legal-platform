@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ pedidoId: string }> }
 ) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const { pedidoId } = await params;
     const body = await request.json();

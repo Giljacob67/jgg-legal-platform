@@ -46,7 +46,7 @@ Para adicionar um prompt: criar `src/lib/ai/prompts/<estagio>.ts` e exportar no 
 
 ## Catálogo Jurídico
 - Templates de petições: `src/modules/peticoes/base-juridica-viva/infrastructure/defaultCatalog.ts`
-- Cláusulas de contratos: `src/modules/contratos/infrastructure/templatesClasuulas.ts`
+- Cláusulas de contratos: `src/modules/contratos/infrastructure/templatesClausulas.ts`
 - Todo item novo deve passar nos testes de schema em `__tests__/defaultCatalog.test.ts`
 
 ## Provider de IA

@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
-import { obterSessaoMock } from "@/modules/auth/application/obterSessaoMock";
 import { getDocumentosInfra } from "@/modules/documentos/infrastructure/provider.server";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<Record<string, string>> },
 ) {
-  try {
-    const sessao = obterSessaoMock();
-    if (!sessao) {
-      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-    }
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
 
+  try {
     const params = await context.params;
     const documentoId = params.documentoId;
 

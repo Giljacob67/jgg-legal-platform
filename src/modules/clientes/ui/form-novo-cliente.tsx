@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import type { NovoCLientePayload, StatusCliente, TipoCliente } from "@/modules/clientes/domain/types";
+import type { NovoClientePayload, StatusCliente, TipoCliente } from "@/modules/clientes/domain/types";
 import { LABEL_STATUS_CLIENTE } from "@/modules/clientes/domain/types";
 
 const TIPOS_CLIENTE: Array<{ value: TipoCliente; label: string }> = [
@@ -32,7 +32,7 @@ export function FormNovoCliente() {
     setErro("");
     setLoading(true);
 
-    const payload: NovoCLientePayload = {
+    const payload: NovoClientePayload = {
       nome,
       tipo,
       status,

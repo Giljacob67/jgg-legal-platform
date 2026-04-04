@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { criarNovaVersaoAtivoBaseJuridica, type TipoGestaoBaseJuridica } from "@/modules/peticoes/base-juridica-viva/application/useCases";
+import { requireAuth } from "@/lib/api-auth";
 
 function tipoValido(tipo: string): tipo is TipoGestaoBaseJuridica {
   return tipo === "templates" || tipo === "teses" || tipo === "checklists";
@@ -9,6 +10,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<Record<string, string>> },
 ) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const params = await context.params;
     const tipo = params.tipo;

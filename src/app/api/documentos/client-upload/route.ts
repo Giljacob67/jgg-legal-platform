@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { TipoDocumento } from "@/modules/documentos/domain/types";
-import { obterSessaoMock } from "@/modules/auth/application/obterSessaoMock";
+import { requireAuth } from "@/lib/api-auth";
 import { registrarUploadClienteDocumento } from "@/modules/documentos/application/registrarUploadClienteDocumento";
 import { validarTipoDocumento } from "@/modules/documentos/application/validation";
 
@@ -56,16 +56,11 @@ function parseTokenPayload(raw: string | null | undefined): UploadClientPayload 
 }
 
 export async function POST(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const body = (await request.json()) as HandleUploadBody;
-    const isGenerateToken = body.type === "blob.generate-client-token";
-
-    if (isGenerateToken) {
-      const sessao = obterSessaoMock();
-      if (!sessao) {
-        return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-      }
-    }
 
     const jsonResponse = await handleUpload({
       body,

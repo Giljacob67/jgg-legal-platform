@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getBibliotecaRepo } from "@/modules/biblioteca-conhecimento/infrastructure/mockBibliotecaRepository";
 import type { TipoDocumentoBC } from "@/modules/biblioteca-conhecimento/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { searchParams } = new URL(request.url);
   const tipo = searchParams.get("tipo") as TipoDocumentoBC | null;
   const fonte = searchParams.get("fonte") ?? undefined;
@@ -18,6 +22,9 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id obrigatório." }, { status: 400 });

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { listarDocumentosComDetalhes } from "@/modules/documentos/application/listarDocumentos";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const { searchParams } = new URL(request.url);
 

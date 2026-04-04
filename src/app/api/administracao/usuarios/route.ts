@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { listarUsuarios, convidarUsuario } from "@/modules/administracao/application";
 import type { ConviteUsuario } from "@/modules/administracao/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   const usuarios = await listarUsuarios();
   return NextResponse.json({ usuarios });
 }
 
 export async function POST(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   try {
     const body = (await request.json()) as ConviteUsuario;
     if (!body.nome || !body.email || !body.perfil) {

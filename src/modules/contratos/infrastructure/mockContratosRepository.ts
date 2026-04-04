@@ -1,9 +1,9 @@
 import type {
   Contrato,
-  NovoCOntratoPPayload,
+  NovoContratoPayload,
   StatusContrato,
 } from "../domain/types";
-import { CLAUSULAS_PADRAO } from "./templatesClasuulas";
+import { CLAUSULAS_PADRAO } from "./templatesClausulas";
 
 let _idCounter = 10;
 function nextId() {
@@ -112,7 +112,7 @@ export class MockContratosRepository {
     return contratosStore.find((c) => c.id === id) ?? null;
   }
 
-  async criar(payload: NovoCOntratoPPayload): Promise<Contrato> {
+  async criar(payload: NovoContratoPayload): Promise<Contrato> {
     const id = nextId();
     const agora = new Date().toISOString();
     const clausulas = clausulasParaContrato(payload.tipo);

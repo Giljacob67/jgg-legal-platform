@@ -1,4 +1,4 @@
-import type { Cliente, NovoCLientePayload, StatusCliente } from "../domain/types";
+import type { Cliente, NovoClientePayload, StatusCliente } from "../domain/types";
 
 let _id = 5;
 function nextId() { return `CLI-2026-${String(++_id).padStart(3, "0")}`; }
@@ -97,7 +97,7 @@ export class MockClientesRepository {
     return clientesStore.find((c) => c.id === id) ?? null;
   }
 
-  async criar(payload: NovoCLientePayload): Promise<Cliente> {
+  async criar(payload: NovoClientePayload): Promise<Cliente> {
     const id = nextId();
     const agora = new Date().toISOString();
     const novo: Cliente = { id, ...payload, status: payload.status ?? "ativo", casosIds: [], contratosIds: [], criadoEm: agora, atualizadoEm: agora };
@@ -105,7 +105,7 @@ export class MockClientesRepository {
     return novo;
   }
 
-  async atualizar(id: string, dados: Partial<NovoCLientePayload>): Promise<Cliente> {
+  async atualizar(id: string, dados: Partial<NovoClientePayload>): Promise<Cliente> {
     const idx = clientesStore.findIndex((c) => c.id === id);
     if (idx === -1) throw new Error(`Cliente ${id} não encontrado.`);
     clientesStore[idx] = { ...clientesStore[idx], ...dados, atualizadoEm: new Date().toISOString() };

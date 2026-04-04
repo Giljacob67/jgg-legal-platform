@@ -4,11 +4,15 @@ import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastruc
 import { isDriveConfigurado, listarArquivosDrive, baixarArquivoDrive } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
 import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
 import type { ResultadoSyncDrive } from "@/modules/biblioteca-conhecimento/domain/types";
+import { requireAuth } from "@/lib/api-auth";
 
 // Armazena status da última sync em memória
 let ultimaSync: ResultadoSyncDrive | null = null;
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   return NextResponse.json({
     configurado: isDriveConfigurado(),
     folderId: process.env.GOOGLE_DRIVE_FOLDER_ID ?? null,
@@ -17,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
   if (!isDriveConfigurado()) {
     return NextResponse.json(
       {
@@ -37,7 +44,6 @@ export async function POST() {
     const arquivos = await listarArquivosDrive();
 
     for (const arquivo of arquivos) {
-      // Deduplicação: pula se já existe pelo Drive File ID
       const existente = await repo.encontrarPorDriveId(arquivo.id);
       if (existente) {
         pulados++;
@@ -49,7 +55,6 @@ export async function POST() {
         const tipoInferido = inferirTipoPorPasta(arquivo.folderPath || arquivo.nome);
         const titulo = arquivo.nome.replace(/\.[^.]+$/, "");
 
-        // Registra documento
         const doc = await repo.criar({
           titulo,
           tipo: tipoInferido,
@@ -60,7 +65,6 @@ export async function POST() {
           tamanhoBytes: arquivo.tamanhoBytes,
         });
 
-        // Baixa e processa
         const { buffer, mimeTypeEfetivo } = await baixarArquivoDrive(arquivo.id, arquivo.mimeType);
         await processarDocumento(doc.id, buffer, mimeTypeEfetivo);
 
