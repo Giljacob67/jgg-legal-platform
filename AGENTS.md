@@ -124,3 +124,60 @@ Antes de concluir qualquer entrega:
 
 ## Resultado esperado
 Entregar uma base sólida, visualmente consistente e tecnicamente organizada, que permita expandir o HUB JGG Group por fases sem reestruturação drástica futura.
+
+---
+
+## JSON Schemas de Output por Estágio
+
+### triagem
+```json
+{
+  "tipo_peca": "string",
+  "materia": "string",
+  "urgencia": "urgente|normal",
+  "complexidade": "simples|media|complexa",
+  "justificativa_urgencia": "string",
+  "justificativa_complexidade": "string"
+}
+```
+
+### extracao-fatos
+```json
+{
+  "fatos_cronologicos": [
+    { "data": "string", "descricao": "string", "documentos_referenciados": ["string"], "controverso": true }
+  ],
+  "prazo_prescricional": "string",
+  "prazo_decadencial": "string",
+  "observacoes": "string"
+}
+```
+
+### analise-adversa
+```json
+{
+  "pontos_fortes": ["string"],
+  "pontos_vulneraveis": ["string"],
+  "argumentos_adversos_previstos": ["string"],
+  "riscos_processuais": ["string"],
+  "nivel_risco_geral": "baixo|medio|alto",
+  "recomendacoes_cautela": "string"
+}
+```
+
+### estrategia
+```json
+{
+  "teses_aplicaveis": [
+    { "titulo": "string", "fundamento_legal": "string", "prioridade": "principal|secundaria" }
+  ],
+  "linha_argumentativa": "string",
+  "pontos_a_evitar": ["string"],
+  "pedidos_recomendados": ["string"]
+}
+```
+
+## Configuração OpenRouter
+O modelo de IA é configurado via painel de Administração (rota `/administracao/configuracoes`).
+A chave de API fica em `OPENROUTER_API_KEY` no ambiente Vercel.
+Modelos recomendados: `anthropic/claude-sonnet-4-6`, `openai/gpt-4o`, `google/gemini-2.0-flash`.

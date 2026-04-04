@@ -109,7 +109,7 @@ export default async function BIPage() {
           ))}
         </div>
         <p className="mt-3 text-xs text-[var(--color-muted)]">
-          Insights gerados em {new Date(insights[0]?.geradoEm ?? Date.now()).toLocaleString("pt-BR")}
+          Insights gerados em {new Date(insights[0]?.geradoEm ?? new Date().toISOString()).toLocaleString("pt-BR")}
         </p>
       </Card>
     </div>

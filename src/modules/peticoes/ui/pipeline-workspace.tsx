@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type {
   ContextoJuridicoPedido,
   EtapaPipeline,
@@ -8,17 +8,26 @@ import type {
   HistoricoPipeline,
   SnapshotPipelineEtapa,
 } from "@/modules/peticoes/domain/types";
+import { MAPA_ESTAGIO_PIPELINE, type EstagioExecutavel } from "@/modules/peticoes/domain/types";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";
 
 type PipelineWorkspaceProps = {
+  pedidoId: string;
   etapas: EtapaPipelineInfo[];
   etapaInicial: EtapaPipeline;
   historico: HistoricoPipeline[];
   snapshots: SnapshotPipelineEtapa[];
   contextoAtual: ContextoJuridicoPedido | null;
 };
+
+// Estágios executáveis via IA (mapeados em MAPA_ESTAGIO_PIPELINE)
+const ESTAGIOS_IA = Object.keys(MAPA_ESTAGIO_PIPELINE) as EstagioExecutavel[];
+// Mapear EtapaPipeline → EstagioExecutavel para lookup
+const PIPELINE_PARA_ESTAGIO = Object.fromEntries(
+  Object.entries(MAPA_ESTAGIO_PIPELINE).map(([k, v]) => [v, k as EstagioExecutavel]),
+) as Partial<Record<EtapaPipeline, EstagioExecutavel>>;
 
 function toStatus(
   etapa: EtapaPipelineInfo,
@@ -55,12 +64,54 @@ function toStatus(
 }
 
 export function PipelineWorkspace({
+  pedidoId,
   etapas,
   etapaInicial,
   historico,
   snapshots,
   contextoAtual,
 }: PipelineWorkspaceProps) {
+  const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
+  const [streamTexts, setStreamTexts] = useState<Partial<Record<EstagioExecutavel, string>>>({});
+  const [streamErrors, setStreamErrors] = useState<Partial<Record<EstagioExecutavel, string>>>({});
+
+  const executarEstagio = useCallback(async (estagio: EstagioExecutavel) => {
+    setStreamingEstagio(estagio);
+    setStreamErrors((prev) => ({ ...prev, [estagio]: undefined }));
+    setStreamTexts((prev) => ({ ...prev, [estagio]: "" }));
+
+    try {
+      const res = await fetch(`/api/peticoes/pipeline/${pedidoId}/executar/${estagio}`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        setStreamErrors((prev) => ({ ...prev, [estagio]: err.error ?? "Erro desconhecido" }));
+        return;
+      }
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setStreamTexts((prev) => ({
+          ...prev,
+          [estagio]: (prev[estagio] ?? "") + decoder.decode(value),
+        }));
+      }
+    } catch (err) {
+      setStreamErrors((prev) => ({
+        ...prev,
+        [estagio]: err instanceof Error ? err.message : "Erro desconhecido",
+      }));
+    } finally {
+      setStreamingEstagio(null);
+    }
+  }, [pedidoId]);
+
   const snapshotsMap = useMemo(() => {
     const map = new Map<EtapaPipeline, SnapshotPipelineEtapa>();
     for (const snapshot of snapshots) {
@@ -112,6 +163,27 @@ export function PipelineWorkspace({
                     Versão {snapshot.versao} • tentativa {snapshot.tentativa}
                   </p>
                 ) : null}
+                {PIPELINE_PARA_ESTAGIO[etapa.id] !== undefined && (
+                  <div className="mt-3 space-y-2">
+                    <button
+                      onClick={() => executarEstagio(PIPELINE_PARA_ESTAGIO[etapa.id]!)}
+                      disabled={streamingEstagio !== null}
+                      className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {streamingEstagio === PIPELINE_PARA_ESTAGIO[etapa.id] ? "Gerando..." : "Executar com IA"}
+                    </button>
+                    {streamErrors[PIPELINE_PARA_ESTAGIO[etapa.id]!] && (
+                      <p className="text-xs text-red-600">
+                        {streamErrors[PIPELINE_PARA_ESTAGIO[etapa.id]!]}
+                      </p>
+                    )}
+                    {streamTexts[PIPELINE_PARA_ESTAGIO[etapa.id]!] && (
+                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-xs text-[var(--color-ink)]">
+                        {streamTexts[PIPELINE_PARA_ESTAGIO[etapa.id]!]}
+                      </pre>
+                    )}
+                  </div>
+                )}
               </article>
             );
           })}

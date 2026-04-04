@@ -98,7 +98,7 @@ const CONTRATOS_MOCK: Contrato[] = [
   },
 ];
 
-let contratosStore: Contrato[] = [...CONTRATOS_MOCK];
+const contratosStore: Contrato[] = [...CONTRATOS_MOCK];
 
 export class MockContratosRepository {
   async listar(filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"] }): Promise<Contrato[]> {

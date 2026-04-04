@@ -102,7 +102,7 @@ const JD_MOCK: Jurisprudencia[] = [
   },
 ];
 
-let jdStore: Jurisprudencia[] = [...JD_MOCK];
+const jdStore: Jurisprudencia[] = [...JD_MOCK];
 
 export class MockJurisprudenciaRepository {
   async listar(filtros?: { tribunal?: string; tipo?: TipoDecisao; materia?: string }): Promise<Jurisprudencia[]> {

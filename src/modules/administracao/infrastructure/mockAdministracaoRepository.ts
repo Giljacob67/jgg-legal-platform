@@ -90,8 +90,8 @@ const CONFIGURACOES_MOCK: ConfiguracaoSistema[] = [
   { chave: "tema", valor: "sistema", descricao: "Tema da interface: 'claro', 'escuro' ou 'sistema'" },
 ];
 
-let usuariosStore = [...USUARIOS_MOCK];
-let configuracoesStore = [...CONFIGURACOES_MOCK];
+const usuariosStore = [...USUARIOS_MOCK];
+const configuracoesStore = [...CONFIGURACOES_MOCK];
 
 export class MockAdministracaoRepository implements IAdministracaoRepository {
   async listarUsuarios(): Promise<Usuario[]> {

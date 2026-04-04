@@ -1,15 +1,14 @@
 /**
  * Pipeline de processamento de documentos para a Biblioteca de Conhecimento.
- * Extrai texto, divide em chunks e (se OpenAI disponível) gera embeddings.
+ * Extrai texto, divide em chunks, gera embeddings via OpenRouter e persiste no pgvector.
  * Server-side only.
  */
 
 import { getBibliotecaRepo } from "./mockBibliotecaRepository";
 import { extrairTexto } from "./textExtractor.server";
 import { dividirEmChunks } from "./chunkingService";
-
-// Simula armazenamento de chunks em memória (prod: pgvector)
-const chunksStore: Map<string, { sequencia: number; conteudo: string }[]> = new Map();
+import { gerarEmbeddingsLote } from "@/lib/ai/embeddings";
+import { getSqlClient } from "@/lib/database/client";
 
 export async function processarDocumento(
   documentoId: string,
@@ -32,12 +31,34 @@ export async function processarDocumento(
     // 2. Dividir em chunks
     const chunks = dividirEmChunks(texto);
 
-    // 3. Armazenar chunks (em prod: gerar embeddings + salvar no pgvector)
-    chunksStore.set(documentoId, chunks);
+    // 3. Gerar embeddings em lote
+    const conteudos = chunks.map((c) => c.conteudo);
+    const embeddings = await gerarEmbeddingsLote(conteudos);
 
-    // TODO (prod): para cada chunk, chamar openaiEmbeddings() e salvar na tabela base_conhecimento_chunks
+    const sql = getSqlClient();
 
-    // 4. Atualizar status
+    // 4. Deletar chunks anteriores do documento (re-processamento idempotente)
+    await sql`DELETE FROM biblioteca_chunks WHERE documento_id = ${documentoId}`;
+
+    // 5. Inserir chunks com embeddings
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const embedding = embeddings[i];
+      const vectorStr = `[${embedding.join(",")}]`;
+
+      await sql`
+        INSERT INTO biblioteca_chunks (id, documento_id, sequencia, conteudo, embedding)
+        VALUES (
+          gen_random_uuid()::TEXT,
+          ${documentoId},
+          ${chunk.sequencia},
+          ${chunk.conteudo},
+          ${vectorStr}::vector
+        )
+      `;
+    }
+
+    // 6. Atualizar status
     await repo.atualizarStatus(documentoId, "concluido", chunks.length);
 
     return { chunksGerados: chunks.length };
@@ -46,9 +67,4 @@ export async function processarDocumento(
     await repo.atualizarStatus(documentoId, "erro", 0, msg);
     throw error;
   }
-}
-
-/** Recupera chunks de um documento (para debug/visualização). */
-export function obterChunks(documentoId: string) {
-  return chunksStore.get(documentoId) ?? [];
 }
