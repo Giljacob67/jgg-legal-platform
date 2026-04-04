@@ -88,7 +88,7 @@ export default async function GestaoPage() {
                   <td className="px-4 py-3 font-semibold text-emerald-700">{adv.pedidosConcluidos}</td>
                   <td className="px-4 py-3 text-xs text-[var(--color-muted)]">
                     {adv.proximoPrazo ? (
-                      <span className={new Date(adv.proximoPrazo) < new Date(Date.now() + 7 * 86400000) ? "text-rose-600 font-semibold" : ""}>
+                      <span className={new Date(adv.proximoPrazo) < new Date(new Date().getTime() + 7 * 86400000) ? "text-rose-600 font-semibold" : ""}>
                         {new Date(adv.proximoPrazo).toLocaleDateString("pt-BR")}
                       </span>
                     ) : "—"}
