@@ -35,7 +35,7 @@ export async function extrairTextoDocumentoViaAI(
           role: "user",
           content: [
             { type: "text", text: "Você é um assistente OCR legal. Transcreva todo o texto legível neste documento para formato de texto estruturado. Foque em datas, partes envolvidas e cláusulas principais." },
-            { type: "file", data: buffer.toString('base64'), mimeType: contentType } as { type: string; data: string; mimeType: string },
+            { type: "file", data: buffer.toString('base64'), mediaType: contentType } as { type: "file"; data: string; mediaType: string },
           ]
         }
       ]
