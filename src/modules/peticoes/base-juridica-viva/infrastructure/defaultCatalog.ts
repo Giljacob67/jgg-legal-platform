@@ -988,7 +988,7 @@ const TESES_PADRAO: TeseJuridicaAtivaVersionada[] = [
     titulo: "Substituição de Pena Privativa por Restritiva de Direitos",
     versao: 1,
     status: "ativo",
-    tiposPecaCanonica: ["peticao_inicial", "apelacao_civel"],
+    tiposPecaCanonica: ["peticao_inicial", "contestacao", "manifestacao"],
     materias: ["criminal"],
     palavrasChave: ["pena alternativa", "restritiva de direitos", "substituição de pena", "primariedade", "bons antecedentes"],
     gatilhos: [

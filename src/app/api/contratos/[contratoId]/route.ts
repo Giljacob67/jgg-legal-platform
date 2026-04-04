@@ -114,13 +114,18 @@ Analise o contrato e:
 
 Foque em: cláusulas leoninas, lacunas jurídicas, ausência de garantias, ambiguidade, violações à legislação brasileira.`;
 
-  const { object: analise } = await generateObject({
-    model: getLLM(),
-    schema: AnaliseSchema,
-    prompt,
-  });
+  try {
+    const { object: analise } = await generateObject({
+      model: getLLM(),
+      schema: AnaliseSchema,
+      prompt,
+    });
 
-  const analiseCompleta = { ...analise, analisadoEm: new Date().toISOString() };
-  await salvarAnaliseRisco(contratoId, analiseCompleta);
-  return NextResponse.json({ analise: analiseCompleta });
+    const analiseCompleta = { ...analise, analisadoEm: new Date().toISOString() };
+    await salvarAnaliseRisco(contratoId, analiseCompleta);
+    return NextResponse.json({ analise: analiseCompleta });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao chamar IA para análise de risco.";
+    return NextResponse.json({ error: msg }, { status: 502 });
+  }
 }

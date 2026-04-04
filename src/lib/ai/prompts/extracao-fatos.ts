@@ -5,7 +5,7 @@ import type { MateriaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 /** Perguntas de extração específicas por matéria — complementam as perguntas gerais */
 function buildQuestoesEspecificasPorMateria(materia: MateriaCanonica): string {
   switch (materia) {
-    case "agrario":
+    case "agrario_agronegocio":
       return `QUESTÕES ESPECÍFICAS — DIREITO AGRÁRIO / AGRONEGÓCIO:
 - Identificar o imóvel rural: CCIR n.º, CAR (Cadastro Ambiental Rural), matrícula do imóvel, módulo fiscal da região
 - Confirmar a destinação do imóvel (agricultura, pecuária, mista) e se há exploração efetiva
@@ -68,6 +68,38 @@ function buildQuestoesEspecificasPorMateria(materia: MateriaCanonica): string {
 - Guarda: situação fática atual — com quem residem os filhos?
 - Houve separação de fato? Data aproximada
 - Prova da união estável: documentos, testemunhas, contrato?`;
+
+    case "bancario":
+      return `QUESTÕES ESPECÍFICAS — DIREITO BANCÁRIO / CRÉDITO:
+- Identificar o produto bancário: crédito rural, crédito pessoal, financiamento, conta garantida, leasing, cartão
+- Banco/instituição financeira: nome, CNPJ, contrato assinado?
+- Taxa de juros contratada vs. taxa de mercado (BACEN/SELIC): há abusividade?
+- Há capitalização de juros (anatocismo)? Frequência: diária, mensal?
+- Seguros embutidos não contratados expressamente?
+- Negativação ou protesto indevido? Data e valor inscrito
+- Tentativa de renegociação extrajudicial com o banco?
+- Aplicação do CDC às operações bancárias (Súmula 297/STJ)`;
+
+    case "empresarial":
+      return `QUESTÕES ESPECÍFICAS — DIREITO EMPRESARIAL / SOCIETÁRIO:
+- Tipo societário (LTDA, SA, EIRELI, SLU) e data de constituição
+- Ato constitutivo (contrato social/estatuto) registrado na Junta Comercial?
+- Partes: quem são os sócios/acionistas, percentual de participação?
+- Tema do conflito: dissolução, apuração de haveres, exclusão de sócio, deadlock?
+- Há acordo de sócios ou acordo de acionistas vigente?
+- Balanço patrimonial mais recente: data de referência, patrimônio líquido
+- Há ativos intangíveis, marcas, patentes, contratos relevantes a apurar?
+- Existência de dívidas ou contingências passivas relevantes`;
+
+    case "ambiental":
+      return `QUESTÕES ESPECÍFICAS — DIREITO AMBIENTAL:
+- Área de preservação permanente (APP) ou Reserva Legal envolvida?
+- Licença ambiental existente (LP, LI, LO)? Vigência e órgão expedidor
+- Houve autuação ou auto de infração ambiental? Número do processo administrativo
+- Dano ambiental identificado: natureza (solo, água, fauna, flora), extensão estimada
+- Há TAC (Termo de Ajustamento de Conduta) em vigor?
+- CAR (Cadastro Ambiental Rural) registrado para o imóvel?
+- Responsabilidade: o infrator é pessoa física, jurídica ou administrador?`;
 
     default:
       return `QUESTÕES ESPECÍFICAS — DIREITO CÍVEL / GERAL:

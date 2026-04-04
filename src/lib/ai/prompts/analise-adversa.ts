@@ -5,7 +5,7 @@ import type { MateriaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 /** Riscos processuais e táticas adversariais específicos por matéria */
 function buildRiscosEspecificosPorMateria(materia: MateriaCanonica): string {
   switch (materia) {
-    case "agrario":
+    case "agrario_agronegocio":
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO AGRÁRIO:
 - Prescrição aquisitiva (usucapião): a parte contrária pode alegar posse ad usucapionem para afastar reivindicação
 - Alegação de não-exploração direta: invalida pedido de retomada pelo arrendador (art. 95, VI, Estatuto da Terra)
@@ -54,6 +54,43 @@ function buildRiscosEspecificosPorMateria(materia: MateriaCanonica): string {
 - Prescrição quinquenal: art. 27, CDC — 5 anos para pretensão de reparação por fato do produto
 - Ausência de relação de consumo: pessoa jurídica em atividade empresarial pode ser excluída do CDC
 - Contestação do nexo causal entre o produto/serviço e o dano alegado`;
+
+    case "bancario":
+      return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO BANCÁRIO:
+- Banco pode alegar que taxa de juros foi livremente pactuada e publicada no BACEN
+- Alegação de ausência de anatocismo: capitalização mensal em contratos bancários foi liberada (MP 1.963-17/00, Súmula 596/STJ)
+- Prescrição quinquenal (art. 206, § 5º, I, CC) para cobrança de dívidas líquidas — verificar data do vencimento
+- Banco pode apresentar extrato completo demonstrando correta aplicação da taxa contratada
+- Alegação de que seguros foram contratados expressa e voluntariamente (assinatura em campo específico)
+- Contestação de dano moral: simples inadimplemento não gera dano moral automático (Súmula 388/STJ)`;
+
+    case "empresarial":
+      return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO EMPRESARIAL:
+- Alegação de regular deliberação assemblear (quórum e procedimentos cumpridos)
+- Contestação do valor de haveres: balanço de determinação vs. balanço contábil
+- Alegação de justa causa para exclusão de sócio (art. 1.030, CC)
+- Sócio excluído pode questionar avaliação patrimonial e deságio aplicado
+- Risco de dissolução total da sociedade ao invés de exclusão parcial
+- Sócios majoritários podem alegar abuso de minoria bloqueadora
+- Necessidade de perícia contábil como condição para prosseguir — dilata prazo e custo`;
+
+    case "ambiental":
+      return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO AMBIENTAL:
+- Inversão do ônus da prova em favor do meio ambiente (princípio da precaução)
+- Responsabilidade objetiva pelo dano ambiental — não é necessário provar culpa (art. 14, § 1º, Lei 6.938/81)
+- Solidariedade entre poluidor direto e proprietário do imóvel, mesmo que este não tenha causado o dano
+- Imprescritibilidade da pretensão de reparação de dano ambiental (STJ, REsp 1.120.117)
+- Embargo administrativo pode bloquear atividades durante toda a instrução processual
+- Ministério Público pode ingressar como litisconsorte e ampliar o objeto da lide`;
+
+    case "familia":
+      return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO DE FAMÍLIA:
+- Alegação de regime de separação total de bens: cônjuge pode excluir patrimônio da partilha
+- Contestação de data de início da união estável para reduzir período de comunhão
+- Parte contrária pode requerer alimentos provisórios elevados como tática processual
+- Disputa pela guarda pode se tornar instrumento de pressão patrimonial
+- Alienação parental: acusação pode ser usada como estratégia processual por qualquer lado
+- Reconhecimento de dívidas contraídas em nome do casal pode ampliar o passivo a partilhar`;
 
     default:
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO CÍVEL:

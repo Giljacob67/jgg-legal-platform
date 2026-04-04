@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listarClientes, criarCliente } from "@/modules/clientes/application";
-import type { NovoClientePayload } from "@/modules/clientes/domain/types";
+import type { NovoClientePayload, StatusCliente } from "@/modules/clientes/domain/types";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") ?? undefined;
-  const clientes = await listarClientes({ status: status as never });
+  const clientes = await listarClientes({ status: status as StatusCliente | undefined });
   return NextResponse.json({ clientes });
 }
 

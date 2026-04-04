@@ -118,6 +118,18 @@ export const versoesMinuta = pgTable("versoes_minuta", {
 });
 
 // ─────────────────────────────────────────────────────────────
+// BIBLIOTECA DE CONHECIMENTO — CHUNKS VETORIZADOS (RAG)
+// ─────────────────────────────────────────────────────────────
+export const bibliotecaChunks = pgTable("biblioteca_chunks", {
+  id: text("id").primaryKey(), // UUID como text para compatibilidade com raw SQL
+  documentoId: text("documento_id").notNull(),
+  sequencia: integer("sequencia").notNull(),
+  conteudo: text("conteudo").notNull(),
+  embedding: vector("embedding"), // vector(1536) — OpenAI text-embedding-3-small
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────────────────────
 // INTELIGÊNCIA VIVA (CATÁLOGOS)
 // ─────────────────────────────────────────────────────────────
 export const tesesJuridicas = pgTable("teses_juridicas", {

@@ -13,8 +13,9 @@ export function buildTriagemPrompt(
 
 1. **TIPO DE PEÇA** mais adequado (ex: Petição Inicial, Contestação, Recurso de Apelação, etc.)
 2. **MATÉRIA JURÍDICA PRINCIPAL** (ex: civel, trabalhista, tributario, criminal, consumidor, empresarial, familia, ambiental, agrario_agronegocio, bancario)
-3. **URGÊNCIA** (urgente / normal) com justificativa
-4. **COMPLEXIDADE** (simples / média / complexa) com justificativa
+3. **POLO REPRESENTADO**: identifique se nosso cliente é o polo ATIVO (autor/exequente/requerente) ou PASSIVO (réu/executado/requerido). Use "ativo", "passivo" ou "indefinido" se não for possível determinar.
+4. **URGÊNCIA** (urgente / normal) com justificativa
+5. **COMPLEXIDADE** (simples / média / complexa) com justificativa
 
 DADOS DOS DOCUMENTOS:
 ${JSON.stringify(resumoDocumentos, null, 2)}
@@ -23,8 +24,10 @@ Responda em JSON estruturado:
 {
   "tipo_peca": "...",
   "materia": "...",
+  "polo_representado": "ativo|passivo|indefinido",
   "urgencia": "urgente|normal",
   "complexidade": "simples|media|complexa",
+  "justificativa_polo": "Breve justificativa de por que o cliente está no polo ativo/passivo",
   "justificativa_urgencia": "...",
   "justificativa_complexidade": "..."
 }`,

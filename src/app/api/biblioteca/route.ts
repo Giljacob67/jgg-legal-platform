@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBibliotecaRepo } from "@/modules/biblioteca-conhecimento/infrastructure/mockBibliotecaRepository";
-import type { TipoDocumentoBC } from "@/modules/biblioteca-conhecimento/domain/types";
+import type { TipoDocumentoBC, StatusEmbedding } from "@/modules/biblioteca-conhecimento/domain/types";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   const repo = getBibliotecaRepo();
   const [documentos, stats] = await Promise.all([
-    repo.listar({ tipo: tipo ?? undefined, fonte, status: status as never }),
+    repo.listar({ tipo: tipo ?? undefined, fonte, status: status as StatusEmbedding | undefined }),
     repo.contar(),
   ]);
 

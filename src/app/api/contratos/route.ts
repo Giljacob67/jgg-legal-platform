@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listarContratos, criarContrato } from "@/modules/contratos/application";
-import type { NovoContratoPayload } from "@/modules/contratos/domain/types";
+import type { NovoContratoPayload, StatusContrato, TipoContrato } from "@/modules/contratos/domain/types";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
@@ -11,8 +11,8 @@ export async function GET(request: Request) {
   const status = searchParams.get("status") ?? undefined;
   const tipo = searchParams.get("tipo") ?? undefined;
   const contratos = await listarContratos({
-    status: status as never,
-    tipo: tipo as never,
+    status: status as StatusContrato | undefined,
+    tipo: tipo as TipoContrato | undefined,
   });
   return NextResponse.json({ contratos });
 }
