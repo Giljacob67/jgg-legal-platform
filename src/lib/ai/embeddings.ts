@@ -4,7 +4,6 @@ import { createOpenAI } from "@ai-sdk/openai";
 // Modelo fixo: text-embedding-3-small via OpenRouter — dimensão 1536
 // ATENÇÃO: trocar o modelo exige recriar a coluna vector(1536) e reprocessar todos os chunks
 const EMBEDDING_MODEL = "openai/text-embedding-3-small";
-const EMBEDDING_DIMENSIONS = 1536;
 
 function getEmbeddingProvider() {
   const apiKey = process.env.OPENROUTER_API_KEY;

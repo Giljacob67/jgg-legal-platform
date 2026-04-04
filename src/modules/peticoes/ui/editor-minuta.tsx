@@ -184,7 +184,7 @@ export function EditorMinuta({
 
             <div className="rounded-lg bg-white border border-violet-100 p-3">
               <p className="text-xs font-medium text-violet-600 mb-1">Trecho selecionado:</p>
-              <p className="text-sm text-gray-700 italic line-clamp-3">"{selecaoTexto}"</p>
+              <p className="text-sm text-gray-700 italic line-clamp-3">&ldquo;{selecaoTexto}&rdquo;</p>
             </div>
 
             <div>

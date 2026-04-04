@@ -84,7 +84,7 @@ const CLIENTES_MOCK: Cliente[] = [
   },
 ];
 
-let clientesStore: Cliente[] = [...CLIENTES_MOCK];
+const clientesStore: Cliente[] = [...CLIENTES_MOCK];
 
 export class MockClientesRepository {
   async listar(filtros?: { status?: StatusCliente }): Promise<Cliente[]> {
