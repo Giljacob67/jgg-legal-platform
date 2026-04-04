@@ -49,13 +49,14 @@ async function buildPromptParaEstagio(
     case "triagem":
       return buildTriagemPrompt(pipeline.snapshots);
     case "extracao-fatos":
-      return buildExtracaoFatosPrompt(pipeline.contextoAtual, tipoPeca);
+      return buildExtracaoFatosPrompt(pipeline.contextoAtual, tipoPeca, materia);
     case "analise-adversa":
-      return buildAnaliseAdversaPrompt(pipeline.contextoAtual, extracaoFatos);
+      return buildAnaliseAdversaPrompt(pipeline.contextoAtual, extracaoFatos, materia);
     case "estrategia": {
+      const polo = (triagem.polo_representado as "ativo" | "passivo" | "indefinido" | undefined) ?? "indefinido";
       const queryEstrategia = `${materia} ${tipoPeca} ${JSON.stringify(extracaoFatos).slice(0, 200)}`;
       const chunks = await buscarChunksRelevantes(queryEstrategia, 5).catch(() => []);
-      return buildEstrategiaPrompt(extracaoFatos, analiseAdversa, materia, tipoPeca, chunks);
+      return buildEstrategiaPrompt(extracaoFatos, analiseAdversa, materia, tipoPeca, chunks, polo);
     }
     case "minuta": {
       if (!pipeline.contextoAtual) {

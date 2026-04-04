@@ -9,6 +9,7 @@ export function buildEstrategiaPrompt(
   materia: MateriaCanonica,
   tipoPeca: TipoPecaCanonica,
   chunksRelevantes: ChunkRelevante[] = [],
+  polo?: "ativo" | "passivo" | "indefinido",
 ): { system: string; prompt: string } {
   const tesesDoRamo = criarTesesJuridicasPadrao().filter(
     (t) => t.materias.includes(materia) && t.tiposPecaCanonica.includes(tipoPeca),
@@ -19,12 +20,20 @@ export function buildEstrategiaPrompt(
   );
   const especializacao = template?.especializacaoPorMateria[materia];
 
+  const poloContexto =
+    polo === "ativo"
+      ? "POLO PROCESSUAL: ATIVO (nosso cliente é o AUTOR / EXEQUENTE / REQUERENTE — estratégia de ataque, prova do fato constitutivo)"
+      : polo === "passivo"
+        ? "POLO PROCESSUAL: PASSIVO (nosso cliente é o RÉU / EXECUTADO / REQUERIDO — estratégia de defesa, impugnação, desconstituição do crédito)"
+        : "POLO PROCESSUAL: INDEFINIDO (adaptar estratégia conforme identificação no contexto)";
+
   return {
     system: SYSTEM_PROMPT_BASE,
     prompt: `Elabore a estratégia jurídica para o caso, considerando os fatos e a análise adversarial.
 
 MATÉRIA: ${materia}
 TIPO DE PEÇA: ${tipoPeca}
+${poloContexto}
 
 FATOS DO CASO:
 ${JSON.stringify(fatos, null, 2)}

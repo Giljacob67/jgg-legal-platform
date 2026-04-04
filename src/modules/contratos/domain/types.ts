@@ -19,6 +19,9 @@ export type TipoContrato =
   | "joint_venture"
   | "acordo_acionistas"
   | "licenciamento_software"
+  | "financiamento_rural"
+  | "cedula_produto_rural"
+  | "penhor_rural"
   | "outro";
 
 export const LABEL_TIPO_CONTRATO: Record<TipoContrato, string> = {
@@ -38,6 +41,9 @@ export const LABEL_TIPO_CONTRATO: Record<TipoContrato, string> = {
   joint_venture: "Joint Venture",
   acordo_acionistas: "Acordo de Acionistas",
   licenciamento_software: "Licenciamento de Software",
+  financiamento_rural: "Financiamento Rural (CCR)",
+  cedula_produto_rural: "Cédula de Produto Rural (CPR)",
+  penhor_rural: "Penhor Rural / Agrícola",
   outro: "Outro",
 };
 
