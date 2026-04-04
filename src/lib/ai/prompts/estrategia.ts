@@ -1,12 +1,14 @@
 import { SYSTEM_PROMPT_BASE } from "./base";
 import { criarTesesJuridicasPadrao, criarTemplatesJuridicosPadrao } from "@/modules/peticoes/base-juridica-viva/infrastructure/defaultCatalog";
 import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
+import type { ChunkRelevante } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
 
 export function buildEstrategiaPrompt(
   fatos: unknown,
   analiseAdversa: unknown,
   materia: MateriaCanonica,
   tipoPeca: TipoPecaCanonica,
+  chunksRelevantes: ChunkRelevante[] = [],
 ): { system: string; prompt: string } {
   const tesesDoRamo = criarTesesJuridicasPadrao().filter(
     (t) => t.materias.includes(materia) && t.tiposPecaCanonica.includes(tipoPeca),
@@ -39,7 +41,11 @@ ${
 
 DIRETRIZES PARA MATÉRIA ${materia.toUpperCase()}:
 ${especializacao?.diretrizFundamentos ?? "Seguir princípios gerais do direito processual civil."}
-
+${
+  chunksRelevantes.length > 0
+    ? `\nCONHECIMENTO RELEVANTE DA BIBLIOTECA (fragmentos semanticamente próximos ao caso):\n${chunksRelevantes.map((c, i) => `[${i + 1}] ${c.conteudo}`).join("\n\n")}\n`
+    : ""
+}
 INSTRUÇÕES:
 1. Indique as TESES PRINCIPAIS a adotar (com fundamento legal explícito)
 2. Defina a LINHA ARGUMENTATIVA central

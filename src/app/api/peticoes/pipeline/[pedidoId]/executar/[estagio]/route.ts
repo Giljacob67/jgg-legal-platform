@@ -17,6 +17,7 @@ import {
   normalizarTipoPecaCanonica,
 } from "@/modules/peticoes/domain/geracao-minuta";
 import type { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
+import { buscarChunksRelevantes } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
 
 export const maxDuration = 300; // Vercel Pro: até 300s para streaming
 
@@ -30,10 +31,10 @@ const ESTAGIOS_VALIDOS: EstagioExecutavel[] = [
 
 type Pipeline = Awaited<ReturnType<typeof obterPipelineDoPedido>>;
 
-function buildPromptParaEstagio(
+async function buildPromptParaEstagio(
   estagio: EstagioExecutavel,
   pipeline: Pipeline,
-): { system: string; prompt: string } {
+): Promise<{ system: string; prompt: string }> {
   const triagem = (pipeline.snapshots.find((s) => s.etapa === "classificacao")?.saidaEstruturada ?? {}) as Record<string, unknown>;
   const extracaoFatos = pipeline.snapshots.find((s) => s.etapa === "extracao_de_fatos")?.saidaEstruturada ?? {};
   const analiseAdversa = pipeline.snapshots.find((s) => s.etapa === "analise_adversa")?.saidaEstruturada ?? {};
@@ -51,13 +52,18 @@ function buildPromptParaEstagio(
       return buildExtracaoFatosPrompt(pipeline.contextoAtual, tipoPeca);
     case "analise-adversa":
       return buildAnaliseAdversaPrompt(pipeline.contextoAtual, extracaoFatos);
-    case "estrategia":
-      return buildEstrategiaPrompt(extracaoFatos, analiseAdversa, materia, tipoPeca);
+    case "estrategia": {
+      const queryEstrategia = `${materia} ${tipoPeca} ${JSON.stringify(extracaoFatos).slice(0, 200)}`;
+      const chunks = await buscarChunksRelevantes(queryEstrategia, 5).catch(() => []);
+      return buildEstrategiaPrompt(extracaoFatos, analiseAdversa, materia, tipoPeca, chunks);
+    }
     case "minuta": {
       if (!pipeline.contextoAtual) {
         throw new Error("Contexto jurídico não disponível para gerar minuta. Execute os estágios anteriores primeiro.");
       }
-      return buildMinutaPrompt(pipeline.contextoAtual, estrategia, materia, tipoPeca);
+      const queryMinuta = `${materia} ${tipoPeca} ${pipeline.contextoAtual.fatosRelevantes.slice(0, 3).join(" ")}`;
+      const chunks = await buscarChunksRelevantes(queryMinuta, 5).catch(() => []);
+      return buildMinutaPrompt(pipeline.contextoAtual, estrategia, materia, tipoPeca, chunks);
     }
   }
 }

@@ -23,10 +23,9 @@ export const MAPA_ESTAGIO_PIPELINE: Record<EstagioExecutavel, EtapaPipeline> = {
 export async function executarEstagioComIA(
   pedidoId: string,
   estagio: EstagioExecutavel,
-  buildPromptFn: (pipeline: Awaited<ReturnType<typeof obterPipelineDoPedido>>) => {
-    system: string;
-    prompt: string;
-  },
+  buildPromptFn: (pipeline: Awaited<ReturnType<typeof obterPipelineDoPedido>>) =>
+    | { system: string; prompt: string }
+    | Promise<{ system: string; prompt: string }>,
 ): Promise<ReadableStream<string>> {
   const provider = getAIProvider();
   if (!provider) {
@@ -34,7 +33,7 @@ export async function executarEstagioComIA(
   }
 
   const pipeline = await obterPipelineDoPedido(pedidoId);
-  const { system, prompt } = buildPromptFn(pipeline);
+  const { system, prompt } = await buildPromptFn(pipeline);
   const etapaPipeline = MAPA_ESTAGIO_PIPELINE[estagio];
   const infra = getPeticoesOperacionalInfra();
 
