@@ -8,7 +8,7 @@ import type {
   HistoricoPipeline,
   SnapshotPipelineEtapa,
 } from "@/modules/peticoes/domain/types";
-import { MAPA_ESTAGIO_PIPELINE, type EstagioExecutavel } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
+import { MAPA_ESTAGIO_PIPELINE, type EstagioExecutavel } from "@/modules/peticoes/domain/types";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatarDataHora } from "@/lib/utils";

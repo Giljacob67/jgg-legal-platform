@@ -3,22 +3,13 @@ import { streamText } from "ai";
 import { getAIProvider, getDefaultModelId } from "@/lib/ai/client";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
-import type { EtapaPipeline } from "@/modules/peticoes/domain/types";
+import {
+  type EstagioExecutavel,
+  MAPA_ESTAGIO_PIPELINE,
+} from "@/modules/peticoes/domain/types";
 
-export type EstagioExecutavel =
-  | "triagem"
-  | "extracao-fatos"
-  | "analise-adversa"
-  | "estrategia"
-  | "minuta";
-
-export const MAPA_ESTAGIO_PIPELINE: Record<EstagioExecutavel, EtapaPipeline> = {
-  triagem: "classificacao",
-  "extracao-fatos": "extracao_de_fatos",
-  "analise-adversa": "analise_adversa",
-  estrategia: "estrategia_juridica",
-  minuta: "redacao",
-};
+export type { EstagioExecutavel };
+export { MAPA_ESTAGIO_PIPELINE };
 
 export async function executarEstagioComIA(
   pedidoId: string,

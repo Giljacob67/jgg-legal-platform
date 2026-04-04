@@ -87,6 +87,22 @@ export type EtapaPipeline =
   | "revisao"
   | "aprovacao";
 
+// Estágios executáveis via IA no pipeline
+export type EstagioExecutavel =
+  | "triagem"
+  | "extracao-fatos"
+  | "analise-adversa"
+  | "estrategia"
+  | "minuta";
+
+export const MAPA_ESTAGIO_PIPELINE: Record<EstagioExecutavel, EtapaPipeline> = {
+  triagem: "classificacao",
+  "extracao-fatos": "extracao_de_fatos",
+  "analise-adversa": "analise_adversa",
+  estrategia: "estrategia_juridica",
+  minuta: "redacao",
+};
+
 export interface EtapaPipelineInfo {
   id: EtapaPipeline;
   nome: string;
