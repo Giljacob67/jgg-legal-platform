@@ -75,7 +75,7 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
       etapa: r.etapa as EtapaPipeline,
       descricao: r.descricao,
       data: r.data.toISOString(),
-      responsavel: r.responsavel ?? undefined,
+      responsavel: r.responsavel ?? "",
     }));
   }
 
