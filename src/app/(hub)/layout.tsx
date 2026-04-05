@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { auth } from "@/lib/auth";
 import { listarModulosNavegacao } from "@/modules/hub/application/listarModulosNavegacao";
 import type { Sessao } from "@/modules/auth/domain/types";
+import { LABEL_PERFIL, resolverPerfilUsuario } from "@/modules/administracao/domain/types";
 
 export default async function HubLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -11,12 +12,13 @@ export default async function HubLayout({ children }: { children: React.ReactNod
     redirect("/login");
   }
 
+  const perfilKey = resolverPerfilUsuario(session.user.role as string);
   const sessao: Sessao = {
     usuarioId: session.user.id,
     nome: session.user.name ?? "Usuário",
     email: session.user.email ?? "",
     iniciais: session.user.initials ?? "??",
-    perfil: session.user.role ?? "Advogado",
+    perfil: LABEL_PERFIL[perfilKey] ?? session.user.role ?? "Advogado",
     ativo: true,
   };
 

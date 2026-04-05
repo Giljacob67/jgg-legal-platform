@@ -32,34 +32,41 @@ async function main() {
   console.log("🌱 Iniciando seed da base JGG Legal Platform...\n");
 
   try {
-    // ── 1. USUÁRIO ADMINISTRADOR ─────────────────────────────────────
-    console.log("👤 Semeando usuário admin...");
-    await sql`
-      INSERT INTO users (id, email, password_hash, name, initials, role)
-      VALUES (
-        gen_random_uuid(),
-        'admin@jgg.adv.br',
-        ${createHash("sha256").update("jgg@2026!").digest("hex")},
-        'Gilberto Jacob',
-        'GJ',
-        'Sócio / Direção'
-      )
-      ON CONFLICT (email) DO NOTHING
-    `;
+    // ── 1. USUÁRIOS DO ESCRITÓRIO ────────────────────────────────────
+    console.log("👤 Semeando usuários do escritório...");
+    const hashSenha = (senha) => createHash("sha256").update(senha).digest("hex");
+    const senhaDefault = "jgg@2026!";
 
-    await sql`
-      INSERT INTO users (id, email, password_hash, name, initials, role)
-      VALUES (
-        gen_random_uuid(),
-        'assessor@jgg.adv.br',
-        ${createHash("sha256").update("jgg@2026!").digest("hex")},
-        'Ana Beatriz Santos',
-        'AB',
-        'Advogado'
-      )
-      ON CONFLICT (email) DO NOTHING
-    `;
-    console.log("   ✅ Usuários inseridos.\n");
+    const USUARIOS_SEED = [
+      { email: "gilberto@jgg.adv.br",     senha: senhaDefault, name: "Gilberto Jacob",      initials: "GJ", role: "Sócio / Direção",           perfil: "socio_direcao" },
+      { email: "admin@jgg.adv.br",         senha: senhaDefault, name: "Administrador",        initials: "AD", role: "Administrador do Sistema",    perfil: "administrador_sistema" },
+      { email: "coordenador@jgg.adv.br",   senha: senhaDefault, name: "Carlos Mendes",        initials: "CM", role: "Coordenador Jurídico",        perfil: "coordenador_juridico" },
+      { email: "mariana@jgg.adv.br",       senha: senhaDefault, name: "Mariana Couto",        initials: "MC", role: "Advogado",                    perfil: "advogado" },
+      { email: "assessor@jgg.adv.br",      senha: senhaDefault, name: "Ana Beatriz Santos",   initials: "AB", role: "Advogado",                    perfil: "advogado" },
+      { email: "estagiario@jgg.adv.br",    senha: senhaDefault, name: "Lucas Ferreira",       initials: "LF", role: "Estagiário / Assistente",     perfil: "estagiario_assistente" },
+      { email: "operacional@jgg.adv.br",   senha: senhaDefault, name: "Fernanda Oliveira",    initials: "FO", role: "Operacional / Administrativo", perfil: "operacional_admin" },
+    ];
+
+    for (const u of USUARIOS_SEED) {
+      await sql`
+        INSERT INTO users (id, email, password_hash, name, initials, role, perfil, ativo)
+        VALUES (
+          gen_random_uuid(),
+          ${u.email},
+          ${hashSenha(u.senha)},
+          ${u.name},
+          ${u.initials},
+          ${u.role},
+          ${u.perfil},
+          true
+        )
+        ON CONFLICT (email) DO UPDATE SET
+          perfil = EXCLUDED.perfil,
+          role   = EXCLUDED.role,
+          ativo  = true
+      `;
+    }
+    console.log(`   ✅ ${USUARIOS_SEED.length} usuários inseridos/atualizados.\n`);
 
     // ── 2. ATIVAR EXTENSÃO PGVECTOR ──────────────────────────────────
     console.log("🧩 Habilitando extensão pgvector...");
