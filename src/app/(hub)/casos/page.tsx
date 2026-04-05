@@ -4,8 +4,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
-import type { Caso } from "@/modules/casos/domain/types";
+import type { Caso, StatusCaso } from "@/modules/casos/domain/types";
 import { formatarData } from "@/lib/utils";
+
+const VARIANT_STATUS_CASO: Record<StatusCaso, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
+  "novo": "neutro",
+  "em análise": "implantacao",
+  "estratégia": "implantacao",
+  "minuta em elaboração": "implantacao",
+  "revisão": "alerta",
+  "protocolado": "sucesso",
+};
 
 const NovoCasoButton = (
   <Link
@@ -61,7 +70,7 @@ export default async function CasosPage() {
             {
               key: "status",
               title: "Status",
-              render: (caso) => <StatusBadge label={caso.status} variant="implantacao" />,
+              render: (caso) => <StatusBadge label={caso.status} variant={VARIANT_STATUS_CASO[caso.status] ?? "neutro"} />,
             },
             {
               key: "acao",

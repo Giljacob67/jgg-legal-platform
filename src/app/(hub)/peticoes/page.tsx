@@ -3,7 +3,15 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
+import type { StatusPedido } from "@/modules/peticoes/domain/types";
 import { formatarData } from "@/lib/utils";
+
+const VARIANT_STATUS_PEDIDO: Record<StatusPedido, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
+  "em triagem": "neutro",
+  "em produção": "implantacao",
+  "em revisão": "alerta",
+  "aprovado": "sucesso",
+};
 
 export default async function PeticoesPage() {
   const pedidos = await listarPedidosDePeca();
@@ -42,7 +50,7 @@ export default async function PeticoesPage() {
             <article key={pedido.id} className="rounded-xl border border-[var(--color-border)] p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-[var(--color-ink)]">{pedido.id}</p>
-                <StatusBadge label={pedido.status} variant="implantacao" />
+                <StatusBadge label={pedido.status} variant={VARIANT_STATUS_PEDIDO[pedido.status] ?? "neutro"} />
               </div>
               <p className="mt-1 text-sm text-[var(--color-muted)]">{pedido.titulo}</p>
               <p className="mt-1 text-xs text-[var(--color-muted)]">

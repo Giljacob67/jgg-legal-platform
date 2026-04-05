@@ -4,12 +4,27 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listarDocumentos } from "@/modules/documentos/application/listarDocumentos";
-import type { DocumentoListItem } from "@/modules/documentos/domain/types";
+import type { DocumentoListItem, StatusDocumento, StatusProcessamentoDocumental } from "@/modules/documentos/domain/types";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
 import { getDataMode } from "@/lib/data-mode";
 import { formatarDataHora } from "@/lib/utils";
+
+const VARIANT_STATUS_DOC: Record<StatusDocumento, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
+  "pendente de leitura": "neutro",
+  "lido": "implantacao",
+  "extraído": "sucesso",
+};
+
+const VARIANT_STATUS_PROC: Record<StatusProcessamentoDocumental, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
+  "nao_iniciado": "neutro",
+  "enfileirado": "neutro",
+  "em_processamento": "implantacao",
+  "processado_parcial": "alerta",
+  "processado": "sucesso",
+  "erro": "alerta",
+};
 
 export default async function DocumentosPage() {
   const dataMode = getDataMode();
@@ -81,8 +96,8 @@ export default async function DocumentosPage() {
               title: "Status",
               render: (documento) => (
                 <div className="flex flex-wrap gap-1">
-                  <StatusBadge label={documento.status} variant="implantacao" />
-                  <StatusBadge label={documento.statusProcessamento} variant="neutro" />
+                  <StatusBadge label={documento.status} variant={VARIANT_STATUS_DOC[documento.status] ?? "neutro"} />
+                  <StatusBadge label={documento.statusProcessamento} variant={VARIANT_STATUS_PROC[documento.statusProcessamento] ?? "neutro"} />
                 </div>
               ),
             },
