@@ -33,7 +33,12 @@ export function FormConvidarUsuario({ onConvite }: FormConvidarUsuarioProps) {
         const data = await res.json() as { error?: string };
         throw new Error(data.error ?? "Erro ao convidar.");
       }
-      setSucesso(`Convite enviado para ${email} com perfil "${LABEL_PERFIL[perfil]}".`);
+      const data = await res.json() as { email?: { enviado: boolean; mensagem: string } };
+      const emailInfo = data.email;
+      const msgEmail = emailInfo?.enviado
+        ? `E-mail de convite enviado para ${email}.`
+        : `Usuário criado. ${emailInfo?.mensagem ?? "Configure RESEND_API_KEY para envio automático de convites."}`;
+      setSucesso(`Usuário "${nome}" criado com perfil "${LABEL_PERFIL[perfil]}". ${msgEmail}`);
       setNome("");
       setEmail("");
       setPerfil("advogado");

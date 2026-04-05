@@ -138,6 +138,36 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   },
 };
 
+/**
+ * Mapeia a string do role da sessão (label ou chave) para a chave PerfilUsuario.
+ * Necessário porque auth.ts armazena tanto labels ("Advogado") quanto chaves ("advogado").
+ */
+export function resolverPerfilUsuario(roleString: string | undefined | null): PerfilUsuario {
+  if (!roleString) return "advogado";
+
+  // Verificar se já é uma chave válida
+  if (roleString in LABEL_PERFIL) {
+    return roleString as PerfilUsuario;
+  }
+
+  // Mapear label → chave (case-insensitive)
+  const normalizado = roleString.toLowerCase().trim();
+  for (const [chave, label] of Object.entries(LABEL_PERFIL) as [PerfilUsuario, string][]) {
+    if (label.toLowerCase() === normalizado) {
+      return chave;
+    }
+  }
+
+  // Heurísticas para valores legados
+  if (normalizado.includes("sócio") || normalizado.includes("socio") || normalizado.includes("direção")) return "socio_direcao";
+  if (normalizado.includes("coordenador")) return "coordenador_juridico";
+  if (normalizado.includes("estagiário") || normalizado.includes("estagiario") || normalizado.includes("assistente")) return "estagiario_assistente";
+  if (normalizado.includes("operacional") || normalizado.includes("administrativo")) return "operacional_admin";
+  if (normalizado.includes("administrador") || normalizado.includes("sistema")) return "administrador_sistema";
+
+  return "advogado"; // fallback mais restrito
+}
+
 // ─── Entity: Usuário ─────────────────────────────────────────
 
 export interface Usuario {
