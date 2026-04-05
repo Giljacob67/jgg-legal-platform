@@ -146,20 +146,45 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
               </div>
             ) : config.chave === "tema" ? (
               <div className="flex gap-2">
-                {["claro", "escuro", "sistema"].map((t) => (
+                {[
+                  { valor: "claro",   label: "Claro",   emoji: "☀️" },
+                  { valor: "escuro",  label: "Escuro",  emoji: "🌙" },
+                  { valor: "sistema", label: "Sistema", emoji: "💻" },
+                ].map((t) => (
                   <button
-                    key={t}
-                    onClick={() => setValores((prev) => ({ ...prev, [config.chave]: t }))}
-                    className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition capitalize ${
-                      valores[config.chave] === t
-                        ? "border-violet-500 bg-violet-50 text-violet-800"
+                    key={t.valor}
+                    type="button"
+                    onClick={() => {
+                      // 1. Atualiza o estado local do formulário
+                      setValores((prev) => ({ ...prev, [config.chave]: t.valor }));
+                      // 2. Aplica o tema imediatamente no DOM (preview instantâneo)
+                      if (t.valor === "escuro") {
+                        document.documentElement.classList.add("dark");
+                        localStorage.setItem("jgg-theme", "dark");
+                      } else if (t.valor === "claro") {
+                        document.documentElement.classList.remove("dark");
+                        localStorage.setItem("jgg-theme", "light");
+                      } else {
+                        // sistema: segue preferência do SO
+                        localStorage.removeItem("jgg-theme");
+                        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                          document.documentElement.classList.add("dark");
+                        } else {
+                          document.documentElement.classList.remove("dark");
+                        }
+                      }
+                    }}
+                    className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition ${
+                      valores[config.chave] === t.valor
+                        ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-white"
                         : "border-[var(--color-border)] text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)]"
                     }`}
                   >
-                    {t}
+                    {t.emoji} {t.label}
                   </button>
                 ))}
                 <button
+                  type="button"
                   onClick={() => salvar(config.chave)}
                   disabled={salvando === config.chave}
                   className="ml-auto rounded-xl bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
