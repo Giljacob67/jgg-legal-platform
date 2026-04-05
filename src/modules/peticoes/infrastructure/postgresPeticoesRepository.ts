@@ -2,6 +2,7 @@ import { getDb } from "@/lib/database/client";
 import { pedidosPeca, minutas as minutasTable, versoesMinuta, historicoPipeline } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { PeticoesRepository } from "@/modules/peticoes/infrastructure/mockPeticoesRepository";
+import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
 import type {
   PedidoDePeca,
   EtapaPipelineInfo,
@@ -12,7 +13,6 @@ import type {
   PrioridadePedido,
   StatusPedido,
   EtapaPipeline,
-  TODOS_TIPOS_PECA,
 } from "@/modules/peticoes/domain/types";
 
 export class PostgresPeticoesRepository implements PeticoesRepository {
