@@ -7,14 +7,34 @@ function buildRiscosEspecificosPorMateria(materia: MateriaCanonica): string {
   switch (materia) {
     case "agrario_agronegocio":
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO AGRÁRIO:
+Riscos gerais:
 - Prescrição aquisitiva (usucapião): a parte contrária pode alegar posse ad usucapionem para afastar reivindicação
-- Alegação de não-exploração direta: invalida pedido de retomada pelo arrendador (art. 95, VI, Estatuto da Terra)
 - Contestação do CCIR / CAR: imóvel não cadastrado pode ter restrições de penhora/execução
-- Alegação de prorrogação automática de arrendamento (Decreto 59.566/66) para impedir retomada
-- Risco de reconhecimento de parceria rural dissimulada em vez de contrato de arrendamento
-- Alegação de vício formal na notificação extrajudicial de retomada (prazo de 6 meses — art. 95, XII, ET)
-- Em execução de CPR: contestação da classificação do produto entregue ou da prova de inadimplemento
-- Prorrogação automática de crédito rural (Tema 1099/STJ) como defesa em cobranças de mora`;
+
+Sub-caso — Execução de CPR / CCR / CCB rural:
+- Devedor pode alegar entrega parcial do produto como adimplemento parcial (exige revaloração do saldo)
+- Contestação da classificação ou qualidade do produto entregue (laudo de classificação divergente)
+- Alegação de prorrogação automática do crédito rural (Tema 1099/STJ): se o banco não concordou com a prorrogação legalmente, mora não se configura
+- Alegação de excesso de execução por encargos não previstos no título (comissão de permanência, seguro embutido)
+- Prescrição do título: CCR prescreve em 3 anos; CPR prescreve em 3 anos (art. 47, Lei 8.929/94)
+
+Sub-caso — Arrendamento / parceria rural:
+- Alegação de não-exploração direta pelo arrendador: invalida pedido de retomada (art. 95, VI, ET)
+- Alegação de prorrogação automática do contrato (Decreto 59.566/66): prazo mínimo não cumprido
+- Vício formal na notificação de retomada: prazo de 6 meses (art. 95, XII, ET) não respeitado ou notificação por via inadequada
+- Reconhecimento de parceria rural dissimulada em vez de arrendamento (afeta cálculo de valores devidos)
+- Direito de retenção do arrendatário por benfeitorias realizadas — impede imissão de posse sem indenização
+
+Sub-caso — Impenhorabilidade rural:
+- Credor pode argumentar que o imóvel supera 4 módulos fiscais (excluindo proteção constitucional)
+- Alegação de que não há exploração direta da família no imóvel (imóvel arrendado a terceiros)
+- Argumento de que a dívida não é decorrente da atividade produtiva (ex: dívida tributária, pessoal)
+- Contestação da documentação comprobatória de residência e trabalho familiar
+
+Sub-caso — Prorrogação / securitização de dívida rural:
+- Banco pode alegar que não opera com recursos controlados (MCR) e que a securitização não é obrigatória
+- Contestação de laudo técnico de insuficiência de renda (laudo particular sem homologação SENAR/EMATER)
+- Alegação de descumprimento de requisitos do programa de prorrogação (ex: endividamento acima do limite)`;
 
     case "trabalhista":
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO DO TRABALHO:
@@ -57,12 +77,30 @@ function buildRiscosEspecificosPorMateria(materia: MateriaCanonica): string {
 
     case "bancario":
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO BANCÁRIO:
-- Banco pode alegar que taxa de juros foi livremente pactuada e publicada no BACEN
-- Alegação de ausência de anatocismo: capitalização mensal em contratos bancários foi liberada (MP 1.963-17/00, Súmula 596/STJ)
-- Prescrição quinquenal (art. 206, § 5º, I, CC) para cobrança de dívidas líquidas — verificar data do vencimento
-- Banco pode apresentar extrato completo demonstrando correta aplicação da taxa contratada
-- Alegação de que seguros foram contratados expressa e voluntariamente (assinatura em campo específico)
-- Contestação de dano moral: simples inadimplemento não gera dano moral automático (Súmula 388/STJ)`;
+Sub-caso — Revisão contratual:
+- Banco pode alegar que taxa de juros foi livremente pactuada, publicada no BACEN e dentro da prática de mercado
+- Capitalização mensal: banco vai invocar Súmula 596/STJ + MP 1.963-17/00 (liberação expressa quando pactuada)
+- Seguros: banco pode apresentar campo de assinatura específica no contrato para afastar Súmula 530/STJ
+- Tarifas: banco pode demonstrar que foram previamente informadas na proposta (Resolução BACEN 3.919/10)
+- Novação: se houve repactuação posterior, encargos anteriores se incorporaram ao novo saldo — dificulta revisão retroativa
+
+Sub-caso — Defesa em execução bancária:
+- Banco pode alegar que CCB é título líquido, certo e exigível, com planilha de evolução correta (Lei 10.931/04)
+- Prescrição: banco vai alegar que prazo quinquenal (art. 206, §5º, I, CC) ainda não expirou
+- Exceção de pré-executividade: banco pode contestar admissibilidade alegando que matéria não é de ordem pública ou exige dilação probatória
+- Comissão de permanência: banco pode alegar contratação expressa e que substitui outros encargos (Súmula 294/STJ)
+
+Sub-caso — Negativação indevida:
+- Banco pode apresentar contrato assinado demonstrando que dívida era legítima e exigível
+- Alegação de que houve comunicação prévia ao devedor antes da inscrição (carta, e-mail, notificação)
+- Súmula 385/STJ: se há outras inscrições legítimas, dano moral não se configura in re ipsa — banco vai buscar histórico de crédito do cliente
+- Contrariedade ao dano: banco pode alegar que cliente tinha ciência da dívida e optou pelo inadimplemento
+
+Sub-caso — Renegociação / revisão por onerosidade:
+- Banco pode alegar ausência de evento superveniente imprevisível (variação de mercado é risco do negócio)
+- Contestação da Teoria da Imprevisão: apenas eventos extraordinários e totalmente imprevisíveis justificam revisão (art. 478, CC)
+- Alegação de que houve concordância expressa com as condições contratuais (pacta sunt servanda)
+- Prescrição quinquenal (art. 206, §5º, I, CC) para cobrança de dívidas líquidas — verificar data do vencimento`;
 
     case "empresarial":
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO EMPRESARIAL:

@@ -235,6 +235,10 @@ export const SKILL_VINCULADA_POR_TIPO: Partial<Record<TipoPeca, string[]>> = {
   "Contestação — contrato bancário rural":           ["contestacao-contrato-bancario-rural", "analise-documental-agraria"],
   "Impenhorabilidade — pequena propriedade rural":   ["impenhorabilidade-pequena-propriedade-rural"],
   "Recurso agrário":                                 ["recursos-agrarios", "peticoes-agrarias"],
+  // Execução Cível (com especialização bancária)
+  "Embargos à execução":              ["excecao-pre-executividade-bancaria", "contratos-bancarios"],
+  "Exceção de pré-executividade":     ["excecao-pre-executividade-bancaria"],
+  "Impugnação ao cumprimento de sentença": ["excecao-pre-executividade-bancaria"],
   // Trabalhista
   "Embargos de declaração (TST)": ["embargos-declaracao"],
   // Criminal
@@ -255,6 +259,7 @@ export const LABEL_SKILL: Record<string, string> = {
   "estrategia-processual-agraria":          "Estratégia Processual Agrária",
   "direito-agrario-avancado":               "Direito Agrário Avançado",
   "coordenador-master-agrario":             "Coordenador Master Agrário",
+  "contratos-bancarios":                    "Contratos Bancários",
 };
 
 /**

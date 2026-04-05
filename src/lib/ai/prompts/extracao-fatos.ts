@@ -7,14 +7,40 @@ function buildQuestoesEspecificasPorMateria(materia: MateriaCanonica): string {
   switch (materia) {
     case "agrario_agronegocio":
       return `QUESTÕES ESPECÍFICAS — DIREITO AGRÁRIO / AGRONEGÓCIO:
+Dados gerais do imóvel:
 - Identificar o imóvel rural: CCIR n.º, CAR (Cadastro Ambiental Rural), matrícula do imóvel, módulo fiscal da região
 - Confirmar a destinação do imóvel (agricultura, pecuária, mista) e se há exploração efetiva
 - Registrar safra(s) em disputa: ano-safra, cultura plantada, estimativa de produção
-- Verificar existência de CPR (Cédula de Produto Rural): tipo (física/financeira), data de emissão, data de liquidação
-- Verificar existência de CCR (Cédula de Crédito Rural): banco emitente, data, valor, garantias
-- Identificar contrato de arrendamento ou parceria: prazo, valor, forma de pagamento (reais ou sacas)
-- Existência de notificação extrajudicial de retomada ou cobrança? (data e forma)
-- Há benfeitorias realizadas pelo arrendatário/parceiro? Foram autorizadas?`;
+
+Sub-caso 1 — Execução de CPR / CCR / CCB rural:
+- Tipo do título: CPR física, CPR financeira, CCR ou CCB com garantia rural
+- Banco emitente ou credor: nome, CNPJ, se opera com recursos controlados (MCR)
+- Valor do título, data de emissão, data de vencimento e garantias constituídas (penhor, hipoteca, alienação fiduciária)
+- Houve entrega parcial do produto ou pagamento parcial? Há prova de inadimplemento (notificação extrajudicial)?
+- Verificar se houve prorrogação automática do crédito rural (Tema 1099/STJ) — isso impede a mora
+
+Sub-caso 2 — Arrendamento / parceria rural:
+- Tipo de contrato (arrendamento ou parceria): prazo estipulado, prazo mínimo legal (Lei 4.504/1964)
+- Valor do arrendamento: em reais ou sacas de produto? Há histórico de inadimplência?
+- Houve notificação de retomada com antecedência mínima de 6 meses (art. 95, XII, ET)?
+- Motivo da retomada: uso próprio, exploração direta, venda? (verificar art. 95, VI, ET)
+- Há contrato de parceria dissimulada como arrendamento? Percentual de divisão da produção?
+- Benfeitorias realizadas pelo arrendatário/parceiro: foram autorizadas? Há direito de retenção?
+
+Sub-caso 3 — Impenhorabilidade da pequena propriedade rural:
+- Área total do imóvel em módulos fiscais: confirmar se é entre 1 e 4 módulos (pequena propriedade)
+- A família reside e explora o imóvel diretamente? Há comprovação (FUNRURAL, eSocial, DAP)?
+- A dívida executada é decorrente da atividade produtiva do imóvel?
+- Há penhora ou ameaça de penhora já decretada? Data do ato judicial?
+
+Sub-caso 4 — Prorrogação / renegociação de dívida rural (securitização):
+- Natureza do crédito: custeio, investimento ou comercialização?
+- Banco opera com recursos controlados do MCR? (Banco do Brasil, BNDES, Banco do Nordeste, etc.)
+- Há laudo de insuficiência de renda ou intempérie climática? (requisito para securitização)
+- O banco já negou o pedido de prorrogação formalmente? (necessário para Mandado de Segurança)
+- Verificar prazo decadencial: 120 dias do ato coator para impetração do MS
+
+Identificar o sub-caso principal e responder às perguntas correspondentes:`;
 
     case "trabalhista":
       return `QUESTÕES ESPECÍFICAS — DIREITO DO TRABALHO:
@@ -71,14 +97,39 @@ function buildQuestoesEspecificasPorMateria(materia: MateriaCanonica): string {
 
     case "bancario":
       return `QUESTÕES ESPECÍFICAS — DIREITO BANCÁRIO / CRÉDITO:
-- Identificar o produto bancário: crédito rural, crédito pessoal, financiamento, conta garantida, leasing, cartão
-- Banco/instituição financeira: nome, CNPJ, contrato assinado?
-- Taxa de juros contratada vs. taxa de mercado (BACEN/SELIC): há abusividade?
-- Há capitalização de juros (anatocismo)? Frequência: diária, mensal?
-- Seguros embutidos não contratados expressamente?
-- Negativação ou protesto indevido? Data e valor inscrito
-- Tentativa de renegociação extrajudicial com o banco?
-- Aplicação do CDC às operações bancárias (Súmula 297/STJ)`;
+Dados gerais:
+- Produto bancário: crédito rural, crédito pessoal, financiamento, conta garantida, leasing, cartão de crédito
+- Banco/instituição financeira: nome, CNPJ; contrato físico assinado está disponível?
+- CDC aplica-se (Súmula 297/STJ) — confirmar relação de consumo
+
+Sub-caso 1 — Revisão contratual (encargos, anatocismo, seguros):
+- Taxa de juros contratada (% a.m. e a.a.): comparar com taxa de mercado BACEN para a operação
+- Há capitalização de juros? Frequência (diária, mensal, anual): verificar se foi expressamente pactuada (MP 1.963-17/00, Súmula 596/STJ)
+- Seguros embutidos (prestamista, vida, DFI): foram contratados expressamente ou embutidos sem anuência? (Súmula 530/STJ)
+- Tarifas bancárias cobradas: são permitidas pela Resolução BACEN ou abusivas?
+- Valor do contrato original vs. saldo devedor atual: há planilha de evolução do débito?
+
+Sub-caso 2 — Defesa em execução bancária (CCB, contrato, boleto):
+- Título executado: CCB, contrato, duplicata, boleto? É título executivo extrajudicial?
+- Há excesso de execução? Calcular diferença entre saldo em cobrança e saldo revisado
+- Existem encargos indevidos embutidos (comissão de permanência abusiva, multa + juros moratórios acima de 2%)?
+- Exceção de pré-executividade: há matéria de ordem pública que dispensa dilação probatória (prescrição, nulidade do título)?
+- Prazo prescricional: 5 anos para dívidas líquidas (art. 206, §5º, I, CC) — verificar data do vencimento
+
+Sub-caso 3 — Negativação indevida / abalo de crédito:
+- Data e valor da inscrição nos cadastros de inadimplentes (SERASA, SPC, BACEN)
+- A dívida que originou a negativação existia e era exigível? Houve pagamento antes da inscrição?
+- Houve comunicação prévia ao devedor antes da inscrição (exigência legal)?
+- Há outras negativações legítimas no histórico do cliente? (Súmula 385/STJ — afasta dano moral in re ipsa se preexistentes)
+- Dano moral: prazo quinquenal da data do conhecimento da inscrição (art. 27, CDC)
+
+Sub-caso 4 — Renegociação forçada / revisão de contrato por onerosidade excessiva:
+- Evento superveniente imprevisível que gerou desequilíbrio contratual (seca, variação cambial, pandemia)?
+- Houve tentativa de renegociação extrajudicial com o banco (protocolar)? Data e resposta do banco?
+- Aplicação da Teoria da Imprevisão (art. 478, CC) ou Lesão (art. 157, CC)?
+- Novação: houve repactuação que incorporou os encargos anteriores ao novo contrato?
+
+Identificar o sub-caso principal e responder às perguntas correspondentes:`;
 
     case "empresarial":
       return `QUESTÕES ESPECÍFICAS — DIREITO EMPRESARIAL / SOCIETÁRIO:

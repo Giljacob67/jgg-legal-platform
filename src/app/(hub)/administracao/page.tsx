@@ -15,6 +15,13 @@ export default async function AdministracaoPage() {
   const provedor = configuracoes.find((c) => c.chave === "ai_provider")?.valor ?? "openai";
   const modelo = configuracoes.find((c) => c.chave === "ai_model")?.valor ?? "gpt-4o-mini";
 
+  const LABEL_PROVEDOR: Record<string, string> = {
+    openai: "OpenAI",
+    openrouter: "OpenRouter",
+    kilocode: "KiloCode",
+    anthropic: "Anthropic",
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -28,7 +35,7 @@ export default async function AdministracaoPage() {
           <p className="text-3xl font-bold text-[var(--color-ink)]">{ativos}</p>
         </Card>
         <Card title="Provedor de IA" subtitle="Gateway configurado">
-          <p className="text-lg font-bold text-violet-700 capitalize">{provedor}</p>
+          <p className="text-lg font-bold text-violet-700">{LABEL_PROVEDOR[provedor] ?? provedor}</p>
           <p className="mt-1 font-mono text-xs text-[var(--color-muted)]">{modelo}</p>
         </Card>
         <Card title="Perfis cadastrados" subtitle="Distribuição de acesso">

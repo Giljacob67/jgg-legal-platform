@@ -49,8 +49,16 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
     }
   }
 
-  const modelosGratuitos = modelosDisponiveis.filter((m) => "custo" in m && (m as { custo: string }).custo === "gratuito");
-  const modelosPagos = modelosDisponiveis.filter((m) => !("custo" in m && (m as { custo: string }).custo === "gratuito"));
+  const modelosGratuitos = modelosDisponiveis.filter((m) => m.custo === "gratuito");
+  const modelosPagos = modelosDisponiveis.filter((m) => m.custo !== "gratuito");
+
+  // Agrupa modelos pagos por provedorLabel
+  const modelosPorProvedor = modelosPagos.reduce<Record<string, typeof modelosPagos>>((acc, m) => {
+    const grupo = m.provedorLabel;
+    if (!acc[grupo]) acc[grupo] = [];
+    acc[grupo].push(m);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6">
@@ -108,30 +116,43 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
                     <summary className="cursor-pointer hover:text-[var(--color-ink)]">
                       Ver modelos disponíveis ({modelosDisponiveis.length} no total, {modelosGratuitos.length} gratuitos)
                     </summary>
-                    <div className="mt-2 max-h-48 overflow-y-auto space-y-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-2">
+                    <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-2 space-y-3">
+                      {/* Gratuitos */}
                       {modelosGratuitos.length > 0 && (
-                        <p className="font-semibold text-emerald-700 mb-1">🆓 Gratuitos</p>
+                        <div>
+                          <p className="font-semibold text-emerald-700 mb-1 text-xs">🆓 Gratuitos</p>
+                          <div className="space-y-0.5">
+                            {modelosGratuitos.map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => setValores((prev) => ({ ...prev, [config.chave]: m.id }))}
+                                className={`block w-full rounded px-2 py-1 text-left hover:bg-[var(--color-card)] font-mono text-xs ${valores[config.chave] === m.id ? "bg-[var(--color-card)] text-[var(--color-accent)] font-semibold" : ""}`}
+                              >
+                                {m.id}
+                                <span className="ml-2 font-sans not-italic text-[var(--color-muted)]">— {m.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                      {modelosGratuitos.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => setValores((prev) => ({ ...prev, [config.chave]: m.id }))}
-                          className="block w-full rounded px-2 py-1 text-left hover:bg-[var(--color-card)] font-mono text-xs"
-                        >
-                          {m.id} <span className="text-gray-400 non-italic font-sans">— {m.label}</span>
-                        </button>
-                      ))}
-                      {modelosPagos.length > 0 && (
-                        <p className="font-semibold text-[var(--color-muted)] mt-2 mb-1">💰 Pagos</p>
-                      )}
-                      {modelosPagos.slice(0, 20).map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => setValores((prev) => ({ ...prev, [config.chave]: m.id }))}
-                          className="block w-full rounded px-2 py-1 text-left hover:bg-[var(--color-card)] font-mono text-xs"
-                        >
-                          {m.id}
-                        </button>
+                      {/* Pagos, agrupados por provedor */}
+                      {Object.entries(modelosPorProvedor).map(([grupo, modelos]) => (
+                        <div key={grupo}>
+                          <p className="font-semibold text-[var(--color-muted)] mb-1 text-xs">💰 {grupo}</p>
+                          <div className="space-y-0.5">
+                            {modelos.map((m) => (
+                              <button
+                                key={m.id + m.provedor}
+                                onClick={() => setValores((prev) => ({ ...prev, [config.chave]: m.id }))}
+                                className={`block w-full rounded px-2 py-1 text-left hover:bg-[var(--color-card)] font-mono text-xs ${valores[config.chave] === m.id ? "bg-[var(--color-card)] text-[var(--color-accent)] font-semibold" : ""}`}
+                              >
+                                {m.id}
+                                {m.recomendado && <span className="ml-1 font-sans not-italic text-amber-600">★</span>}
+                                {(m.custo === "alto") && <span className="ml-1 font-sans not-italic text-rose-400 text-[10px]">alto custo</span>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </details>
