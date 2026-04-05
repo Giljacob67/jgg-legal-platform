@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Merriweather, Source_Sans_3 } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const fonteSerif = Merriweather({
@@ -19,27 +20,27 @@ export const metadata: Metadata = {
   description: "Plataforma jurídica modular com foco em produção de petições.",
 };
 
-// Anti-flicker script: reads localStorage and sets theme class before first paint.
-// Dark is the default — only removes .dark if user explicitly chose light.
-const themeScript = `(function(){
-  try {
-    var t = localStorage.getItem('jgg-theme');
-    if (t === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
-  } catch(e) {}
-})();`;
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={`dark ${fonteSerif.variable} ${fonteSans.variable}`}>
-      <head>
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
+    <html
+      lang="pt-BR"
+      className={`dark ${fonteSerif.variable} ${fonteSans.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen bg-[var(--color-page)] font-sans text-[var(--color-ink)]">
+        {/* Anti-flicker: executa antes da hidratação do React para evitar flash */}
+        <Script id="theme-init" strategy="beforeInteractive">{`
+          (function(){
+            try {
+              var t = localStorage.getItem('jgg-theme');
+              if (t === 'light') {
+                document.documentElement.classList.remove('dark');
+              } else {
+                document.documentElement.classList.add('dark');
+              }
+            } catch(e) {}
+          })();
+        `}</Script>
         {children}
       </body>
     </html>
