@@ -105,7 +105,7 @@ export class PostgresContratosRepository implements ContratosRepository {
     return updated;
   }
 
-  async salvarAnaliseRisco(id: string, analise: Contrato["analiseRisco"]): Promise<Contrato> {
+  async salvarAnaliseRisco(id: string, analise: Contrato["analiseRisco"]): Promise<void> {
     const db = getDb();
     await db
       .update(contratosTable)
@@ -114,8 +114,5 @@ export class PostgresContratosRepository implements ContratosRepository {
         atualizadoEm: new Date(),
       })
       .where(eq(contratosTable.id, id));
-    const updated = await this.obterPorId(id);
-    if (!updated) throw new Error(`Contrato ${id} não encontrado.`);
-    return updated;
   }
 }
