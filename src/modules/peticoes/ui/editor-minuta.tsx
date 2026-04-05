@@ -40,6 +40,7 @@ export function EditorMinuta({
 }: EditorMinutaProps) {
   const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
   const [mensagemSalvar, setMensagemSalvar] = useState("");
+  const [salvando, setSalvando] = useState(false);
   const [selecaoTexto, setSelecaoTexto] = useState("");
   const [instrucaoIA, setInstrucaoIA] = useState("");
   const [sugestaoIA, setSugestaoIA] = useState("");
@@ -93,8 +94,28 @@ export function EditorMinuta({
 
   const conteudoAtualTexto = editor?.getText() ?? minuta.conteudoAtual;
 
-  function salvarRascunho() {
-    setMensagemSalvar(`Rascunho salvo localmente às ${new Date().toLocaleTimeString("pt-BR")}.`);
+  async function salvarRascunho() {
+    if (salvando) return;
+    const conteudo = editor?.getHTML() ?? minuta.conteudoAtual;
+    setSalvando(true);
+    setMensagemSalvar("Salvando...");
+    try {
+      const res = await fetch(`/api/peticoes/minutas/${minuta.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conteudo }),
+      });
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: string };
+        setMensagemSalvar(`Erro ao salvar: ${json.error ?? "tente novamente."}`);
+      } else {
+        setMensagemSalvar(`Rascunho salvo às ${new Date().toLocaleTimeString("pt-BR")}.`);
+      }
+    } catch {
+      setMensagemSalvar("Erro de conexão ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function solicitarSugestaoIA() {
@@ -152,9 +173,10 @@ export function EditorMinuta({
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             onClick={salvarRascunho}
-            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-accent-strong)]"
+            disabled={salvando}
+            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-[var(--color-accent-strong)]"
           >
-            Salvar rascunho
+            {salvando ? "Salvando..." : "Salvar rascunho"}
           </button>
 
           {selecaoTexto && pedidoId && (

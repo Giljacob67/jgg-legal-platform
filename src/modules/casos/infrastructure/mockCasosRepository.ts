@@ -1,8 +1,19 @@
 import type { Caso } from "@/modules/casos/domain/types";
 
+export type NovoCasoPayload = {
+  titulo: string;
+  cliente: string;
+  materia: string;
+  tribunal?: string;
+  prazoFinal?: string;
+  resumo?: string;
+  partes?: Array<{ nome: string; papel: "autor" | "réu" | "terceiro" }>;
+};
+
 export interface CasosRepository {
   listarCasos(): Promise<Caso[]>;
   obterCasoPorId(casoId: string): Promise<Caso | undefined>;
+  criarCaso(payload: NovoCasoPayload): Promise<Caso>;
 }
 
 export class MockCasosRepository implements CasosRepository {
@@ -382,5 +393,24 @@ export class MockCasosRepository implements CasosRepository {
   async obterCasoPorId(casoId: string): Promise<Caso | undefined> {
     const caso = this.casos.find((caso) => caso.id === casoId);
     return Promise.resolve(caso);
+  }
+
+  async criarCaso(payload: NovoCasoPayload): Promise<Caso> {
+    const novoCasoId = `CAS-MOCK-${Date.now()}`;
+    const novo: Caso = {
+      id: novoCasoId,
+      titulo: payload.titulo,
+      cliente: payload.cliente,
+      materia: payload.materia,
+      tribunal: payload.tribunal ?? "",
+      status: "novo",
+      prazoFinal: payload.prazoFinal ?? "",
+      resumo: payload.resumo ?? "",
+      partes: payload.partes ?? [],
+      documentosRelacionados: [],
+      eventos: [],
+    };
+    this.casos.push(novo);
+    return Promise.resolve(novo);
   }
 }

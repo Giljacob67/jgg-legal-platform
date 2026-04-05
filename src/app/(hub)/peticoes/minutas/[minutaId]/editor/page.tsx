@@ -55,6 +55,7 @@ export default async function EditorMinutaPage({ params }: EditorMinutaPageProps
       />
       <EditorMinuta
         minuta={minuta}
+        pedidoId={editorData?.pedidoId}
         contextoJuridico={editorData?.contextoJuridico ?? null}
         versaoContextoAtual={editorData?.versaoContextoAtual}
         rastroGeracaoAtual={editorData?.rastroGeracaoAtual}

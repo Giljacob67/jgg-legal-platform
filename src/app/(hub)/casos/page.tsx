@@ -7,6 +7,15 @@ import { listarCasos } from "@/modules/casos/application/listarCasos";
 import type { Caso } from "@/modules/casos/domain/types";
 import { formatarData } from "@/lib/utils";
 
+const NovoCasoButton = (
+  <Link
+    href="/casos/novo"
+    className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-accent-strong)]"
+  >
+    + Novo caso
+  </Link>
+);
+
 export default async function CasosPage() {
   const casos = await listarCasos();
 
@@ -15,6 +24,7 @@ export default async function CasosPage() {
       <PageHeader
         title="Casos"
         description="Lista central de casos com prazo, matéria e rastreio de evolução jurídica."
+        actions={NovoCasoButton}
       />
 
       {casos.length === 0 ? (

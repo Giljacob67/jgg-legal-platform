@@ -23,6 +23,7 @@ function logDebug(mensagem: string, detalhe?: unknown): void {
 
 export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
   minuta: Minuta;
+  pedidoId: string;
   contextoJuridico: ContextoJuridicoPedido | null;
   versaoContextoAtual?: number;
   rastroGeracaoAtual?: RastroGeracaoMinuta;
@@ -162,6 +163,7 @@ export async function obterEditorMinutaOperacional(minutaId: string): Promise<{
 
   return {
     minuta,
+    pedidoId: minutaBase.pedidoId,
     contextoJuridico,
     versaoContextoAtual: contextoJuridico?.versaoContexto,
     rastroGeracaoAtual: geracaoAtual?.rastro,

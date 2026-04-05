@@ -2,7 +2,7 @@ import { getDb, getSqlClient } from "@/lib/database/client";
 import { casos, partes, eventosCaso } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { Caso, StatusCaso, Parte, EventoCaso } from "@/modules/casos/domain/types";
-import type { CasosRepository } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { CasosRepository, NovoCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
 
 type DocVinculoRow = { documento_juridico_id: string };
 
@@ -83,5 +83,40 @@ export class PostgresCasosRepository implements CasosRepository {
     if (casosRows.length === 0) return undefined;
 
     return mapRowToCaso(casosRows[0], partesRows, eventosRows, documentosRelacionados);
+  }
+
+  async criarCaso(payload: NovoCasoPayload): Promise<Caso> {
+    const db = getDb();
+
+    // Gerar ID sequencial baseado no ano atual
+    const ano = new Date().getFullYear();
+    const existentes = await db.select({ id: casos.id }).from(casos);
+    const seq = existentes.length + 1;
+    const novoCasoId = `CAS-${ano}-${seq.toString().padStart(3, "0")}`;
+
+    await db.insert(casos).values({
+      id: novoCasoId,
+      titulo: payload.titulo,
+      cliente: payload.cliente,
+      materia: payload.materia,
+      tribunal: payload.tribunal ?? null,
+      status: "novo",
+      prazoFinal: payload.prazoFinal ? new Date(payload.prazoFinal) : null,
+      resumo: payload.resumo ?? null,
+    });
+
+    if (payload.partes && payload.partes.length > 0) {
+      await db.insert(partes).values(
+        payload.partes.map((parte) => ({
+          casoId: novoCasoId,
+          nome: parte.nome,
+          papel: parte.papel,
+        })),
+      );
+    }
+
+    const caso = await this.obterCasoPorId(novoCasoId);
+    if (!caso) throw new Error("Erro ao recuperar caso recém-criado.");
+    return caso;
   }
 }
