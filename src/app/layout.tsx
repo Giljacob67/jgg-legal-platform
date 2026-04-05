@@ -19,10 +19,29 @@ export const metadata: Metadata = {
   description: "Plataforma jurídica modular com foco em produção de petições.",
 };
 
+// Anti-flicker script: reads localStorage and sets theme class before first paint.
+// Dark is the default — only removes .dark if user explicitly chose light.
+const themeScript = `(function(){
+  try {
+    var t = localStorage.getItem('jgg-theme');
+    if (t === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  } catch(e) {}
+})();`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={`${fonteSerif.variable} ${fonteSans.variable}`}>
-      <body className="min-h-screen bg-[var(--color-page)] font-sans text-[var(--color-ink)]">{children}</body>
+    <html lang="pt-BR" className={`dark ${fonteSerif.variable} ${fonteSans.variable}`}>
+      <head>
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="min-h-screen bg-[var(--color-page)] font-sans text-[var(--color-ink)]">
+        {children}
+      </body>
     </html>
   );
 }

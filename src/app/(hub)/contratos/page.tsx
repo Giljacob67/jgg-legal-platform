@@ -32,7 +32,7 @@ export default async function ContratosPage() {
       {/* KPIs por status */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         {(["vigente", "em_revisao", "rascunho", "assinado"] as const).map((status) => (
-          <div key={status} className="rounded-xl border border-[var(--color-border)] bg-white p-4 text-center">
+          <div key={status} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-center">
             <p className="text-2xl font-bold text-[var(--color-ink)]">{porStatus[status] ?? 0}</p>
             <p className="text-xs font-medium text-[var(--color-muted)]">{LABEL_STATUS_CONTRATO[status]}</p>
           </div>

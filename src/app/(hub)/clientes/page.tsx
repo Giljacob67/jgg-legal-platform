@@ -20,7 +20,7 @@ export default async function ClientesPage() {
 
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         {(["ativo", "prospecto", "inativo", "encerrado"] as const).map((s) => (
-          <div key={s} className="rounded-xl border border-[var(--color-border)] bg-white p-4 text-center">
+          <div key={s} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-center">
             <p className="text-2xl font-bold text-[var(--color-ink)]">{clientes.filter((c) => c.status === s).length}</p>
             <p className="text-xs font-medium text-[var(--color-muted)] capitalize">{s}</p>
           </div>

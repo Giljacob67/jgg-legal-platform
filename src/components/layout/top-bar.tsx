@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import type { SessaoMock } from "@/modules/auth/domain/types";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const labels: Record<string, string> = {
   dashboard: "Dashboard",
@@ -48,13 +49,16 @@ export function TopBar({ sessao }: { sessao: SessaoMock }) {
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-muted)]">Operação jurídica</p>
           <p className="mt-1 text-sm text-[var(--color-ink)]">{breadcrumbs.join(" / ") || "Dashboard"}</p>
         </div>
-        <div className="flex items-center gap-3 rounded-full border border-[var(--color-border)] bg-white px-3 py-1.5">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-accent)] text-xs font-bold text-white">
-            {sessao.iniciais}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-[var(--color-ink)]">{sessao.nome}</p>
-            <p className="text-xs text-[var(--color-muted)]">{sessao.perfil}</p>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <div className="flex items-center gap-3 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-accent)] text-xs font-bold text-white">
+              {sessao.iniciais}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-[var(--color-ink)]">{sessao.nome}</p>
+              <p className="text-xs text-[var(--color-muted)]">{sessao.perfil}</p>
+            </div>
           </div>
         </div>
       </div>

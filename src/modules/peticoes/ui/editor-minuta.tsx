@@ -145,7 +145,7 @@ export function EditorMinuta({
     <div className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
       <Card title={minuta.titulo} subtitle="Editor de minuta com formatação rica, geração estruturada por contexto, template e matéria.">
         <EditorToolbar editor={editor} />
-        <div className="rounded-b-xl border border-t-0 border-[var(--color-border)] bg-white">
+        <div className="rounded-b-xl border border-t-0 border-[var(--color-border)] bg-[var(--color-card)]">
           <EditorContent editor={editor} />
         </div>
 
@@ -182,15 +182,15 @@ export function EditorMinuta({
               </button>
             </div>
 
-            <div className="rounded-lg bg-white border border-violet-100 p-3">
+            <div className="rounded-lg bg-[var(--color-card)] border border-violet-100 p-3">
               <p className="text-xs font-medium text-violet-600 mb-1">Trecho selecionado:</p>
-              <p className="text-sm text-gray-700 italic line-clamp-3">&ldquo;{selecaoTexto}&rdquo;</p>
+              <p className="text-sm text-[var(--color-ink)] italic line-clamp-3">&ldquo;{selecaoTexto}&rdquo;</p>
             </div>
 
             <div>
               <label className="text-xs font-medium text-violet-700">O que você quer melhorar?</label>
               <textarea
-                className="mt-1 w-full rounded-lg border border-violet-200 bg-white p-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-violet-300"
+                className="mt-1 w-full rounded-lg border border-violet-200 bg-[var(--color-card)] p-3 text-sm text-[var(--color-ink)] outline-none focus:ring-2 focus:ring-violet-300"
                 rows={2}
                 placeholder='Ex: "Reformule de forma mais técnica e objetiva" ou "Adicione a referência ao art. 5º da CF"'
                 value={instrucaoIA}
@@ -217,9 +217,9 @@ export function EditorMinuta({
             </div>
 
             {sugestaoIA && (
-              <div className="rounded-lg bg-white border border-green-200 p-3">
+              <div className="rounded-lg bg-[var(--color-card)] border border-green-200 p-3">
                 <p className="text-xs font-medium text-green-700 mb-1">Sugestão da IA:</p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{sugestaoIA}</p>
+                <p className="text-sm text-[var(--color-ink)] whitespace-pre-wrap">{sugestaoIA}</p>
               </div>
             )}
           </div>
@@ -299,7 +299,7 @@ export function EditorMinuta({
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-[var(--color-ink)]">Versão de referência</span>
             <select
-              className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2"
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2"
               value={versaoComparadaId}
               onChange={(event) => setVersaoComparadaId(event.target.value)}
             >

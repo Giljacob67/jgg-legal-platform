@@ -27,7 +27,7 @@ export function SideNav({ modulos }: SideNavProps) {
   return (
     <aside className="hidden w-[280px] shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex lg:flex-col">
       {/* Logo / header */}
-      <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">JGG Group</p>
         <h2 className="mt-1 font-serif text-lg text-[var(--color-ink)]">Plataforma Jurídica</h2>
       </div>
@@ -55,8 +55,8 @@ export function SideNav({ modulos }: SideNavProps) {
                       className={cn(
                         "flex items-center gap-3 rounded-xl border px-3 py-2.5 transition",
                         ativo
-                          ? "border-[var(--color-accent)] bg-white shadow-sm"
-                          : "border-transparent bg-transparent hover:border-[var(--color-border)] hover:bg-white",
+                          ? "border-[var(--color-accent)] bg-[var(--color-card)] shadow-sm"
+                          : "border-transparent bg-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-card)]",
                       )}
                     >
                       <span className="text-base leading-none">{modulo.icone}</span>

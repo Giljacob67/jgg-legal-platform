@@ -41,12 +41,12 @@ export default async function BIPage() {
 
       {/* Financeiro KPIs */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="col-span-1 sm:col-span-2 rounded-xl border border-[var(--color-border)] bg-white p-5">
+        <div className="col-span-1 sm:col-span-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">Receita total de contratos</p>
           <p className="mt-1 text-3xl font-bold text-[var(--color-ink)]">{formatarValor(financeiro.receitaTotal)}</p>
           <p className="text-xs text-[var(--color-muted)]">Ticket médio: {formatarValor(financeiro.ticketMedioContrato)}</p>
         </div>
-        <div className="rounded-xl border border-[var(--color-border)] bg-white p-5">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">Tempo médio de conclusão</p>
           <p className="mt-1 text-3xl font-bold text-[var(--color-ink)]">{juridico.tempoMedioConclusaoDias}</p>
           <p className="text-xs text-[var(--color-muted)]">dias por pedido</p>

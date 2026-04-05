@@ -15,7 +15,7 @@ export function ButtonLink({ href, label, variant = "primario" }: ButtonLinkProp
         "inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold transition",
         variant === "primario"
           ? "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-strong)]"
-          : "border border-[var(--color-border)] bg-white text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]",
+          : "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]",
       )}
     >
       {label}

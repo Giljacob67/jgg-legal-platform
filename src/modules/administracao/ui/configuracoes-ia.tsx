@@ -57,7 +57,7 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
       {/* Configurações gerais */}
       <div className="space-y-4">
         {configuracoes.map((config) => (
-          <div key={config.chave} className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+          <div key={config.chave} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
             <div className="mb-2 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-ink)]">
@@ -116,7 +116,7 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
                         <button
                           key={m.id}
                           onClick={() => setValores((prev) => ({ ...prev, [config.chave]: m.id }))}
-                          className="block w-full rounded px-2 py-1 text-left hover:bg-white font-mono text-xs"
+                          className="block w-full rounded px-2 py-1 text-left hover:bg-[var(--color-card)] font-mono text-xs"
                         >
                           {m.id} <span className="text-gray-400 non-italic font-sans">— {m.label}</span>
                         </button>
@@ -128,7 +128,7 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
                         <button
                           key={m.id}
                           onClick={() => setValores((prev) => ({ ...prev, [config.chave]: m.id }))}
-                          className="block w-full rounded px-2 py-1 text-left hover:bg-white font-mono text-xs"
+                          className="block w-full rounded px-2 py-1 text-left hover:bg-[var(--color-card)] font-mono text-xs"
                         >
                           {m.id}
                         </button>

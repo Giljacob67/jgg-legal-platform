@@ -44,7 +44,7 @@ export default async function GestaoPage() {
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-3">
         {kpiCards.map((k) => (
-          <div key={k.label} className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+          <div key={k.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
             <div className="flex items-center gap-2">
               <span className="text-xl">{k.emoji}</span>
               <p className="text-xs font-semibold text-[var(--color-muted)]">{k.label}</p>
@@ -107,7 +107,7 @@ export default async function GestaoPage() {
           { href: "/peticoes", label: "Ver petições em produção", emoji: "📝" },
           { href: "/contratos", label: "Ver contratos vigentes", emoji: "📄" },
         ].map((l) => (
-          <Link key={l.href} href={l.href} className="group flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+          <Link key={l.href} href={l.href} className="group flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
             <span>{l.emoji}</span>{l.label}<span className="ml-auto">→</span>
           </Link>
         ))}

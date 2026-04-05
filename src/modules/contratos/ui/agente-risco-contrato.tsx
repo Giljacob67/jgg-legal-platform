@@ -69,7 +69,7 @@ export function AgenteRiscoContrato({ contratoId, analiseInicial }: AgenteRiscoC
               <span className="font-bold text-base capitalize">Risco {analise.nivel}</span>
               <span className="font-mono font-bold text-xl">{analise.pontuacaoRisco}<span className="text-sm font-normal">/100</span></span>
             </div>
-            <div className="mt-2 h-2 w-full rounded-full bg-white/50">
+            <div className="mt-2 h-2 w-full rounded-full bg-[var(--color-card)]/50">
               <div
                 className="h-2 rounded-full bg-current opacity-60 transition-all"
                 style={{ width: `${analise.pontuacaoRisco}%` }}

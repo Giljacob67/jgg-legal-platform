@@ -58,7 +58,7 @@ export default async function AdministracaoPage() {
           <Link
             key={item.href}
             href={item.href}
-            className="group flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-white p-5 transition hover:border-[var(--color-accent)] hover:shadow-sm"
+            className="group flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 transition hover:border-[var(--color-accent)] hover:shadow-sm"
           >
             <span className="text-2xl">{item.emoji}</span>
             <p className="font-semibold text-[var(--color-ink)] group-hover:text-[var(--color-accent)]">{item.titulo}</p>

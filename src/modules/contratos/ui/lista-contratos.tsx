@@ -36,7 +36,7 @@ export function ListaContratos({ contratos }: ListaContratosProps) {
         <Link
           key={c.id}
           href={`/contratos/${c.id}`}
-          className="group flex items-start justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-white p-4 transition hover:border-[var(--color-accent)] hover:shadow-sm"
+          className="group flex items-start justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 transition hover:border-[var(--color-accent)] hover:shadow-sm"
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">

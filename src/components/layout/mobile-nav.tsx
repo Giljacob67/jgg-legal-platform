@@ -10,7 +10,7 @@ export function MobileNav({ modulos }: { modulos: ModuloNavegacao[] }) {
 
   return (
     <div className="lg:hidden">
-      <div className="flex gap-2 overflow-x-auto border-b border-[var(--color-border)] bg-white px-4 py-2">
+      <div className="flex gap-2 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2">
         {modulos.map((modulo) => {
           const ativo = pathname === modulo.rota || pathname.startsWith(`${modulo.rota}/`);
           return (

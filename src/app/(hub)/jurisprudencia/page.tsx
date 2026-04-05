@@ -25,7 +25,7 @@ export default async function JurisprudenciaPage() {
           { label: "STF", count: jurisprudencias.filter((j) => j.tribunal === "STF").length },
           { label: "Outros tribunais", count: jurisprudencias.filter((j) => !["STJ","STF"].includes(j.tribunal)).length },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-[var(--color-border)] bg-white p-4 text-center">
+          <div key={item.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-center">
             <p className="text-2xl font-bold text-[var(--color-ink)]">{item.count}</p>
             <p className="text-xs font-medium text-[var(--color-muted)]">{item.label}</p>
           </div>

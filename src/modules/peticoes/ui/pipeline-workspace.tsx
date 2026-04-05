@@ -193,7 +193,7 @@ export function PipelineWorkspace({
       <Card title="Histórico e auditoria" subtitle="Rastros mockados por etapa já executada.">
         <div className="space-y-3">
           {historico.map((item) => (
-            <article key={item.id} className="rounded-xl border border-[var(--color-border)] bg-white p-3">
+            <article key={item.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-[var(--color-ink)]">{item.descricao}</p>
                 <p className="text-xs text-[var(--color-muted)]">{formatarDataHora(item.data)}</p>

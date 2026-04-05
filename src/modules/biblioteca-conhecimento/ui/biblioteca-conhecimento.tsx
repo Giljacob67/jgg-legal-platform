@@ -61,7 +61,7 @@ export function BibliotecaConhecimento({
           { label: "Chunks RAG", valor: stats.chunks, emoji: "🧩" },
           { label: "Erros", valor: stats.erros, emoji: "❌" },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-[var(--color-border)] bg-white p-4 text-center">
+          <div key={s.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-center">
             <p className="text-xl font-bold text-[var(--color-ink)]">{s.emoji} {s.valor}</p>
             <p className="text-xs text-[var(--color-muted)]">{s.label}</p>
           </div>

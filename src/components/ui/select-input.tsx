@@ -23,7 +23,7 @@ export function SelectInput({ label, options, groups, ...props }: SelectInputPro
     <label className="flex flex-col gap-1 text-sm">
       <span className="font-medium text-[var(--color-ink)]">{label}</span>
       <select
-        className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm outline-none transition focus:border-[var(--color-accent)]"
+        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm outline-none transition focus:border-[var(--color-accent)]"
         {...props}
       >
         {groups

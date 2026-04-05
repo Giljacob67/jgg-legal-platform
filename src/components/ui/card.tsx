@@ -10,7 +10,7 @@ type CardProps = {
 
 export function Card({ title, subtitle, className, children }: CardProps) {
   return (
-    <section className={cn("rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-sm", className)}>
+    <section className={cn("rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-sm", className)}>
       {title ? <h3 className="font-serif text-lg text-[var(--color-ink)]">{title}</h3> : null}
       {subtitle ? <p className="mt-1 text-sm text-[var(--color-muted)]">{subtitle}</p> : null}
       <div className={cn(title || subtitle ? "mt-4" : "", "space-y-3")}>{children}</div>

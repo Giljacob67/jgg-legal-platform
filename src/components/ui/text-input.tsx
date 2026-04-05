@@ -11,7 +11,7 @@ export function TextInput({ label, className, ...props }: TextInputProps) {
       <span className="font-medium text-[var(--color-ink)]">{label}</span>
       <input
         className={cn(
-          "rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm outline-none ring-0 transition focus:border-[var(--color-accent)]",
+          "rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm outline-none ring-0 transition focus:border-[var(--color-accent)]",
           className,
         )}
         {...props}

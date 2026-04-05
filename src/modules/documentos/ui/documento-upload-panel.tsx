@@ -255,7 +255,7 @@ export function DocumentoUploadPanel({
             type="file"
             accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={(event) => setArquivo(event.target.files?.[0] ?? null)}
-            className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2"
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2"
             required
           />
           <span className="text-xs text-[var(--color-muted)]">

@@ -37,7 +37,7 @@ export function ListaDocumentosBiblioteca({ documentos, onRemover }: ListaDocume
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-white">
+    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-alt)]">

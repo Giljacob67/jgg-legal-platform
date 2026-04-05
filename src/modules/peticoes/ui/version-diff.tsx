@@ -45,7 +45,7 @@ export function VersionDiff({
           {newLabel}
         </span>
       </div>
-      <div className="rounded-xl border border-[var(--color-border)] bg-white p-4 text-sm leading-7 font-mono whitespace-pre-wrap">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm leading-7 font-mono whitespace-pre-wrap">
         {diffs.map(([op, text], index) => {
           if (op === -1) {
             return (

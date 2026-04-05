@@ -267,7 +267,7 @@ export function NovoPedidoForm({
                   className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${
                     intencaoProcessual === intencao
                       ? "border-violet-500 bg-violet-50 font-semibold text-violet-800 ring-2 ring-violet-300"
-                      : "border-[var(--color-border)] bg-white text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
+                      : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
                   }`}
                 >
                   {LABEL_INTENCAO[intencao]}
@@ -282,7 +282,7 @@ export function NovoPedidoForm({
                   className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${
                     intencaoProcessual === "outro"
                       ? "border-violet-500 bg-violet-50 font-semibold text-violet-800 ring-2 ring-violet-300"
-                      : "border-dashed border-[var(--color-border)] bg-white text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)]"
+                      : "border-dashed border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)]"
                   }`}
                 >
                   ✏️ Outro — descrever livremente
@@ -297,7 +297,7 @@ export function NovoPedidoForm({
                   Descreva o que você quer que o agente faça: <span className="text-rose-600">*</span>
                 </label>
                 <textarea
-                  className="mt-2 w-full rounded-lg border border-violet-200 bg-white p-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-violet-300"
+                  className="mt-2 w-full rounded-lg border border-violet-200 bg-[var(--color-card)] p-3 text-sm text-[var(--color-ink)] outline-none focus:ring-2 focus:ring-violet-300"
                   rows={3}
                   placeholder='Ex: "Quero uma notificação extrajudicial antes de ajuizar" ou "Analise a viabilidade de ação coletiva"'
                   value={intencaoCustom}

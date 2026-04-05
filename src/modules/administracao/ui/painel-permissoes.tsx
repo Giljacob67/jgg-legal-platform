@@ -54,7 +54,7 @@ export function PainelPermissoes({ matriz = PERMISSOES_PADRAO }: PainelPermissoe
               key={modulo}
               className={`border-b border-[var(--color-border)] last:border-0 ${i % 2 === 0 ? "" : "bg-[var(--color-surface-alt)]/40"}`}
             >
-              <td className="sticky left-0 bg-white px-4 py-2.5 font-medium text-[var(--color-ink)]">
+              <td className="sticky left-0 bg-[var(--color-card)] px-4 py-2.5 font-medium text-[var(--color-ink)]">
                 {MODULOS_LABEL[modulo]}
               </td>
               {PERFIS_ORDENADOS.map((perfil) => {
