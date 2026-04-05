@@ -123,7 +123,7 @@ export class PostgresBIRepository implements BIRepository {
     const hoje = new Date();
     const em7Dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
     const prazoCriticos = pedidosRows.filter(
-      (p) => p.prazoFinal && p.prazoFinal <= em7Dias && p.status !== "concluído",
+      (p) => p.prazoFinal && p.prazoFinal.getTime() <= em7Dias.getTime() && p.status !== "concluído",
     );
     if (prazoCriticos.length > 0) {
       insights.push({

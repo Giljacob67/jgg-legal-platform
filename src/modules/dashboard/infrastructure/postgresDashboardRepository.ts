@@ -27,7 +27,7 @@ export class PostgresDashboardRepository implements DashboardRepository {
     const em7Dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
     const prazoCriticos = pedidosRows.filter((p) => {
       if (!p.prazoFinal) return false;
-      return p.prazoFinal <= em7Dias && p.status !== "concluído" && p.status !== "cancelado";
+      return p.prazoFinal.getTime() <= em7Dias.getTime() && p.status !== "concluído" && p.status !== "cancelado";
     });
 
     const indicadores: IndicadorDashboard[] = [
