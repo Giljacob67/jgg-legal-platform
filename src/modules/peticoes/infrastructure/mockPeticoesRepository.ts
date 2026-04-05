@@ -6,6 +6,7 @@ import type {
   PedidoDePeca,
   TipoPeca,
 } from "@/modules/peticoes/domain/types";
+import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
 
 export interface PeticoesRepository {
   listarPedidos(): Promise<PedidoDePeca[]>;
@@ -688,25 +689,6 @@ export class MockPeticoesRepository implements PeticoesRepository {
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {
-    return Promise.resolve([
-      "Petição inicial",
-      "Contestação",
-      "Réplica",
-      "Embargos à execução",
-      "Impugnação",
-      "Recurso",
-      "Manifestação",
-      "Apelação cível",
-      "Recurso especial cível",
-      "Agravo de instrumento",
-      "Agravo interno",
-      "Embargos de declaração",
-      "Mandado de segurança",
-      "Habeas corpus",
-      "Reconvenção",
-      "Exceção de pré-executividade",
-      "Pedido de tutela de urgência",
-      "Contrarrazões",
-    ]);
+    return Promise.resolve([...TODOS_TIPOS_PECA]);
   }
 }

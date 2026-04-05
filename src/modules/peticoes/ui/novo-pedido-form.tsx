@@ -6,6 +6,9 @@ import type { PrioridadePedido, TipoPeca, IntencaoProcessual } from "@/modules/p
 import {
   INTENCOES_POR_DOCUMENTO,
   LABEL_INTENCAO,
+  GRUPO_TIPO_PECA,
+  SKILL_VINCULADA_POR_TIPO,
+  LABEL_SKILL,
 } from "@/modules/peticoes/domain/types";
 // simularCriacaoPedido moved to server-side API route /api/peticoes
 import { Card } from "@/components/ui/card";
@@ -43,10 +46,22 @@ export function NovoPedidoForm({
   const [loadingTriagem, setLoadingTriagem] = useState(false);
   const [erro, setErro] = useState("");
 
-  const opcoesTipos = useMemo(
-    () => tiposPeca.map((tipo) => ({ value: tipo, label: tipo })),
-    [tiposPeca],
-  );
+  // Build grouped options for the tipo de peça select
+  const gruposTipos = useMemo(() => {
+    const mapa: Record<string, TipoPeca[]> = {};
+    for (const tipo of tiposPeca) {
+      const grupo = GRUPO_TIPO_PECA[tipo] ?? "Outros";
+      if (!mapa[grupo]) mapa[grupo] = [];
+      mapa[grupo].push(tipo);
+    }
+    return Object.entries(mapa).map(([label, tipos]) => ({
+      label,
+      options: tipos.map((tipo) => ({ value: tipo, label: tipo })),
+    }));
+  }, [tiposPeca]);
+
+  // Skills vinculadas ao tipo selecionado
+  const skillsVinculadas = SKILL_VINCULADA_POR_TIPO[tipoPeca] ?? null;
 
   // Sugere intenções relevantes com base no tipo de peça selecionado
   const intencoesSugeridas: IntencaoProcessual[] = useMemo(() => {
@@ -188,12 +203,36 @@ export function NovoPedidoForm({
           />
 
           <div className="grid gap-4 md:grid-cols-2">
-            <SelectInput
-              label="Tipo de peça"
-              value={tipoPeca}
-              options={opcoesTipos}
-              onChange={(e) => setTipoPeca(e.target.value as TipoPeca)}
-            />
+            <div className="flex flex-col gap-1">
+              <SelectInput
+                label="Tipo de peça"
+                value={tipoPeca}
+                groups={gruposTipos}
+                onChange={(e) => setTipoPeca(e.target.value as TipoPeca)}
+              />
+              {skillsVinculadas && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs">
+                  <p className="font-semibold text-emerald-800 mb-1">
+                    ✨ Skills especializadas disponíveis
+                  </p>
+                  <ul className="space-y-0.5">
+                    {skillsVinculadas.map((slug) => (
+                      <li key={slug} className="flex items-center gap-1 text-emerald-700">
+                        <code className="rounded bg-emerald-100 px-1 font-mono">
+                          /{slug}
+                        </code>
+                        <span className="text-emerald-600">
+                          — {LABEL_SKILL[slug] ?? slug}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-emerald-600 opacity-75">
+                    Use no Claude Code para gerar esta peça com especialização máxima.
+                  </p>
+                </div>
+              )}
+            </div>
             <SelectInput
               label="Prioridade"
               value={prioridade}
