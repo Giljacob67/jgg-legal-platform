@@ -1,26 +1,12 @@
-export type PerfilUsuario =
-  | "Sócio / Direção"
-  | "Coordenador Jurídico"
-  | "Advogado"
-  | "Estagiário / Assistente"
-  | "Operacional / Administrativo"
-  | "Administrador do sistema";
+// PerfilUsuario e Sessao consolidados em administracao/domain/types.ts
+// Re-exportados aqui para compatibilidade com imports existentes.
+export type { PerfilUsuario, Sessao } from "@/modules/administracao/domain/types";
 
 /** @deprecated Use Sessao instead */
 export interface SessaoMock {
   usuarioId: string;
   nome: string;
   iniciais: string;
-  perfil: PerfilUsuario;
+  perfil: string;
   ativo: boolean;
 }
-
-export interface Sessao {
-  usuarioId: string;
-  nome: string;
-  email: string;
-  iniciais: string;
-  perfil: PerfilUsuario;
-  ativo: boolean;
-}
-
