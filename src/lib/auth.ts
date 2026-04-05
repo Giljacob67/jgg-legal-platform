@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { PerfilUsuario } from "@/modules/auth/domain/types";
@@ -89,6 +88,7 @@ async function autenticarNoBanco(
   try {
     // Import dinâmico para não quebrar o Edge runtime quando DATA_MODE=mock
     const { getSqlClient } = await import("@/lib/database/client");
+    const { createHash } = await import("node:crypto");
     const sql = getSqlClient();
     const passwordHash = createHash("sha256").update(password).digest("hex");
 
