@@ -12,6 +12,7 @@ import type {
   PrioridadePedido,
   StatusPedido,
   EtapaPipeline,
+  TODOS_TIPOS_PECA,
 } from "@/modules/peticoes/domain/types";
 
 export class PostgresPeticoesRepository implements PeticoesRepository {
@@ -118,13 +119,6 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {
-    return [
-      "Petição inicial",
-      "Contestação",
-      "Réplica",
-      "Embargos à execução",
-      "Mandado de segurança",
-      "Exceção de pré-executividade",
-    ];
+    return [...TODOS_TIPOS_PECA];
   }
 }
