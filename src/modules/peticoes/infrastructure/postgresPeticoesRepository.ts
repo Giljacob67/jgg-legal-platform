@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/database/client";
-import { pedidosPeca, minutas as minutasTable, versoesMinuta } from "@/lib/database/schema";
+import { pedidosPeca, minutas as minutasTable, versoesMinuta, historicoPipeline } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { PeticoesRepository } from "@/modules/peticoes/infrastructure/mockPeticoesRepository";
 import type {
@@ -64,8 +64,19 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
   }
 
   async listarHistoricoPipeline(pedidoId: string): Promise<HistoricoPipeline[]> {
-    // Para simplificar a POC, não implementamos a query de histórico completa ainda.
-    return [];
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(historicoPipeline)
+      .where(eq(historicoPipeline.pedidoId, pedidoId));
+    return rows.map((r) => ({
+      id: r.id,
+      pedidoId: r.pedidoId ?? "",
+      etapa: r.etapa as EtapaPipeline,
+      descricao: r.descricao,
+      data: r.data.toISOString(),
+      responsavel: r.responsavel ?? undefined,
+    }));
   }
 
   async obterMinutaPorId(minutaId: string): Promise<Minuta | undefined> {

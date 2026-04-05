@@ -5,6 +5,7 @@ import {
   varchar,
   uuid,
   integer,
+  boolean,
   customType,
 } from "drizzle-orm/pg-core";
 
@@ -38,6 +39,9 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 255 }).notNull(),
   initials: varchar("initials", { length: 10 }),
   role: varchar("role", { length: 100 }), // Ex: 'Advogado', 'Sócio / Direção'
+  perfil: varchar("perfil", { length: 50 }), // PerfilUsuario
+  ativo: boolean("ativo").notNull().default(true),
+  ultimoAcesso: timestamp("ultimo_acesso"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -139,4 +143,75 @@ export const tesesJuridicas = pgTable("teses_juridicas", {
   teseBase: text("tese_base").notNull(),
   status: varchar("status", { length: 50 }).notNull(), // 'ativo', 'arquivado'
   embedding: vector("embedding"), // pgvector para Busca Semântica RAG
+});
+
+// ─────────────────────────────────────────────────────────────
+// CLIENTES
+// ─────────────────────────────────────────────────────────────
+export const clientes = pgTable("clientes", {
+  id: varchar("id", { length: 50 }).primaryKey(), // Ex: 'CLI-2026-001'
+  nome: varchar("nome", { length: 255 }).notNull(),
+  tipo: varchar("tipo", { length: 30 }).notNull(), // 'pessoa_fisica' | 'pessoa_juridica'
+  cpfCnpj: varchar("cpf_cnpj", { length: 30 }),
+  email: varchar("email", { length: 255 }),
+  telefone: varchar("telefone", { length: 30 }),
+  enderecoJson: text("endereco_json"), // JSON stringified Endereco
+  status: varchar("status", { length: 30 }).notNull().default("ativo"),
+  responsavelId: varchar("responsavel_id", { length: 50 }),
+  anotacoes: text("anotacoes"),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// JURISPRUDÊNCIA
+// ─────────────────────────────────────────────────────────────
+export const jurisprudencia = pgTable("jurisprudencia", {
+  id: varchar("id", { length: 50 }).primaryKey(), // Ex: 'JD-001'
+  titulo: varchar("titulo", { length: 500 }).notNull(),
+  ementa: text("ementa").notNull(),
+  ementaResumida: text("ementa_resumida"),
+  tribunal: varchar("tribunal", { length: 100 }).notNull(),
+  relator: varchar("relator", { length: 255 }),
+  dataJulgamento: varchar("data_julgamento", { length: 20 }), // ISO date
+  tipo: varchar("tipo", { length: 50 }).notNull(),
+  materiasJson: text("materias_json").notNull().default("[]"), // JSON array
+  tese: text("tese"),
+  fundamentosLegaisJson: text("fundamentos_legais_json").notNull().default("[]"), // JSON array
+  urlOrigem: varchar("url_origem", { length: 500 }),
+  relevancia: integer("relevancia").notNull().default(3),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// CONTRATOS
+// ─────────────────────────────────────────────────────────────
+export const contratos = pgTable("contratos", {
+  id: varchar("id", { length: 50 }).primaryKey(), // Ex: 'CTR-2026-001'
+  casoId: varchar("caso_id", { length: 50 }),
+  clienteId: varchar("cliente_id", { length: 50 }),
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  tipo: varchar("tipo", { length: 100 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("rascunho"),
+  objeto: text("objeto").notNull(),
+  partesJson: text("partes_json").notNull().default("[]"), // JSON array
+  clausulasJson: text("clausulas_json").notNull().default("[]"), // JSON array
+  valorReais: integer("valor_reais"),
+  vigenciaInicio: varchar("vigencia_inicio", { length: 20 }),
+  vigenciaFim: varchar("vigencia_fim", { length: 20 }),
+  conteudoAtual: text("conteudo_atual").notNull().default(""),
+  versoesJson: text("versoes_json").notNull().default("[]"), // JSON array
+  responsavelId: varchar("responsavel_id", { length: 50 }),
+  analiseRiscoJson: text("analise_risco_json"), // JSON object nullable
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// CONFIGURAÇÕES DO SISTEMA
+// ─────────────────────────────────────────────────────────────
+export const configuracoesSistema = pgTable("configuracoes_sistema", {
+  chave: varchar("chave", { length: 100 }).primaryKey(),
+  valor: text("valor").notNull(),
+  descricao: text("descricao"),
 });

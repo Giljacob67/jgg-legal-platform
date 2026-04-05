@@ -7,10 +7,14 @@ export async function GET(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
 
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") ?? undefined;
-  const clientes = await listarClientes({ status: status as StatusCliente | undefined });
-  return NextResponse.json({ clientes });
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status") ?? undefined;
+    const clientes = await listarClientes({ status: status as StatusCliente | undefined });
+    return NextResponse.json({ clientes });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro ao listar clientes." }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

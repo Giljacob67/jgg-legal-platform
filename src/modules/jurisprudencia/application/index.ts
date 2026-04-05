@@ -1,17 +1,14 @@
-import { MockJurisprudenciaRepository } from "../infrastructure/mockJurisprudenciaRepository";
-import type { TipoDecisao, Jurisprudencia } from "../domain/types";
-
-let _repo: MockJurisprudenciaRepository | null = null;
-const getRepo = () => { if (!_repo) _repo = new MockJurisprudenciaRepository(); return _repo; };
+import { services } from "@/services/container";
+import type { TipoDecisao, Jurisprudencia } from "@/modules/jurisprudencia/domain/types";
 
 export const listarJurisprudencias = (filtros?: { tribunal?: string; tipo?: TipoDecisao; materia?: string }) =>
-  getRepo().listar(filtros);
+  services.jurisprudenciaRepository.listar(filtros);
 
 export const pesquisarJurisprudencias = (query: string) =>
-  getRepo().pesquisarPorTexto(query);
+  services.jurisprudenciaRepository.pesquisarPorTexto(query);
 
 export const obterJurisprudenciaPorId = (id: string) =>
-  getRepo().obterPorId(id);
+  services.jurisprudenciaRepository.obterPorId(id);
 
 export const criarJurisprudencia = (dados: Omit<Jurisprudencia, "id" | "criadoEm">) =>
-  getRepo().criar(dados);
+  services.jurisprudenciaRepository.criar(dados);

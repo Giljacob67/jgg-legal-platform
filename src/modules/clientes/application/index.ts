@@ -1,10 +1,14 @@
-import { MockClientesRepository } from "../infrastructure/mockClientesRepository";
-import type { NovoClientePayload, StatusCliente, Cliente } from "../domain/types";
+import { services } from "@/services/container";
+import type { NovoClientePayload, StatusCliente } from "@/modules/clientes/domain/types";
 
-let _repo: MockClientesRepository | null = null;
-const getRepo = () => { if (!_repo) _repo = new MockClientesRepository(); return _repo; };
+export const listarClientes = (filtros?: { status?: StatusCliente }) =>
+  services.clientesRepository.listar(filtros);
 
-export const listarClientes = (filtros?: { status?: StatusCliente }) => getRepo().listar(filtros);
-export const obterClientePorId = (id: string) => getRepo().obterPorId(id);
-export const criarCliente = (payload: NovoClientePayload) => getRepo().criar(payload);
-export const atualizarCliente = (id: string, dados: Partial<NovoClientePayload>) => getRepo().atualizar(id, dados);
+export const obterClientePorId = (id: string) =>
+  services.clientesRepository.obterPorId(id);
+
+export const criarCliente = (payload: NovoClientePayload) =>
+  services.clientesRepository.criar(payload);
+
+export const atualizarCliente = (id: string, dados: Partial<NovoClientePayload>) =>
+  services.clientesRepository.atualizar(id, dados);

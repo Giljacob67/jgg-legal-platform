@@ -1,21 +1,16 @@
-import { MockAdministracaoRepository } from "../infrastructure/mockAdministracaoRepository";
-import type { IAdministracaoRepository } from "../domain/IAdministracaoRepository";
+import { services } from "@/services/container";
+import type { PerfilUsuario } from "@/modules/administracao/domain/types";
 
-let _repo: IAdministracaoRepository | null = null;
-
-function getRepo(): IAdministracaoRepository {
-  if (!_repo) {
-    // Em produção, trocar por PostgresAdministracaoRepository
-    _repo = new MockAdministracaoRepository();
-  }
-  return _repo;
-}
-
-export const listarUsuarios = () => getRepo().listarUsuarios();
-export const obterUsuarioPorId = (id: string) => getRepo().obterUsuarioPorId(id);
-export const convidarUsuario = (convite: Parameters<IAdministracaoRepository["convidarUsuario"]>[0]) => getRepo().convidarUsuario(convite);
-export const atualizarPerfilUsuario = (id: string, perfil: Parameters<IAdministracaoRepository["atualizarPerfil"]>[1]) => getRepo().atualizarPerfil(id, perfil);
-export const ativarDesativarUsuario = (id: string, ativo: boolean) => getRepo().ativarDesativar(id, ativo);
-export const listarAuditoria = (limite?: number) => getRepo().listarAuditoria(limite);
-export const obterConfiguracoes = () => getRepo().obterConfiguracoes();
-export const atualizarConfiguracao = (chave: string, valor: string) => getRepo().atualizarConfiguracao(chave, valor);
+export const listarUsuarios = () => services.administracaoRepository.listarUsuarios();
+export const obterUsuarioPorId = (id: string) => services.administracaoRepository.obterUsuarioPorId(id);
+export const convidarUsuario = (convite: Parameters<typeof services.administracaoRepository.convidarUsuario>[0]) =>
+  services.administracaoRepository.convidarUsuario(convite);
+export const atualizarPerfilUsuario = (id: string, perfil: PerfilUsuario) =>
+  services.administracaoRepository.atualizarPerfil(id, perfil);
+export const ativarDesativarUsuario = (id: string, ativo: boolean) =>
+  services.administracaoRepository.ativarDesativar(id, ativo);
+export const listarAuditoria = (limite?: number) =>
+  services.administracaoRepository.listarAuditoria(limite);
+export const obterConfiguracoes = () => services.administracaoRepository.obterConfiguracoes();
+export const atualizarConfiguracao = (chave: string, valor: string) =>
+  services.administracaoRepository.atualizarConfiguracao(chave, valor);

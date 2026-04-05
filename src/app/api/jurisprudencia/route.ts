@@ -7,17 +7,21 @@ export async function GET(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
 
-  const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q");
-  const tribunal = searchParams.get("tribunal") ?? undefined;
-  const tipo = searchParams.get("tipo") as TipoDecisao | null;
-  const materia = searchParams.get("materia") ?? undefined;
+  try {
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get("q");
+    const tribunal = searchParams.get("tribunal") ?? undefined;
+    const tipo = searchParams.get("tipo") as TipoDecisao | null;
+    const materia = searchParams.get("materia") ?? undefined;
 
-  const jurisprudencias = q
-    ? await pesquisarJurisprudencias(q)
-    : await listarJurisprudencias({ tribunal, tipo: tipo ?? undefined, materia });
+    const jurisprudencias = q
+      ? await pesquisarJurisprudencias(q)
+      : await listarJurisprudencias({ tribunal, tipo: tipo ?? undefined, materia });
 
-  return NextResponse.json({ jurisprudencias, total: jurisprudencias.length });
+    return NextResponse.json({ jurisprudencias, total: jurisprudencias.length });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro ao buscar jurisprudências." }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

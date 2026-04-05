@@ -6,8 +6,12 @@ export async function GET() {
   const unauth = await requireAuth();
   if (unauth) return unauth;
 
-  const configuracoes = await obterConfiguracoes();
-  return NextResponse.json({ configuracoes });
+  try {
+    const configuracoes = await obterConfiguracoes();
+    return NextResponse.json({ configuracoes });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro ao obter configurações." }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request) {

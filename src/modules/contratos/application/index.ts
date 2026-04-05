@@ -1,21 +1,17 @@
-import { MockContratosRepository } from "../infrastructure/mockContratosRepository";
-import type { NovoContratoPayload, StatusContrato, Contrato } from "../domain/types";
-
-let _repo: MockContratosRepository | null = null;
-function getRepo() {
-  if (!_repo) _repo = new MockContratosRepository();
-  return _repo;
-}
+import { services } from "@/services/container";
+import type { NovoContratoPayload, StatusContrato, Contrato } from "@/modules/contratos/domain/types";
 
 export const listarContratos = (filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"] }) =>
-  getRepo().listar(filtros);
+  services.contratosRepository.listar(filtros);
 
-export const obterContratoPorId = (id: string) => getRepo().obterPorId(id);
+export const obterContratoPorId = (id: string) =>
+  services.contratosRepository.obterPorId(id);
 
-export const criarContrato = (payload: NovoContratoPayload) => getRepo().criar(payload);
+export const criarContrato = (payload: NovoContratoPayload) =>
+  services.contratosRepository.criar(payload);
 
 export const atualizarStatusContrato = (id: string, status: StatusContrato) =>
-  getRepo().atualizarStatus(id, status);
+  services.contratosRepository.atualizarStatus(id, status);
 
 export const salvarAnaliseRisco = (id: string, analise: Contrato["analiseRisco"]) =>
-  getRepo().salvarAnaliseRisco(id, analise);
+  services.contratosRepository.salvarAnaliseRisco(id, analise);

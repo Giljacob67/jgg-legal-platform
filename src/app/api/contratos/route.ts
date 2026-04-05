@@ -7,14 +7,18 @@ export async function GET(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
 
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") ?? undefined;
-  const tipo = searchParams.get("tipo") ?? undefined;
-  const contratos = await listarContratos({
-    status: status as StatusContrato | undefined,
-    tipo: tipo as TipoContrato | undefined,
-  });
-  return NextResponse.json({ contratos });
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status") ?? undefined;
+    const tipo = searchParams.get("tipo") ?? undefined;
+    const contratos = await listarContratos({
+      status: status as StatusContrato | undefined,
+      tipo: tipo as TipoContrato | undefined,
+    });
+    return NextResponse.json({ contratos });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro ao listar contratos." }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
