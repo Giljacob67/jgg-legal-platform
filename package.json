@@ -16,6 +16,8 @@
     "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.66",
+    "@ai-sdk/google": "^3.0.58",
     "@ai-sdk/openai": "^3.0.50",
     "@sentry/nextjs": "^10.47.0",
     "@tiptap/extension-highlight": "^3.22.1",

@@ -1,4 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
 
 /**
@@ -8,7 +10,7 @@ import type { LanguageModel } from "ai";
 export interface ModeloCatalogo {
   id: string;
   label: string;
-  provedor: "openai" | "openrouter" | "kilocode";
+  provedor: "openai" | "openrouter" | "kilocode" | "anthropic" | "google";
   /** Slug para exibição amigável do provedor */
   provedorLabel: string;
   descricao: string;
@@ -271,6 +273,74 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     custo: "baixo",
     recomendado: false,
   },
+  // ── Anthropic Direto ─────────────────────────────────────────────────
+  {
+    id: "claude-opus-4-5",
+    label: "Claude Opus 4.5 (Direto)",
+    provedor: "anthropic",
+    provedorLabel: "Anthropic",
+    descricao: "Modelo mais poderoso da Anthropic via API direta. Máxima qualidade para petições complexas.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "alto",
+    recomendado: true,
+  },
+  {
+    id: "claude-sonnet-4-5",
+    label: "Claude Sonnet 4.5 (Direto) ⭐",
+    provedor: "anthropic",
+    provedorLabel: "Anthropic",
+    descricao: "Melhor equilíbrio qualidade/custo via API direta Anthropic. Recomendado para redação jurídica.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: true,
+  },
+  {
+    id: "claude-haiku-4-5",
+    label: "Claude Haiku 4.5 (Direto)",
+    provedor: "anthropic",
+    provedorLabel: "Anthropic",
+    descricao: "Rápido e econômico via API direta. Ideal para triagem, sugestões e extração de fatos.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  // ── Google Direto ─────────────────────────────────────────────────────
+  {
+    id: "gemini-2.5-pro-preview-05-06",
+    label: "Gemini 2.5 Pro (Direto)",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Modelo mais avançado do Google via API direta. Raciocínio de alta qualidade e contexto longo.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "alto",
+    recomendado: true,
+  },
+  {
+    id: "gemini-2.0-flash",
+    label: "Gemini 2.0 Flash (Direto) ⭐",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Muito rápido e econômico via API direta. Ideal para processar grandes volumes de documentos.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: true,
+  },
+  {
+    id: "gemini-1.5-flash",
+    label: "Gemini 1.5 Flash (Direto)",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Geração anterior do Flash. Excelente custo-benefício para tarefas do dia a dia.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
   // ── KiloCode ─────────────────────────────────────────────────────────
   {
     id: "anthropic/claude-sonnet-4-5",
@@ -300,8 +370,10 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
 const MODELO_PADRAO_OPENAI = "gpt-4o-mini";
 const MODELO_PADRAO_OPENROUTER = "anthropic/claude-3.5-sonnet";
 const MODELO_PADRAO_KILOCODE = "anthropic/claude-3.5-sonnet"; // KiloCode suporta os mesmos modelos
+const MODELO_PADRAO_ANTHROPIC = "claude-sonnet-4-5";
+const MODELO_PADRAO_GOOGLE = "gemini-2.0-flash";
 
-export type ProvedorIA = "openai" | "openrouter" | "kilocode";
+export type ProvedorIA = "openai" | "openrouter" | "kilocode" | "anthropic" | "google";
 
 /**
  * Retorna o provedor configurado baseado nas variáveis de ambiente.
@@ -312,11 +384,15 @@ export function getProvedor(): ProvedorIA {
   const envProvedor = process.env.AI_PROVIDER as ProvedorIA | undefined;
   if (envProvedor === "openrouter") return "openrouter";
   if (envProvedor === "kilocode") return "kilocode";
+  if (envProvedor === "anthropic") return "anthropic";
+  if (envProvedor === "google") return "google";
   if (envProvedor === "openai") return "openai";
 
   // Auto-detectar pela chave disponível
   if (process.env.KILO_API_KEY) return "kilocode";
   if (process.env.OPENROUTER_API_KEY) return "openrouter";
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return "google";
   return "openai";
 }
 
@@ -329,6 +405,8 @@ export function getModeloId(): string {
   const provedor = getProvedor();
   if (provedor === "openrouter") return MODELO_PADRAO_OPENROUTER;
   if (provedor === "kilocode") return MODELO_PADRAO_KILOCODE;
+  if (provedor === "anthropic") return MODELO_PADRAO_ANTHROPIC;
+  if (provedor === "google") return MODELO_PADRAO_GOOGLE;
   return MODELO_PADRAO_OPENAI;
 }
 
@@ -386,8 +464,24 @@ function criarClienteIA() {
  * getLLM("google/gemini-2.0-flash-lite:free")      // Gemini Flash GRATUITO
  */
 export function getLLM(modeloOverride?: string): LanguageModel {
-  const cliente = criarClienteIA();
+  const provedor = getProvedor();
   const modeloId = modeloOverride ?? getModeloId();
+
+  if (provedor === "anthropic") {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada.");
+    const anthropic = createAnthropic({ apiKey });
+    return anthropic(modeloId) as LanguageModel;
+  }
+
+  if (provedor === "google") {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada.");
+    const google = createGoogleGenerativeAI({ apiKey });
+    return google(modeloId) as LanguageModel;
+  }
+
+  const cliente = criarClienteIA();
   return cliente(modeloId) as LanguageModel;
 }
 
@@ -409,7 +503,9 @@ export function isAIAvailable(): boolean {
   return Boolean(
     process.env.OPENAI_API_KEY ||
     process.env.OPENROUTER_API_KEY ||
-    process.env.KILO_API_KEY
+    process.env.KILO_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY
   );
 }
 
@@ -428,6 +524,8 @@ export function getConfigAtual(): {
     openai: "OpenAI",
     openrouter: "OpenRouter",
     kilocode: "KiloCode AI Gateway",
+    anthropic: "Anthropic",
+    google: "Google AI",
   };
   return {
     provedor,
@@ -435,7 +533,7 @@ export function getConfigAtual(): {
     modeloInfo: MODELOS_CATALOGADOS.find((m) => m.id === modeloId) ?? {
       id: modeloId,
       label: modeloId,
-      provedor: provedor === "openai" ? "openai" : "openrouter",
+      provedor: provedor,
       provedorLabel: provedorLabel[provedor],
       descricao: "Modelo personalizado configurado via env AI_MODEL.",
       suportaVisao: false,
