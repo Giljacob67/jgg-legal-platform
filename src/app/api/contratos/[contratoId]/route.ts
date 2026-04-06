@@ -94,7 +94,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const clausulasPresentes = contrato.clausulas.map((c) => `${c.numero}. ${c.titulo}: ${c.conteudo.slice(0, 200)}`).join("\n");
 
-  const prompt = `Você é um advogado especialista em análise contratual brasileira.
+  const prompt = `Você é um advogado especialista em análise contratual brasileira. Retorne SEMPRE uma resposta em JSON válido conforme o schema fornecido.
 
 CONTRATO: "${contrato.titulo}" (${contrato.tipo})
 PARTES: ${contrato.partes.map((p) => `${p.papel}: ${p.nome}`).join(" | ")}

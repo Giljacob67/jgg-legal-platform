@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       ? `\n## Texto do Documento Adverso (OCR)\n${textoDocumentoAdverso.slice(0, 3000)}...`
       : "";
 
-    const prompt = `Você é o sistema de triagem jurídica inteligente da JGG Advocacia.
+    const prompt = `Você é o sistema de triagem jurídica inteligente da JGG Advocacia. Retorne SEMPRE uma resposta em JSON válido conforme o schema fornecido.
 
 ## CONTEXTO CRÍTICO DE POLO
 ${contextoPolo}
