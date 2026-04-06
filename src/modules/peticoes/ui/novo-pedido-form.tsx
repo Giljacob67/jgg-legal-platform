@@ -41,10 +41,12 @@ export function NovoPedidoForm({
   const [intencaoProcessual, setIntencaoProcessual] = useState<IntencaoProcessual | "">("");
   const [intencaoCustom, setIntencaoCustom] = useState(""); // campo livre quando intencao = 'outro'
   const [usarAgentTriagem, setUsarAgentTriagem] = useState(true);
+  const [arquivos, setArquivos] = useState<File[]>([]);
 
   const [pedidoGerado, setPedidoGerado] = useState<import("@/modules/peticoes/domain/types").PedidoDePeca | null>(null);
   const [resultadoTriagem, setResultadoTriagem] = useState<Record<string, unknown> | null>(null);
   const [loadingTriagem, setLoadingTriagem] = useState(false);
+  const [loadingUpload, setLoadingUpload] = useState(false);
   const [erro, setErro] = useState("");
 
   // Build grouped options for the tipo de peça select
@@ -97,6 +99,26 @@ export function NovoPedidoForm({
     indefinido: "❓ Polo não identificado",
   }[polo];
 
+  async function uploadArquivos(): Promise<string[]> {
+    if (arquivos.length === 0) return [];
+    setLoadingUpload(true);
+    const nomes: string[] = [];
+    try {
+      for (const arquivo of arquivos) {
+        const formData = new FormData();
+        formData.set("file", arquivo);
+        formData.set("titulo", arquivo.name.replace(/\.[^.]+$/, ""));
+        formData.set("tipoDocumento", "Petição");
+        formData.set("vinculos", JSON.stringify([{ tipoEntidade: "caso", entidadeId: casoId, papel: "apoio" }]));
+        const res = await fetch("/api/documentos/upload", { method: "POST", body: formData });
+        if (res.ok) nomes.push(arquivo.name);
+      }
+    } finally {
+      setLoadingUpload(false);
+    }
+    return nomes;
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErro("");
@@ -113,6 +135,8 @@ export function NovoPedidoForm({
     }
 
     try {
+      const documentosAnexados = await uploadArquivos();
+
       if (usarAgentTriagem) {
         // Usar Agente de Triagem com IA
         setLoadingTriagem(true);
@@ -125,6 +149,7 @@ export function NovoPedidoForm({
               ? `[OBJETIVO LIVRE] ${intencaoCustom}\n\n${contexto}`.trim()
               : contexto || titulo,
             prazoInformadoCliente: prazoFinal || undefined,
+            documentosAnexados: documentosAnexados.length > 0 ? documentosAnexados : undefined,
             intencaoExplicita: intencaoProcessual !== "outro" ? intencaoProcessual : undefined,
             intencaoCustom: intencaoProcessual === "outro" ? intencaoCustom : undefined,
           }),
@@ -356,6 +381,36 @@ export function NovoPedidoForm({
             placeholder="Ex: Recebi a contestação da parte adversa ontem. Ela alega que o contrato era verbal e que não existe prova documental do serviço prestado..."
           />
 
+          {/* Upload de documentos */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-[var(--color-ink)]">
+              📎 Documentos para análise <span className="font-normal text-[var(--color-muted)]">(opcional)</span>
+            </label>
+            <p className="mb-2 text-xs text-[var(--color-muted)]">
+              Envie a petição adversa, contrato, cédula ou qualquer documento que o agente deve analisar. PDF, DOCX ou TXT · máx. 4 MB por arquivo.
+            </p>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setArquivos(e.target.files ? Array.from(e.target.files) : [])}
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-ink)] file:mr-3 file:rounded-lg file:border-0 file:bg-violet-50 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-violet-700"
+            />
+            {arquivos.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {arquivos.map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-[var(--color-muted)]">
+                    <span className="text-violet-600">📄</span>
+                    {f.name} <span className="opacity-60">({(f.size / 1024).toFixed(0)} KB)</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {loadingUpload && (
+              <p className="mt-1 text-xs text-violet-600">⬆️ Enviando documentos...</p>
+            )}
+          </div>
+
           {/* Opção de usar triagem com IA */}
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
@@ -370,10 +425,10 @@ export function NovoPedidoForm({
 
           <button
             type="submit"
-            disabled={loadingTriagem}
+            disabled={loadingTriagem || loadingUpload}
             className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-strong)] disabled:opacity-60"
           >
-            {loadingTriagem ? "⏳ Agente analisando..." : usarAgentTriagem ? "🤖 Criar com Triagem IA" : "Criar pedido"}
+            {loadingUpload ? "⬆️ Enviando documentos..." : loadingTriagem ? "⏳ Agente analisando..." : usarAgentTriagem ? "🤖 Criar com Triagem IA" : "Criar pedido"}
           </button>
           {erro ? <p className="text-sm font-medium text-rose-700">{erro}</p> : null}
         </form>
