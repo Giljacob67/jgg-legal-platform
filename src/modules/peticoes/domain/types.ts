@@ -236,7 +236,7 @@ export const SKILL_VINCULADA_POR_TIPO: Partial<Record<TipoPeca, string[]>> = {
   "Impenhorabilidade — pequena propriedade rural":   ["impenhorabilidade-pequena-propriedade-rural"],
   "Recurso agrário":                                 ["recursos-agrarios", "peticoes-agrarias"],
   // Execução Cível (com especialização bancária)
-  "Embargos à execução":              ["excecao-pre-executividade-bancaria", "contratos-bancarios"],
+  "Embargos à execução":              ["embargos-execucao-titulos-agrarios", "excecao-pre-executividade-bancaria", "contratos-bancarios"],
   "Exceção de pré-executividade":     ["excecao-pre-executividade-bancaria"],
   "Impugnação ao cumprimento de sentença": ["excecao-pre-executividade-bancaria"],
   // Trabalhista
