@@ -32,6 +32,7 @@ export function NovoPedidoForm({
   clienteNome,
 }: NovoPedidoFormProps) {
   const [casoId, setCasoId] = useState(casoIdPadrao);
+  const [polo, setPolo] = useState<"ativo" | "passivo" | "indefinido">(poloRepresentado);
   const [titulo, setTitulo] = useState("");
   const [tipoPeca, setTipoPeca] = useState<TipoPeca>(tiposPeca[0]);
   const [prioridade, setPrioridade] = useState<PrioridadePedido>("média");
@@ -67,14 +68,14 @@ export function NovoPedidoForm({
   const intencoesSugeridas: IntencaoProcessual[] = useMemo(() => {
     const sugestoes = INTENCOES_POR_DOCUMENTO[tipoPeca] ?? INTENCOES_POR_DOCUMENTO["default"] ?? [];
     // Filtra por polo: polo passivo prioriza defesa, polo ativo prioriza ataque
-    if (poloRepresentado === "passivo") {
+    if (polo === "passivo") {
       const defensivas: IntencaoProcessual[] = [
         "redigir_contestacao", "redigir_impugnacao", "redigir_embargos",
         "redigir_excecao_executividade", "analisar_documento_adverso", "avaliar_riscos",
       ];
       return [...sugestoes.filter((i) => defensivas.includes(i)), ...sugestoes.filter((i) => !defensivas.includes(i))];
     }
-    if (poloRepresentado === "ativo") {
+    if (polo === "ativo") {
       const ofensivas: IntencaoProcessual[] = [
         "redigir_peticao_inicial", "redigir_recurso", "redigir_agravo",
         "redigir_mandado_seguranca", "redigir_replica", "extrair_fatos",
@@ -82,19 +83,19 @@ export function NovoPedidoForm({
       return [...sugestoes.filter((i) => ofensivas.includes(i)), ...sugestoes.filter((i) => !ofensivas.includes(i))];
     }
     return sugestoes;
-  }, [tipoPeca, poloRepresentado]);
+  }, [tipoPeca, polo]);
 
   const poloBadgeColor = {
     ativo: "bg-blue-100 text-blue-800 border-blue-200",
     passivo: "bg-amber-100 text-amber-800 border-amber-200",
     indefinido: "bg-gray-100 text-gray-600 border-gray-200",
-  }[poloRepresentado];
+  }[polo];
 
   const poloLabel = {
     ativo: "⚔️ Polo Ativo — Representa o Autor",
     passivo: "🛡️ Polo Passivo — Representa o Réu",
     indefinido: "❓ Polo não identificado",
-  }[poloRepresentado];
+  }[polo];
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -178,10 +179,41 @@ export function NovoPedidoForm({
     <div className="grid gap-6 lg:grid-cols-[1.25fr,1fr]">
       <Card title="Novo pedido de peça" subtitle="Defina o objetivo processual para que o agente de IA saiba o que fazer.">
 
-        {/* Banner do polo representado */}
-        <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${poloBadgeColor}`}>
-          <span>{poloLabel}</span>
-          {clienteNome && <span className="font-normal opacity-75">• Cliente: {clienteNome}</span>}
+        {/* Seletor do polo representado */}
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold text-[var(--color-ink)]">
+            Polo representado <span className="font-normal text-[var(--color-muted)]">(obrigatório)</span>
+          </label>
+          <div className="flex gap-2">
+            {(["ativo", "passivo", "indefinido"] as const).map((opcao) => {
+              const labels = {
+                ativo: "⚔️ Polo Ativo — Autor",
+                passivo: "🛡️ Polo Passivo — Réu",
+                indefinido: "❓ Não identificado",
+              };
+              const colors = {
+                ativo: "border-blue-400 bg-blue-50 text-blue-800 ring-blue-300",
+                passivo: "border-amber-400 bg-amber-50 text-amber-800 ring-amber-300",
+                indefinido: "border-gray-300 bg-gray-50 text-gray-600 ring-gray-200",
+              };
+              const inactive = "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)]";
+              return (
+                <button
+                  key={opcao}
+                  type="button"
+                  onClick={() => setPolo(opcao)}
+                  className={`flex-1 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition ${
+                    polo === opcao ? `${colors[opcao]} ring-2` : inactive
+                  }`}
+                >
+                  {labels[opcao]}
+                </button>
+              );
+            })}
+          </div>
+          {clienteNome && (
+            <p className="mt-1 text-xs text-[var(--color-muted)]">Cliente: {clienteNome}</p>
+          )}
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -253,7 +285,7 @@ export function NovoPedidoForm({
             </label>
             <p className="mb-2 text-xs text-[var(--color-muted)]">
               Selecione exatamente o que você quer que o agente faça com o documento.
-              {poloRepresentado !== "indefinido" && ` As sugestões estão ordenadas por relevância para o polo ${poloRepresentado === "ativo" ? "ativo (autor)" : "passivo (réu)"}.`}
+              {polo !== "indefinido" && ` As sugestões estão ordenadas por relevância para o polo ${polo === "ativo" ? "ativo (autor)" : "passivo (réu)"}.`}
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {intencoesSugeridas.map((intencao) => (
