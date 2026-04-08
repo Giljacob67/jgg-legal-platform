@@ -38,14 +38,13 @@ function mapRow(row: typeof clientesTable.$inferSelect): Cliente {
 }
 
 export class PostgresClientesRepository implements ClientesRepository {
-  async listar(filtros?: { status?: StatusCliente }): Promise<Cliente[]> {
+  async listar(filtros?: { status?: StatusCliente; responsavelId?: string }): Promise<Cliente[]> {
     const db = getDb();
-    const rows = filtros?.status
-      ? await db.select().from(clientesTable).where(eq(clientesTable.status, filtros.status))
-      : await db.select().from(clientesTable);
-    return rows
-      .map(mapRow)
-      .sort((a, b) => a.nome.localeCompare(b.nome));
+    const rows = await db.select().from(clientesTable);
+    let resultado = rows.map(mapRow);
+    if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);
+    if (filtros?.responsavelId) resultado = resultado.filter((c) => c.responsavelId === filtros.responsavelId);
+    return resultado.sort((a, b) => a.nome.localeCompare(b.nome));
   }
 
   async obterPorId(id: string): Promise<Cliente | null> {

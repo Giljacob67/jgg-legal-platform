@@ -93,12 +93,6 @@ export function NovoPedidoForm({
     indefinido: "bg-gray-100 text-gray-600 border-gray-200",
   }[polo];
 
-  const poloLabel = {
-    ativo: "⚔️ Polo Ativo — Representa o Autor",
-    passivo: "🛡️ Polo Passivo — Representa o Réu",
-    indefinido: "❓ Polo não identificado",
-  }[polo];
-
   async function uploadArquivos(): Promise<string[]> {
     if (arquivos.length === 0) return [];
     setLoadingUpload(true);

@@ -49,12 +49,13 @@ function mapRow(row: typeof contratosTable.$inferSelect): Contrato {
 }
 
 export class PostgresContratosRepository implements ContratosRepository {
-  async listar(filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"] }): Promise<Contrato[]> {
+  async listar(filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"]; responsavelId?: string }): Promise<Contrato[]> {
     const db = getDb();
     const rows = await db.select().from(contratosTable);
     let resultado = rows.map(mapRow);
     if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);
     if (filtros?.tipo) resultado = resultado.filter((c) => c.tipo === filtros.tipo);
+    if (filtros?.responsavelId) resultado = resultado.filter((c) => c.responsavelId === filtros.responsavelId);
     return resultado.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
   }
 
@@ -85,7 +86,7 @@ export class PostgresContratosRepository implements ContratosRepository {
       vigenciaFim: payload.vigenciaFim ?? null,
       conteudoAtual: "",
       versoesJson: "[]",
-      responsavelId: null,
+      responsavelId: payload.responsavelId ?? null,
       analiseRiscoJson: null,
       criadoEm: agora,
       atualizadoEm: agora,

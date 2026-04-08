@@ -1,4 +1,9 @@
-import type { MetricaFinanceira, MetricaJuridica, InsightIA } from "../domain/types";
+import type {
+  MetricaFinanceira,
+  MetricaJuridica,
+  InsightIA,
+  MetricaObservabilidadePipeline,
+} from "../domain/types";
 
 const FINANCEIRO_MOCK: MetricaFinanceira = {
   receitaTotal: 19500000, // R$ 195.000 em centavos
@@ -80,8 +85,80 @@ const INSIGHTS_MOCK: InsightIA[] = [
   },
 ];
 
+const OBSERVABILIDADE_PIPELINE_MOCK: MetricaObservabilidadePipeline = {
+  janelaHoras: 24,
+  totalExecucoes: 42,
+  totalFalhas: 6,
+  taxaFalhaPct: 14.3,
+  latenciaMediaMs: 4820,
+  latenciaP95Ms: 12480,
+  schemaInvalidoPct: 9.5,
+  ragDegradadoPct: 11.9,
+  porEstagio: [
+    {
+      estagio: "triagem",
+      totalExecucoes: 9,
+      totalFalhas: 1,
+      taxaFalhaPct: 11.1,
+      latenciaMediaMs: 2950,
+      latenciaP95Ms: 6120,
+      schemaInvalidoPct: 0,
+      ragDegradadoPct: 0,
+    },
+    {
+      estagio: "extracao-fatos",
+      totalExecucoes: 9,
+      totalFalhas: 1,
+      taxaFalhaPct: 11.1,
+      latenciaMediaMs: 4380,
+      latenciaP95Ms: 8520,
+      schemaInvalidoPct: 11.1,
+      ragDegradadoPct: 0,
+    },
+    {
+      estagio: "analise-adversa",
+      totalExecucoes: 8,
+      totalFalhas: 2,
+      taxaFalhaPct: 25,
+      latenciaMediaMs: 5210,
+      latenciaP95Ms: 11030,
+      schemaInvalidoPct: 25,
+      ragDegradadoPct: 12.5,
+    },
+    {
+      estagio: "estrategia",
+      totalExecucoes: 8,
+      totalFalhas: 1,
+      taxaFalhaPct: 12.5,
+      latenciaMediaMs: 6035,
+      latenciaP95Ms: 14010,
+      schemaInvalidoPct: 12.5,
+      ragDegradadoPct: 25,
+    },
+    {
+      estagio: "minuta",
+      totalExecucoes: 8,
+      totalFalhas: 1,
+      taxaFalhaPct: 12.5,
+      latenciaMediaMs: 5730,
+      latenciaP95Ms: 13620,
+      schemaInvalidoPct: 0,
+      ragDegradadoPct: 25,
+    },
+  ],
+  principaisErros: [
+    { erro: "SCHEMA_VALIDATION_FAILED", count: 3 },
+    { erro: "Timeout ao processar streaming", count: 2 },
+    { erro: "Contexto jurídico indisponível", count: 1 },
+  ],
+  geradoEm: new Date().toISOString(),
+};
+
 export class MockBIRepository {
   async obterFinanceiro(): Promise<MetricaFinanceira> { return FINANCEIRO_MOCK; }
   async obterJuridico(): Promise<MetricaJuridica> { return JURIDICO_MOCK; }
   async obterInsights(): Promise<InsightIA[]> { return INSIGHTS_MOCK; }
+  async obterObservabilidadePipeline(): Promise<MetricaObservabilidadePipeline> {
+    return OBSERVABILIDADE_PIPELINE_MOCK;
+  }
 }

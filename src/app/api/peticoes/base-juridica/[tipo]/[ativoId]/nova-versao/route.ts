@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { criarNovaVersaoAtivoBaseJuridica, type TipoGestaoBaseJuridica } from "@/modules/peticoes/base-juridica-viva/application/useCases";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 function tipoValido(tipo: string): tipo is TipoGestaoBaseJuridica {
   return tipo === "templates" || tipo === "teses" || tipo === "checklists";
@@ -10,8 +12,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<Record<string, string>> },
 ) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "peticoes", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   try {
     const params = await context.params;
@@ -19,7 +21,7 @@ export async function POST(
     const ativoId = params.ativoId;
 
     if (!tipoValido(tipo)) {
-      return NextResponse.json({ error: "Tipo de ativo inválido." }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Tipo de ativo inválido.", 400);
     }
 
     const formData = await request.formData();
@@ -33,13 +35,22 @@ export async function POST(
     const destino = `/peticoes/base-juridica/${tipo}/${novo.id}`;
     const finalUrl = redirectTo.includes(`/peticoes/base-juridica/${tipo}/`) ? destino : redirectTo;
 
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "create",
+      resource: "peticoes.base-juridica.nova-versao",
+      resourceId: `${tipo}:${ativoId}`,
+      result: "success",
+      details: { novaVersaoId: novo.id },
+    });
+
     return NextResponse.redirect(new URL(finalUrl, request.url), 303);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Falha ao criar nova versão do ativo jurídico.",
-      },
-      { status: 500 },
+    return apiError(
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Falha ao criar nova versão do ativo jurídico.",
+      500,
     );
   }
 }

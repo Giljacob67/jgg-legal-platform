@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { atualizarStatusAtivoBaseJuridica, type TipoGestaoBaseJuridica } from "@/modules/peticoes/base-juridica-viva/application/useCases";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 function tipoValido(tipo: string): tipo is TipoGestaoBaseJuridica {
   return tipo === "templates" || tipo === "teses" || tipo === "checklists";
@@ -14,8 +16,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<Record<string, string>> },
 ) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "peticoes", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   try {
     const params = await context.params;
@@ -23,7 +25,7 @@ export async function POST(
     const ativoId = params.ativoId;
 
     if (!tipoValido(tipo)) {
-      return NextResponse.json({ error: "Tipo de ativo inválido." }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Tipo de ativo inválido.", 400);
     }
 
     const formData = await request.formData();
@@ -31,7 +33,7 @@ export async function POST(
     const redirectTo = String(formData.get("redirectTo") ?? "/peticoes/base-juridica");
 
     if (!statusValido(statusRaw)) {
-      return NextResponse.json({ error: "Status inválido." }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Status inválido.", 400);
     }
 
     await atualizarStatusAtivoBaseJuridica({
@@ -40,13 +42,22 @@ export async function POST(
       status: statusRaw,
     });
 
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "update",
+      resource: "peticoes.base-juridica.status",
+      resourceId: `${tipo}:${ativoId}`,
+      result: "success",
+      details: { status: statusRaw },
+    });
+
     return NextResponse.redirect(new URL(redirectTo, request.url), 303);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Falha ao atualizar status do ativo jurídico.",
-      },
-      { status: 500 },
+    return apiError(
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Falha ao atualizar status do ativo jurídico.",
+      500,
     );
   }
 }

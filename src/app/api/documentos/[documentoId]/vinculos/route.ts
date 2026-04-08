@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { vincularDocumento } from "@/modules/documentos/application/vincularDocumento";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type VincularDocumentoRequestBody = {
   tipoEntidade: "caso" | "pedido_peca";
@@ -12,25 +14,25 @@ export async function POST(
   request: Request,
   context: { params: Promise<Record<string, string>> },
 ) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "documentos", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   try {
     const params = await context.params;
     const documentoId = params.documentoId;
 
     if (!documentoId) {
-      return NextResponse.json({ error: "documentoId é obrigatório." }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "documentoId é obrigatório.", 400);
     }
 
     const body = (await request.json()) as VincularDocumentoRequestBody;
 
     if (!body.entidadeId?.trim()) {
-      return NextResponse.json({ error: "entidadeId é obrigatório." }, { status: 400 });
+      return apiError("INVALID_LINKS_PAYLOAD", "entidadeId é obrigatório.", 400);
     }
 
     if (body.tipoEntidade !== "caso" && body.tipoEntidade !== "pedido_peca") {
-      return NextResponse.json({ error: "tipoEntidade inválido." }, { status: 400 });
+      return apiError("INVALID_LINKS_PAYLOAD", "tipoEntidade inválido.", 400);
     }
 
     const vinculo = await vincularDocumento({
@@ -40,13 +42,18 @@ export async function POST(
       papel: body.papel,
     });
 
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "update",
+      resource: "documentos.vinculos",
+      resourceId: documentoId,
+      result: "success",
+      details: { tipoEntidade: body.tipoEntidade, entidadeId: body.entidadeId },
+    });
+
     return NextResponse.json({ vinculo });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Falha ao vincular documento.",
-      },
-      { status: 500 },
-    );
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Falha ao vincular documento.", 500);
   }
 }

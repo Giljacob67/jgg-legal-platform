@@ -1,10 +1,21 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { obterMetricasFinanceiras, obterMetricasJuridicas, obterInsightsIA } from "@/modules/bi/application";
+import {
+  obterMetricasFinanceiras,
+  obterMetricasJuridicas,
+  obterInsightsIA,
+  obterObservabilidadePipeline,
+} from "@/modules/bi/application";
 import { COR_INSIGHT } from "@/modules/bi/domain/types";
 
 function formatarValor(centavos: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(centavos / 100);
+}
+
+function formatarMs(ms: number) {
+  if (!Number.isFinite(ms) || ms <= 0) return "0 ms";
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${Math.round(ms)} ms`;
 }
 
 function BarraHorizontal({ label, count, max }: { label: string; count: number; max: number }) {
@@ -21,15 +32,21 @@ function BarraHorizontal({ label, count, max }: { label: string; count: number; 
 }
 
 export default async function BIPage() {
-  const [financeiro, juridico, insights] = await Promise.all([
+  const [financeiro, juridico, insights, observabilidade] = await Promise.all([
     obterMetricasFinanceiras(),
     obterMetricasJuridicas(),
     obterInsightsIA(),
+    obterObservabilidadePipeline(),
   ]);
 
   const maxMes = Math.max(...financeiro.receitaPorMes.map((m) => m.valor), 1);
   const maxMateria = Math.max(...juridico.casosPorMateria.map((m) => m.count), 1);
   const maxPedido = Math.max(...juridico.pedidosPorTipo.map((p) => p.count), 1);
+  const estagioCritico =
+    observabilidade.porEstagio.length > 0
+      ? [...observabilidade.porEstagio].sort((a, b) =>
+        b.taxaFalhaPct - a.taxaFalhaPct || b.latenciaP95Ms - a.latenciaP95Ms)[0]
+      : null;
 
   const EMOJI_INSIGHT: Record<string, string> = {
     oportunidade: "🌟", risco: "⚠️", tendencia: "📈", recomendacao: "💡",
@@ -110,6 +127,114 @@ export default async function BIPage() {
         </div>
         <p className="mt-3 text-xs text-[var(--color-muted)]">
           Insights gerados em {new Date(insights[0]?.geradoEm ?? new Date().toISOString()).toLocaleString("pt-BR")}
+        </p>
+      </Card>
+
+      <Card
+        title="Observabilidade do Pipeline IA"
+        subtitle={`Janela de ${observabilidade.janelaHoras}h • erro e latência por estágio`}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Execuções</p>
+            <p className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{observabilidade.totalExecucoes}</p>
+          </div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Taxa de falha</p>
+            <p className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{observabilidade.taxaFalhaPct}%</p>
+            <p className="text-xs text-[var(--color-muted)]">{observabilidade.totalFalhas} falhas</p>
+          </div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Latência média</p>
+            <p className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{formatarMs(observabilidade.latenciaMediaMs)}</p>
+          </div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">P95</p>
+            <p className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{formatarMs(observabilidade.latenciaP95Ms)}</p>
+          </div>
+        </div>
+
+        {estagioCritico ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+            <p className="font-semibold text-amber-800">Estágio mais crítico: {estagioCritico.estagio}</p>
+            <p className="text-amber-700">
+              Falha {estagioCritico.taxaFalhaPct}% • P95 {formatarMs(estagioCritico.latenciaP95Ms)} • Execuções {estagioCritico.totalExecucoes}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--color-border)]">
+          <table className="w-full min-w-[740px] text-sm">
+            <thead className="bg-[var(--color-surface-alt)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
+              <tr>
+                <th className="px-3 py-2 text-left">Estágio</th>
+                <th className="px-3 py-2 text-right">Execuções</th>
+                <th className="px-3 py-2 text-right">Falha %</th>
+                <th className="px-3 py-2 text-right">Lat. média</th>
+                <th className="px-3 py-2 text-right">P95</th>
+                <th className="px-3 py-2 text-right">Schema inv. %</th>
+                <th className="px-3 py-2 text-right">RAG degr. %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {observabilidade.porEstagio.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-4 text-center text-sm text-[var(--color-muted)]" colSpan={7}>
+                    Sem dados de execução no período.
+                  </td>
+                </tr>
+              ) : (
+                observabilidade.porEstagio.map((item) => (
+                  <tr key={item.estagio} className="border-t border-[var(--color-border)]">
+                    <td className="px-3 py-2 font-medium text-[var(--color-ink)]">{item.estagio}</td>
+                    <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.totalExecucoes}</td>
+                    <td className={`px-3 py-2 text-right font-semibold ${
+                      item.taxaFalhaPct >= 20 ? "text-rose-700" : item.taxaFalhaPct >= 10 ? "text-amber-700" : "text-emerald-700"
+                    }`}>{item.taxaFalhaPct}%</td>
+                    <td className="px-3 py-2 text-right text-[var(--color-ink)]">{formatarMs(item.latenciaMediaMs)}</td>
+                    <td className={`px-3 py-2 text-right ${
+                      item.latenciaP95Ms >= 12000 ? "font-semibold text-rose-700" : "text-[var(--color-ink)]"
+                    }`}>{formatarMs(item.latenciaP95Ms)}</td>
+                    <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.schemaInvalidoPct}%</td>
+                    <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.ragDegradadoPct}%</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Qualidade de saída</p>
+            <p className="mt-1 text-sm text-[var(--color-ink)]">
+              Schema inválido: <span className="font-semibold">{observabilidade.schemaInvalidoPct}%</span>
+            </p>
+            <p className="text-sm text-[var(--color-ink)]">
+              RAG degradado: <span className="font-semibold">{observabilidade.ragDegradadoPct}%</span>
+            </p>
+          </div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Principais erros</p>
+            {observabilidade.principaisErros.length === 0 ? (
+              <p className="mt-1 text-sm text-[var(--color-muted)]">Sem erros registrados na janela.</p>
+            ) : (
+              <ul className="mt-1 space-y-1 text-sm text-[var(--color-ink)]">
+                {observabilidade.principaisErros.map((erro) => (
+                  <li key={erro.erro} className="flex items-start justify-between gap-2">
+                    <span className="line-clamp-1">{erro.erro}</span>
+                    <span className="rounded-full bg-[var(--color-surface-alt)] px-2 py-0.5 text-xs font-semibold">
+                      {erro.count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs text-[var(--color-muted)]">
+          Métricas atualizadas em {new Date(observabilidade.geradoEm).toLocaleString("pt-BR")}
         </p>
       </Card>
     </div>

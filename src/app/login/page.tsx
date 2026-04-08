@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const demoHint = process.env.NEXT_PUBLIC_DEMO_LOGIN_HINT;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,20 +106,10 @@ export default function LoginPage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
               Credenciais de demonstração
             </p>
-            <div className="space-y-1 text-xs text-[var(--color-muted)]">
-              <p>
-                <strong>Advogado:</strong> mariana@jgg.com.br
-              </p>
-              <p>
-                <strong>Sócio:</strong> gilberto@jgg.com.br
-              </p>
-              <p>
-                <strong>Admin:</strong> admin@jgg.com.br
-              </p>
-              <p>
-                <strong>Senha (todos):</strong> jgg2026
-              </p>
-            </div>
+            <p className="text-xs text-[var(--color-muted)]">
+              {demoHint ??
+                "Defina NEXT_PUBLIC_DEMO_LOGIN_HINT no ambiente para exibir as credenciais de desenvolvimento."}
+            </p>
           </div>
         </form>
       </div>

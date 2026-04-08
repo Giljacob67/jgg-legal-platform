@@ -1,31 +1,55 @@
 import { NextResponse } from "next/server";
 import { obterConfiguracoes, atualizarConfiguracao } from "@/modules/administracao/application";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
-export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+export async function GET(request: Request) {
+  const authResult = await requireSessionWithPermission({ modulo: "administracao", acao: "read" });
+  if (authResult.response) return authResult.response;
 
   try {
     const configuracoes = await obterConfiguracoes();
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "read",
+      resource: "administracao.configuracoes",
+      result: "success",
+      details: { total: configuracoes.length },
+    });
+
     return NextResponse.json({ configuracoes });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro ao obter configurações." }, { status: 500 });
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro ao obter configurações.", 500);
   }
 }
 
 export async function PATCH(request: Request) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "administracao", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   try {
-    const body = (await request.json()) as { chave: string; valor: string };
+    const body = (await request.json()) as { chave?: string; valor?: string };
     if (!body.chave || body.valor === undefined) {
-      return NextResponse.json({ error: "chave e valor são obrigatórios." }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Campos obrigatórios: chave e valor.", 400);
     }
+
     await atualizarConfiguracao(body.chave, body.valor);
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "update",
+      resource: "administracao.configuracoes",
+      resourceId: body.chave,
+      result: "success",
+      details: { chave: body.chave },
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro." }, { status: 500 });
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro ao atualizar configuração.", 500);
   }
 }

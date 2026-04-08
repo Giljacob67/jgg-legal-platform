@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ pedidoId: string }> }
 ) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "peticoes", acao: "execute" });
+  if (authResult.response) return authResult.response;
 
   try {
     const { pedidoId } = await params;
@@ -17,15 +18,12 @@ export async function POST(
     const { selecao, instrucao } = body as { selecao: string; instrucao: string };
 
     if (!selecao || !instrucao) {
-      return NextResponse.json(
-        { error: "selecao e instrucao são obrigatórios." },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "selecao e instrucao são obrigatórios.", 400);
     }
 
     const pedido = await services.peticoesRepository.obterPedidoPorId(pedidoId);
     if (!pedido) {
-      return NextResponse.json({ error: `Pedido ${pedidoId} não encontrado.` }, { status: 404 });
+      return apiError("NOT_FOUND", `Pedido ${pedidoId} não encontrado.`, 404);
     }
 
     if (!isAIAvailable()) {
@@ -50,9 +48,6 @@ Use português jurídico brasileiro padrão.`,
 
   } catch (error) {
     console.error("[AI Suggestion] Erro:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro interno na sugestão de IA." },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro interno na sugestão de IA.", 500);
   }
 }

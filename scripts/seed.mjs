@@ -14,10 +14,7 @@
  */
 
 import postgres from "postgres";
-import { createHash } from "node:crypto";
-
-const AGORA = new Date();
-const FORMAT_DATE = (d) => d.toISOString().split("T")[0];
+import { Algorithm, hash as hashArgon2id } from "@node-rs/argon2";
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -34,8 +31,14 @@ async function main() {
   try {
     // ── 1. USUÁRIOS DO ESCRITÓRIO ────────────────────────────────────
     console.log("👤 Semeando usuários do escritório...");
-    const hashSenha = (senha) => createHash("sha256").update(senha).digest("hex");
-    const senhaDefault = "jgg@2026!";
+    const hashSenha = async (senha) =>
+      hashArgon2id(senha, {
+        algorithm: Algorithm.Argon2id,
+        memoryCost: 19456,
+        timeCost: 2,
+        parallelism: 1,
+      });
+    const senhaDefault = process.env.SEED_DEFAULT_PASSWORD ?? "dev-only-change-me";
 
     const USUARIOS_SEED = [
       { email: "gilberto@jgg.adv.br",     senha: senhaDefault, name: "Gilberto Jacob",      initials: "GJ", role: "Sócio / Direção",           perfil: "socio_direcao" },
@@ -53,7 +56,7 @@ async function main() {
         VALUES (
           gen_random_uuid(),
           ${u.email},
-          ${hashSenha(u.senha)},
+          ${await hashSenha(u.senha)},
           ${u.name},
           ${u.initials},
           ${u.role},
@@ -73,7 +76,7 @@ async function main() {
     try {
       await sql`CREATE EXTENSION IF NOT EXISTS vector`;
       console.log("   ✅ pgvector habilitado.\n");
-    } catch (e) {
+    } catch {
       console.log("   ⚠️  pgvector já ativo ou sem permissão — continuando.\n");
     }
 

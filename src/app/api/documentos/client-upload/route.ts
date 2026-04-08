@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { TipoDocumento } from "@/modules/documentos/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
 import { registrarUploadClienteDocumento } from "@/modules/documentos/application/registrarUploadClienteDocumento";
 import { validarTipoDocumento } from "@/modules/documentos/application/validation";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 const MIME_TYPES_PERMITIDOS = [
   "application/pdf",
+  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
 ];
+const MAX_UPLOAD_BYTES = Number(process.env.UPLOAD_MAX_BYTES ?? 25 * 1024 * 1024);
 
 type UploadClientPayload = {
   filename: string;
@@ -56,8 +60,8 @@ function parseTokenPayload(raw: string | null | undefined): UploadClientPayload 
 }
 
 export async function POST(request: Request) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "documentos", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   try {
     const body = (await request.json()) as HandleUploadBody;
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
 
         return {
           allowedContentTypes: MIME_TYPES_PERMITIDOS,
-          maximumSizeInBytes: 1024 * 1024 * 100,
+          maximumSizeInBytes: MAX_UPLOAD_BYTES,
           addRandomSuffix: true,
           tokenPayload: clientPayload,
         };
@@ -93,13 +97,20 @@ export async function POST(request: Request) {
       },
     });
 
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "upload",
+      resource: "documentos.client-upload",
+      result: "success",
+    });
+
     return NextResponse.json(jsonResponse);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Falha no upload cliente de documento.",
-      },
-      { status: 400 },
+    return apiError(
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Falha no upload cliente de documento.",
+      400,
     );
   }
 }

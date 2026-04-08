@@ -5,7 +5,9 @@ import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 const TriagemSchema = z.object({
   poloDetectado: z.enum(["ativo", "passivo", "indefinido"]).describe(
@@ -75,8 +77,8 @@ Por segurança, analise AMBAS as perspectivas e sinalize que o advogado deve con
 }
 
 export async function POST(request: Request) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "peticoes", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   try {
     const body = await request.json();
@@ -97,15 +99,12 @@ export async function POST(request: Request) {
     };
 
     if (!casoId || !descricaoProblema) {
-      return NextResponse.json(
-        { error: "casoId e descricaoProblema são obrigatórios." },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "casoId e descricaoProblema são obrigatórios.", 400);
     }
 
     const caso = await services.casosRepository.obterCasoPorId(casoId);
     if (!caso) {
-      return NextResponse.json({ error: `Caso ${casoId} não encontrado.` }, { status: 404 });
+      return apiError("NOT_FOUND", `Caso ${casoId} não encontrado.`, 404);
     }
 
     const poloDetectado = detectarPoloRepresentado(caso);
@@ -167,18 +166,30 @@ ${equipeStr}
 
       const intencaoMock: IntencaoProcessual = intencaoExplicita ??
         (poloDetectado === "passivo" ? "redigir_contestacao" : "analisar_documento_adverso");
+      const tipoPecaMock: TipoPeca = poloDetectado === "passivo" ? "Contestação" : "Petição inicial";
+      const prioridadeMock: PrioridadePedido = "alta";
 
-      return NextResponse.json({
+      const novoPedido = await services.peticoesRepository.simularCriacaoPedido({
+        casoId,
+        titulo: `${tipoPecaMock} — ${caso.titulo}`,
+        tipoPeca: tipoPecaMock,
+        prioridade: prioridadeMock,
+        prazoFinal: prazoDefault,
+        intencaoProcessual: intencaoMock,
+      });
+
+      const response = NextResponse.json({
         casoId,
         modo: "mock",
+        pedidoCriado: novoPedido.id,
         aviso: "OPENAI_API_KEY não configurada — resultado simulado.",
         polo: poloDetectado,
         triagem: {
           poloDetectado,
           justificativaPolo: `Cliente "${caso.cliente}" identificado como ${poloDetectado === "ativo" ? "autor" : poloDetectado === "passivo" ? "réu" : "polo não identificado"} nas partes do caso.`,
-          tipoPecaClassificado: poloDetectado === "passivo" ? "Contestação" : "Petição inicial",
+          tipoPecaClassificado: tipoPecaMock,
           intencaoDetectada: intencaoMock,
-          prioridade: "alta" as PrioridadePedido,
+          prioridade: prioridadeMock,
           prazoSugerido: prazoDefault,
           responsavelSugerido: EQUIPE_JGG[0].nome,
           resumoJustificativa: `Caso ${caso.materia} representando o polo ${poloDetectado}. Configure OPENAI_API_KEY para análise real.`,
@@ -187,6 +198,16 @@ ${equipeStr}
           etapaInicial: "classificacao",
         },
       });
+      await writeAuditLog({
+        request,
+        session: authResult.session,
+        action: "execute",
+        resource: "peticoes.triagem",
+        resourceId: novoPedido.id,
+        result: "success",
+        details: { modo: "mock", casoId },
+      });
+      return response;
     }
 
     const { object: triagem } = await generateObject({
@@ -204,6 +225,16 @@ ${equipeStr}
       intencaoProcessual: triagem.intencaoDetectada,
     });
 
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "execute",
+      resource: "peticoes.triagem",
+      resourceId: novoPedido.id,
+      result: "success",
+      details: { modo: "ai", casoId },
+    });
+
     return NextResponse.json({
       casoId,
       modo: "ai",
@@ -214,9 +245,6 @@ ${equipeStr}
 
   } catch (error) {
     console.error("[Agente Triagem] Erro:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro interno no agente de triagem." },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro interno no agente de triagem.", 500);
   }
 }

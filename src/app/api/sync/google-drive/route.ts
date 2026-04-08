@@ -4,14 +4,27 @@ import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastruc
 import { isDriveConfigurado, listarArquivosDrive, baixarArquivoDrive } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
 import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
 import type { ResultadoSyncDrive } from "@/modules/biblioteca-conhecimento/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
-// Armazena status da última sync em memória
 let ultimaSync: ResultadoSyncDrive | null = null;
 
-export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+export async function GET(request: Request) {
+  const authResult = await requireSessionWithPermission({ modulo: "biblioteca_juridica", acao: "read" });
+  if (authResult.response) return authResult.response;
+
+  await writeAuditLog({
+    request,
+    session: authResult.session,
+    action: "read",
+    resource: "biblioteca.sync-google-drive",
+    result: "success",
+    details: {
+      configurado: isDriveConfigurado(),
+      hasUltimaSync: Boolean(ultimaSync),
+    },
+  });
 
   return NextResponse.json({
     configurado: isDriveConfigurado(),
@@ -20,17 +33,16 @@ export async function GET() {
   });
 }
 
-export async function POST() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+export async function POST(request: Request) {
+  const authResult = await requireSessionWithPermission({ modulo: "biblioteca_juridica", acao: "execute" });
+  if (authResult.response) return authResult.response;
 
   if (!isDriveConfigurado()) {
-    return NextResponse.json(
-      {
-        error: "Google Drive não configurado. Adicione GOOGLE_SERVICE_ACCOUNT_KEY e GOOGLE_DRIVE_FOLDER_ID no Vercel.",
-        configurado: false,
-      },
-      { status: 503 }
+    return apiError(
+      "INTERNAL_ERROR",
+      "Google Drive não configurado. Adicione GOOGLE_SERVICE_ACCOUNT_KEY e GOOGLE_DRIVE_FOLDER_ID.",
+      503,
+      { configurado: false },
     );
   }
 
@@ -81,11 +93,33 @@ export async function POST() {
     }
 
     ultimaSync = { novos, pulados, erros, detalhes, executadoEm: new Date().toISOString() };
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "execute",
+      resource: "biblioteca.sync-google-drive",
+      result: erros > 0 ? "error" : "success",
+      details: {
+        novos,
+        pulados,
+        erros,
+      },
+    });
+
     return NextResponse.json(ultimaSync);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro na sincronização." },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Erro na sincronização.";
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "execute",
+      resource: "biblioteca.sync-google-drive",
+      result: "error",
+      details: { error: message },
+    });
+
+    return apiError("INTERNAL_ERROR", message, 500);
   }
 }

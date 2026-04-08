@@ -23,7 +23,6 @@ type PipelineWorkspaceProps = {
 };
 
 // Estágios executáveis via IA (mapeados em MAPA_ESTAGIO_PIPELINE)
-const ESTAGIOS_IA = Object.keys(MAPA_ESTAGIO_PIPELINE) as EstagioExecutavel[];
 // Mapear EtapaPipeline → EstagioExecutavel para lookup
 const PIPELINE_PARA_ESTAGIO = Object.fromEntries(
   Object.entries(MAPA_ESTAGIO_PIPELINE).map(([k, v]) => [v, k as EstagioExecutavel]),
@@ -48,7 +47,7 @@ function toStatus(
     }
 
     if (snapshot.status === "mock_controlado") {
-      return { label: "mockado", variant: "implantacao" };
+      return { label: "não implementado", variant: "implantacao" };
     }
   }
 
@@ -57,7 +56,7 @@ function toStatus(
   }
 
   if (!etapa.priorizadaMvp) {
-    return { label: "mockado", variant: "implantacao" };
+    return { label: "não implementado", variant: "implantacao" };
   }
 
   return { label: "pendente", variant: "neutro" };
@@ -74,6 +73,10 @@ export function PipelineWorkspace({
   const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
   const [streamTexts, setStreamTexts] = useState<Partial<Record<EstagioExecutavel, string>>>({});
   const [streamErrors, setStreamErrors] = useState<Partial<Record<EstagioExecutavel, string>>>({});
+  const [revisando, setRevisando] = useState(false);
+  const [erroRevisao, setErroRevisao] = useState<string | null>(null);
+  const [aprovando, setAprovando] = useState(false);
+  const [erroAprovacao, setErroAprovacao] = useState<string | null>(null);
 
   const executarEstagio = useCallback(async (estagio: EstagioExecutavel) => {
     setStreamingEstagio(estagio);
@@ -112,6 +115,54 @@ export function PipelineWorkspace({
     }
   }, [pedidoId]);
 
+  const aprovarRevisaoHumana = useCallback(async () => {
+    setAprovando(true);
+    setErroAprovacao(null);
+    try {
+      const res = await fetch(`/api/peticoes/pipeline/${pedidoId}/aprovar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json()) as { message?: string; error?: string };
+        setErroAprovacao(err.message ?? err.error ?? "Falha ao aprovar revisão.");
+        return;
+      }
+
+      window.location.reload();
+    } catch (err) {
+      setErroAprovacao(err instanceof Error ? err.message : "Falha ao aprovar revisão.");
+    } finally {
+      setAprovando(false);
+    }
+  }, [pedidoId]);
+
+  const concluirRevisaoHumana = useCallback(async () => {
+    setRevisando(true);
+    setErroRevisao(null);
+    try {
+      const res = await fetch(`/api/peticoes/pipeline/${pedidoId}/revisar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checklistConferido: true }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json()) as { message?: string; error?: string };
+        setErroRevisao(err.message ?? err.error ?? "Falha ao concluir revisão humana.");
+        return;
+      }
+
+      window.location.reload();
+    } catch (err) {
+      setErroRevisao(err instanceof Error ? err.message : "Falha ao concluir revisão humana.");
+    } finally {
+      setRevisando(false);
+    }
+  }, [pedidoId]);
+
   const snapshotsMap = useMemo(() => {
     const map = new Map<EtapaPipeline, SnapshotPipelineEtapa>();
     for (const snapshot of snapshots) {
@@ -122,6 +173,8 @@ export function PipelineWorkspace({
 
     return map;
   }, [snapshots]);
+
+  const revisaoConcluida = snapshotsMap.get("revisao")?.status === "concluido";
 
   return (
     <div className="space-y-6">
@@ -156,7 +209,7 @@ export function PipelineWorkspace({
                 <p className="mt-2 text-xs text-[var(--color-muted)]">
                   {etapa.priorizadaMvp
                     ? "Etapa funcional nesta versão do MVP."
-                    : "Etapa visível e tipada para evolução posterior."}
+                    : "Etapa visível, porém não implementada para execução nesta fase."}
                 </p>
                 {snapshot ? (
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
@@ -181,6 +234,47 @@ export function PipelineWorkspace({
                       <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-xs text-[var(--color-ink)]">
                         {streamTexts[PIPELINE_PARA_ESTAGIO[etapa.id]!]}
                       </pre>
+                    )}
+                  </div>
+                )}
+                {etapa.id === "aprovacao" && (
+                  <div className="mt-3 space-y-2">
+                    <button
+                      onClick={aprovarRevisaoHumana}
+                      disabled={aprovando || snapshot?.status === "concluido" || !revisaoConcluida}
+                      className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {snapshot?.status === "concluido"
+                        ? "Revisão aprovada"
+                        : aprovando
+                          ? "Aprovando..."
+                          : "Aprovar revisão humana"}
+                    </button>
+                    {!revisaoConcluida && (
+                      <p className="text-xs text-[var(--color-muted)]">
+                        Conclua a etapa de revisão humana antes da aprovação final.
+                      </p>
+                    )}
+                    {erroAprovacao && (
+                      <p className="text-xs text-red-600">{erroAprovacao}</p>
+                    )}
+                  </div>
+                )}
+                {etapa.id === "revisao" && (
+                  <div className="mt-3 space-y-2">
+                    <button
+                      onClick={concluirRevisaoHumana}
+                      disabled={revisando || snapshot?.status === "concluido"}
+                      className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {snapshot?.status === "concluido"
+                        ? "Revisão concluída"
+                        : revisando
+                          ? "Concluindo..."
+                          : "Concluir revisão humana"}
+                    </button>
+                    {erroRevisao && (
+                      <p className="text-xs text-red-600">{erroRevisao}</p>
                     )}
                   </div>
                 )}

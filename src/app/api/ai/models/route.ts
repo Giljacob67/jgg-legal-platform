@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 interface OpenRouterModel {
   id: string;
@@ -25,21 +27,22 @@ interface OpenRouterModelsResponse {
   data: OpenRouterModel[];
 }
 
-/**
- * GET /api/ai/models
- * Busca todos os modelos disponíveis no OpenRouter e/ou KiloCode, incluindo os gratuitos.
- */
-export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+export async function GET(request: Request) {
+  const authResult = await requireSessionWithPermission({ modulo: "administracao", acao: "read" });
+  if (authResult.response) return authResult.response;
 
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   const kiloKey = process.env.KILO_API_KEY;
 
   if (!openrouterKey && !kiloKey) {
     return NextResponse.json(
-      { error: "Nenhuma chave de gateway configurada (OPENROUTER_API_KEY ou KILO_API_KEY).", modelos: [] },
-      { status: 200 }
+      {
+        total: 0,
+        gratuitos: 0,
+        modelos: [],
+        aviso: "Nenhuma chave de gateway configurada (OPENROUTER_API_KEY ou KILO_API_KEY).",
+      },
+      { status: 200 },
     );
   }
 
@@ -55,7 +58,7 @@ export async function GET() {
             "X-Title": "JGG Legal Platform",
           },
           next: { revalidate: 600 },
-        })
+        }),
       );
     }
 
@@ -68,7 +71,7 @@ export async function GET() {
             "X-Title": "JGG Legal Platform",
           },
           next: { revalidate: 600 },
-        }).catch(() => new Response(JSON.stringify({ data: [] }), { status: 200 }))
+        }).catch(() => new Response(JSON.stringify({ data: [] }), { status: 200 })),
       );
     }
 
@@ -143,6 +146,18 @@ export async function GET() {
       return a.label.localeCompare(b.label);
     });
 
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "read",
+      resource: "ai.models",
+      result: "success",
+      details: {
+        total: modelos.length,
+        gratuitos: modelos.filter((m) => m.gratuito).length,
+      },
+    });
+
     return NextResponse.json({
       total: modelos.length,
       gratuitos: modelos.filter((m) => m.gratuito).length,
@@ -150,12 +165,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[/api/ai/models] Erro ao buscar modelos:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-        modelos: [],
-      },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro desconhecido", 500);
   }
 }

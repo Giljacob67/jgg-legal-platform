@@ -5,40 +5,82 @@ import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { obterContratoPorId, salvarAnaliseRisco, atualizarStatusContrato } from "@/modules/contratos/application";
 import type { StatusContrato } from "@/modules/contratos/domain/types";
 import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClausulas";
-import { requireAuth } from "@/lib/api-auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/security/audit-log";
+import { requireResourceScope } from "@/lib/authz";
 
 type Params = { params: Promise<{ contratoId: string }> };
 
-// ─── GET: obter contrato ──────────────────────────────────────
-
-export async function GET(_req: Request, { params }: Params) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+export async function GET(request: Request, { params }: Params) {
+  const authResult = await requireSessionWithPermission({ modulo: "contratos", acao: "read" });
+  if (authResult.response) return authResult.response;
 
   const { contratoId } = await params;
   const contrato = await obterContratoPorId(contratoId);
-  if (!contrato) return NextResponse.json({ error: "Contrato não encontrado." }, { status: 404 });
+  if (!contrato) {
+    return apiError("NOT_FOUND", "Contrato não encontrado.", 404);
+  }
+  const scopeDenied = requireResourceScope({
+    session: authResult.session,
+    ownerUserId: contrato.responsavelId,
+  });
+  if (scopeDenied) {
+    return scopeDenied;
+  }
+
+  await writeAuditLog({
+    request,
+    session: authResult.session,
+    action: "read",
+    resource: "contratos",
+    resourceId: contratoId,
+    result: "success",
+  });
+
   return NextResponse.json({ contrato });
 }
 
-// ─── PATCH: atualizar status ──────────────────────────────────
-
 export async function PATCH(request: Request, { params }: Params) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "contratos", acao: "write" });
+  if (authResult.response) return authResult.response;
 
   const { contratoId } = await params;
   try {
+    const atual = await obterContratoPorId(contratoId);
+    if (!atual) {
+      return apiError("NOT_FOUND", "Contrato não encontrado.", 404);
+    }
+    const scopeDenied = requireResourceScope({
+      session: authResult.session,
+      ownerUserId: atual.responsavelId,
+    });
+    if (scopeDenied) {
+      return scopeDenied;
+    }
+
     const body = (await request.json()) as { status?: StatusContrato };
-    if (!body.status) return NextResponse.json({ error: "Campo 'status' obrigatório." }, { status: 400 });
+    if (!body.status) {
+      return apiError("VALIDATION_ERROR", "Campo 'status' obrigatório.", 400);
+    }
+
     const contrato = await atualizarStatusContrato(contratoId, body.status);
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "update",
+      resource: "contratos",
+      resourceId: contratoId,
+      result: "success",
+      details: { status: body.status },
+    });
+
     return NextResponse.json({ contrato });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro." }, { status: 500 });
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro ao atualizar contrato.", 500);
   }
 }
-
-// ─── POST /analisar-risco: agente IA ─────────────────────────
 
 const AnaliseSchema = z.object({
   pontuacaoRisco: z.number().min(0).max(100),
@@ -54,26 +96,39 @@ const AnaliseSchema = z.object({
 });
 
 export async function POST(request: Request, { params }: Params) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const authResult = await requireSessionWithPermission({ modulo: "contratos", acao: "execute" });
+  if (authResult.response) return authResult.response;
 
   const { contratoId } = await params;
   const body = (await request.json()) as { acao?: string };
 
   if (body.acao !== "analisar-risco") {
-    return NextResponse.json({ error: "Ação desconhecida. Use { acao: 'analisar-risco' }." }, { status: 400 });
+    return apiError("VALIDATION_ERROR", "Ação desconhecida. Use { acao: 'analisar-risco' }.", 400);
   }
 
   const contrato = await obterContratoPorId(contratoId);
-  if (!contrato) return NextResponse.json({ error: "Contrato não encontrado." }, { status: 404 });
+  if (!contrato) {
+    return apiError("NOT_FOUND", "Contrato não encontrado.", 404);
+  }
+  const scopeDenied = requireResourceScope({
+    session: authResult.session,
+    ownerUserId: contrato.responsavelId,
+  });
+  if (scopeDenied) {
+    return scopeDenied;
+  }
 
-  // Mock sem IA
   if (!isAIAvailable()) {
     const mockAnalise = {
       pontuacaoRisco: 35 as const,
       nivel: "moderado" as const,
       clausulasRisco: [
-        { clausulaId: "cl-2", titulo: "Da Rescisão", descricaoRisco: "Ausência de prazo mínimo de notificação para rescisão contratual.", nivel: "medio" as const },
+        {
+          clausulaId: "cl-2",
+          titulo: "Da Rescisão",
+          descricaoRisco: "Ausência de prazo mínimo de notificação para rescisão contratual.",
+          nivel: "medio" as const,
+        },
       ],
       clausulasAusentes: ["Cláusula de força maior", "Mecanismo de resolução de disputas (mediação/arbitragem)"],
       recomendacoes: [
@@ -84,10 +139,23 @@ export async function POST(request: Request, { params }: Params) {
       analisadoEm: new Date().toISOString(),
     };
     await salvarAnaliseRisco(contratoId, mockAnalise);
-    return NextResponse.json({ analise: mockAnalise, aviso: "Análise mock — configure OPENAI_API_KEY ou OPENROUTER_API_KEY para análise real." });
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "execute",
+      resource: "contratos.analise-risco",
+      resourceId: contratoId,
+      result: "success",
+      details: { modo: "mock" },
+    });
+
+    return NextResponse.json({
+      analise: mockAnalise,
+      aviso: "Análise mock — configure OPENAI_API_KEY ou OPENROUTER_API_KEY para análise real.",
+    });
   }
 
-  // Cláusulas esperadas para o tipo de contrato
   const clausulasEsperadas = (CLAUSULAS_PADRAO[contrato.tipo] ?? [])
     .filter((c) => c.tipo === "essencial")
     .map((c) => c.titulo);
@@ -123,9 +191,31 @@ Foque em: cláusulas leoninas, lacunas jurídicas, ausência de garantias, ambig
 
     const analiseCompleta = { ...analise, analisadoEm: new Date().toISOString() };
     await salvarAnaliseRisco(contratoId, analiseCompleta);
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "execute",
+      resource: "contratos.analise-risco",
+      resourceId: contratoId,
+      result: "success",
+      details: { modo: "ia" },
+    });
+
     return NextResponse.json({ analise: analiseCompleta });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao chamar IA para análise de risco.";
-    return NextResponse.json({ error: msg }, { status: 502 });
+
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "execute",
+      resource: "contratos.analise-risco",
+      resourceId: contratoId,
+      result: "error",
+      details: { error: msg },
+    });
+
+    return apiError("INTERNAL_ERROR", msg, 502);
   }
 }

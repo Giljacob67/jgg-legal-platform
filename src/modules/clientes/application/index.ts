@@ -1,7 +1,7 @@
 import { services } from "@/services/container";
 import type { NovoClientePayload, StatusCliente } from "@/modules/clientes/domain/types";
 
-export const listarClientes = (filtros?: { status?: StatusCliente }) =>
+export const listarClientes = (filtros?: { status?: StatusCliente; responsavelId?: string }) =>
   services.clientesRepository.listar(filtros);
 
 export const obterClientePorId = (id: string) =>

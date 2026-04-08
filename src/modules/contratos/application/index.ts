@@ -1,7 +1,7 @@
 import { services } from "@/services/container";
 import type { NovoContratoPayload, StatusContrato, Contrato } from "@/modules/contratos/domain/types";
 
-export const listarContratos = (filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"] }) =>
+export const listarContratos = (filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"]; responsavelId?: string }) =>
   services.contratosRepository.listar(filtros);
 
 export const obterContratoPorId = (id: string) =>

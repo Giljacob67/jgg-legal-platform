@@ -13,7 +13,7 @@ const CLIENTES_MOCK: Cliente[] = [
     telefone: "(65) 3321-4455",
     endereco: { cidade: "Cuiabá", estado: "MT", cep: "78000-000" },
     status: "ativo",
-    responsavelId: "usr-001",
+    responsavelId: "usr-soc-001",
     responsavelNome: "Gilberto Jacob",
     casosIds: ["CAS-2026-001"],
     contratosIds: ["CTR-2026-001"],
@@ -30,8 +30,8 @@ const CLIENTES_MOCK: Cliente[] = [
     telefone: "(65) 99823-4567",
     endereco: { cidade: "Sinop", estado: "MT" },
     status: "ativo",
-    responsavelId: "usr-002",
-    responsavelNome: "Ana Paula Mendes",
+    responsavelId: "usr-adv-001",
+    responsavelNome: "Mariana Couto",
     casosIds: ["CAS-2026-003"],
     contratosIds: ["CTR-2026-002"],
     anotacoes: "Produtor rural, área de grãos. Processos envolvendo execução bancária de crédito rural.",
@@ -47,8 +47,8 @@ const CLIENTES_MOCK: Cliente[] = [
     telefone: "(64) 3312-0099",
     endereco: { cidade: "Rio Verde", estado: "GO" },
     status: "ativo",
-    responsavelId: "usr-003",
-    responsavelNome: "Rafael Costa",
+    responsavelId: "usr-coord-001",
+    responsavelNome: "Carlos Mendes",
     casosIds: [],
     contratosIds: ["CTR-2026-001"],
     anotacoes: "Cooperativa com mais de 800 associados. Assuntos: arrendamento, contratos de parceria, financiamentos.",
@@ -87,9 +87,10 @@ const CLIENTES_MOCK: Cliente[] = [
 const clientesStore: Cliente[] = [...CLIENTES_MOCK];
 
 export class MockClientesRepository {
-  async listar(filtros?: { status?: StatusCliente }): Promise<Cliente[]> {
+  async listar(filtros?: { status?: StatusCliente; responsavelId?: string }): Promise<Cliente[]> {
     let resultado = [...clientesStore];
     if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);
+    if (filtros?.responsavelId) resultado = resultado.filter((c) => c.responsavelId === filtros.responsavelId);
     return resultado.sort((a, b) => a.nome.localeCompare(b.nome));
   }
 
