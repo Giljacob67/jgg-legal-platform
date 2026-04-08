@@ -35,6 +35,36 @@ npm run release:check
 TEST_DATABASE_URL=postgres://... REQUIRE_INTEGRATION_TESTS=true npm run release:check
 ```
 
+## Smoke pós-deploy automatizado
+```bash
+# Uso básico no preview/produção
+BASE_URL=https://seu-deploy.vercel.app \
+SMOKE_EMAIL=advogado@empresa.com \
+SMOKE_PASSWORD=senha-segura \
+npm run smoke:deploy
+
+# Permite continuar quando o perfil não for admin para auditoria
+BASE_URL=https://seu-deploy.vercel.app \
+SMOKE_EMAIL=advogado@empresa.com \
+SMOKE_PASSWORD=senha-segura \
+npm run smoke:deploy -- --allow-non-admin-audit
+```
+
+O script `scripts/post-deploy-smoke.mjs` valida, em sequência:
+1. disponibilidade da home;
+2. login via NextAuth credentials;
+3. criação de pedido (triagem);
+4. upload de documento com vínculo;
+5. execução de estágio (`triagem`) com aceitação de `200` ou `409` (lock/idempotência);
+6. trilha de auditoria para execução de estágio (ou `403` opcional com `--allow-non-admin-audit`).
+
+Parâmetros adicionais:
+- `--base-url` (ou `BASE_URL`);
+- `--email` / `--password` (ou `SMOKE_EMAIL` / `SMOKE_PASSWORD`);
+- `--case-id` (default `CAS-2026-001`);
+- `--timeout-ms` (default `30000`);
+- `--allow-non-admin-audit`.
+
 ## Checklist de deploy
 1. Confirmar branch/PR aprovada com CI verde.
 2. Confirmar variáveis críticas no ambiente Vercel:
@@ -46,12 +76,9 @@ TEST_DATABASE_URL=postgres://... REQUIRE_INTEGRATION_TESTS=true npm run release:
    Observação: com `DATA_MODE=real` em runtime de produção, a aplicação falha na inicialização sem `AUTH_SECRET`.
 3. Rodar migrações no banco alvo.
 4. Publicar deploy preview e validar smoke:
-- login
-- criação de pedido
-- upload de documento
-- execução de estágio
-- aprovação humana
-- visualização de auditoria
+   - `npm run smoke:deploy`
+   - para usuários sem perfil admin na auditoria: `npm run smoke:deploy -- --allow-non-admin-audit`
+   - validar adicionalmente na UI: revisão humana e aprovação final do pipeline
 5. Promover para produção.
 
 ## Rollback
