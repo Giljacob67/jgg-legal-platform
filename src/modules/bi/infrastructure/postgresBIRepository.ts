@@ -12,6 +12,22 @@ import type { MockBIRepository } from "@/modules/bi/infrastructure/mockBIReposit
 export type BIRepository = InstanceType<typeof MockBIRepository>;
 
 export class PostgresBIRepository implements BIRepository {
+  private observabilidadeVazia(janelaHoras: number): MetricaObservabilidadePipeline {
+    return {
+      janelaHoras,
+      totalExecucoes: 0,
+      totalFalhas: 0,
+      taxaFalhaPct: 0,
+      latenciaMediaMs: 0,
+      latenciaP95Ms: 0,
+      schemaInvalidoPct: 0,
+      ragDegradadoPct: 0,
+      porEstagio: [],
+      principaisErros: [],
+      geradoEm: new Date().toISOString(),
+    };
+  }
+
   async obterFinanceiro(): Promise<MetricaFinanceira> {
     const db = getDb();
     const contratos = await db.select().from(contratosTable);
@@ -172,6 +188,13 @@ export class PostgresBIRepository implements BIRepository {
     const sql = getSqlClient();
 
     try {
+      const [tableCheck] = await sql<{ exists: boolean }[]>`
+        SELECT to_regclass('public.pipeline_execution_control') IS NOT NULL AS exists
+      `;
+      if (!tableCheck?.exists) {
+        return this.observabilidadeVazia(janelaHoras);
+      }
+
       const totalRows = await sql<{
         total: number;
         falhas: number;
@@ -262,19 +285,7 @@ export class PostgresBIRepository implements BIRepository {
       };
     } catch (error) {
       console.warn("[bi] Falha ao consultar observabilidade de pipeline.", error);
-      return {
-        janelaHoras,
-        totalExecucoes: 0,
-        totalFalhas: 0,
-        taxaFalhaPct: 0,
-        latenciaMediaMs: 0,
-        latenciaP95Ms: 0,
-        schemaInvalidoPct: 0,
-        ragDegradadoPct: 0,
-        porEstagio: [],
-        principaisErros: [],
-        geradoEm: new Date().toISOString(),
-      };
+      return this.observabilidadeVazia(janelaHoras);
     }
   }
 }
