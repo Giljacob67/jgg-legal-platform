@@ -10,12 +10,13 @@ test.describe("Petições Flow", () => {
     await page.fill('input[type="email"]', DEMO_EMAIL);
     await page.fill('input[type="password"]', DEMO_PASSWORD);
     await page.click('button[type="submit"]');
-    await page.waitForURL("/dashboard", { timeout: 30000 });
+    await page.waitForURL(/\/dashboard(?:\?.*)?$/, { timeout: 30000 });
   });
 
   test("should navigate to petições page and see existing pedidos", async ({ page }) => {
-    await page.goto("/peticoes");
-    await expect(page.locator("h1")).toContainText("Petições");
+    await page.goto("/peticoes", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1, name: "Petições" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Novo pedido de peça" })).toBeVisible();
   });
 
   test("should navigate to novo pedido form", async ({ page }) => {
