@@ -42,20 +42,20 @@ TEST_DATABASE_URL=postgres://... REQUIRE_INTEGRATION_TESTS=true npm run release:
 ```bash
 # Uso básico no preview/produção
 BASE_URL=https://seu-deploy.vercel.app \
-SMOKE_EMAIL=advogado@empresa.com \
+SMOKE_EMAIL=smoke.bot@jgg.adv.br \
 SMOKE_PASSWORD=senha-segura \
 npm run smoke:deploy
 
 # Preview protegido por Vercel Authentication (Automation Bypass)
 BASE_URL=https://seu-deploy.vercel.app \
-SMOKE_EMAIL=advogado@empresa.com \
+SMOKE_EMAIL=smoke.bot@jgg.adv.br \
 SMOKE_PASSWORD=senha-segura \
 VERCEL_AUTOMATION_BYPASS_SECRET=seu_token \
 npm run smoke:deploy
 
 # Permite continuar quando o perfil não for admin para auditoria
 BASE_URL=https://seu-deploy.vercel.app \
-SMOKE_EMAIL=advogado@empresa.com \
+SMOKE_EMAIL=smoke.bot@jgg.adv.br \
 SMOKE_PASSWORD=senha-segura \
 npm run smoke:deploy -- --allow-non-admin-audit
 ```
@@ -67,6 +67,10 @@ O script `scripts/post-deploy-smoke.mjs` valida, em sequência:
 4. upload de documento com vínculo;
 5. execução de estágio (`triagem`) com aceitação de `200` ou `409` (lock/idempotência);
 6. trilha de auditoria para execução de estágio (ou `403` opcional com `--allow-non-admin-audit`).
+
+Recomendação operacional:
+- usar conta técnica dedicada (`smoke.bot@jgg.adv.br`) com perfil `socio_direcao` (ou outro perfil com `peticoes: total` e leitura de auditoria);
+- não usar credenciais pessoais para smoke de release.
 
 Parâmetros adicionais:
 - `--base-url` (ou `BASE_URL`);

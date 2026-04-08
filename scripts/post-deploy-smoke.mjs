@@ -93,8 +93,8 @@ Parâmetros opcionais:
   }
 
   const baseUrl = normalizeBaseUrl(args["base-url"] ?? process.env.BASE_URL);
-  const email = args.email ?? process.env.SMOKE_EMAIL ?? process.env.E2E_LOGIN_EMAIL ?? "gilberto@jgg.com.br";
-  const password = args.password ?? process.env.SMOKE_PASSWORD ?? process.env.E2E_LOGIN_PASSWORD ?? "dev-only-change-me";
+  const email = args.email ?? process.env.SMOKE_EMAIL ?? process.env.E2E_LOGIN_EMAIL ?? "smoke.bot@jgg.adv.br";
+  const password = args.password ?? process.env.SMOKE_PASSWORD ?? process.env.E2E_LOGIN_PASSWORD;
   const caseId = args["case-id"] ?? process.env.SMOKE_CASE_ID ?? "CAS-2026-001";
   const timeoutMs = Number(args["timeout-ms"] ?? process.env.SMOKE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
   const vercelBypassToken =
@@ -108,7 +108,7 @@ Parâmetros opcionais:
     throw new Error("BASE_URL não informado. Exemplo: BASE_URL=https://meu-preview.vercel.app npm run smoke:deploy");
   }
   if (!email || !password) {
-    throw new Error("Credenciais ausentes. Defina SMOKE_EMAIL e SMOKE_PASSWORD.");
+    throw new Error("Credenciais ausentes. Defina SMOKE_EMAIL e SMOKE_PASSWORD para a conta técnica de smoke.");
   }
 
   const jar = new CookieJar();
