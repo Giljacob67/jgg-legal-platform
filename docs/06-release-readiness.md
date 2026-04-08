@@ -43,6 +43,7 @@ TEST_DATABASE_URL=postgres://... REQUIRE_INTEGRATION_TESTS=true npm run release:
 - `AUTH_SECRET`
 - `OPENROUTER_API_KEY` (ou provedor IA equivalente)
 - `BLOB_READ_WRITE_TOKEN`
+   Observação: com `DATA_MODE=real` em runtime de produção, a aplicação falha na inicialização sem `AUTH_SECRET`.
 3. Rodar migrações no banco alvo.
 4. Publicar deploy preview e validar smoke:
 - login

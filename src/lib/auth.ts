@@ -12,8 +12,19 @@ const ARGON2_OPTIONS = {
   parallelism: 1,
 } as const;
 
-if (process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET) {
-  console.error("[auth] AUTH_SECRET não definido em produção. Defina a variável para evitar sessões frágeis.");
+const isProductionRuntime = process.env.NODE_ENV === "production";
+const isRealDataMode = (process.env.DATA_MODE ?? "mock") === "real";
+
+if (isProductionRuntime && isRealDataMode && !process.env.AUTH_SECRET) {
+  throw new Error(
+    "[auth] AUTH_SECRET é obrigatório quando DATA_MODE=real em produção. Defina a variável antes do deploy.",
+  );
+}
+
+if (isProductionRuntime && !process.env.AUTH_SECRET) {
+  console.error(
+    "[auth] AUTH_SECRET não definido em produção (modo não-real). Configure em preview para paridade de segurança.",
+  );
 }
 
 const resolvedAuthSecret =
