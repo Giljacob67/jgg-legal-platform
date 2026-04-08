@@ -31,6 +31,9 @@
 # Check completo local (integração opcional)
 npm run release:check
 
+# Verificar se todas as migrations do repositório já foram aplicadas no banco alvo
+MIGRATION_CHECK_DATABASE_URL=postgres://... npm run check:migrations-applied
+
 # Exigir integração com DB real no ambiente local
 TEST_DATABASE_URL=postgres://... REQUIRE_INTEGRATION_TESTS=true npm run release:check
 ```

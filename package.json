@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check:no-space-files": "node scripts/check-no-space-files.mjs",
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
+    "check:migrations-applied": "node scripts/check-migrations-applied.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "node scripts/test-integration.mjs",

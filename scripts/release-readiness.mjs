@@ -14,6 +14,24 @@ const steps = [
 
 const shouldRunIntegration = Boolean(process.env.TEST_DATABASE_URL);
 const requireIntegration = process.env.REQUIRE_INTEGRATION_TESTS === "true";
+const migrationCheckDbUrl =
+  process.env.MIGRATION_CHECK_DATABASE_URL ?? process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+
+if (migrationCheckDbUrl) {
+  steps.splice(2, 0, {
+    name: "Migrations aplicadas no banco",
+    cmd: "npm",
+    args: ["run", "check:migrations-applied"],
+    env: { MIGRATION_CHECK_DATABASE_URL: migrationCheckDbUrl },
+  });
+} else if (requireIntegration) {
+  console.error(
+    "⛔ REQUIRE_INTEGRATION_TESTS=true, mas nenhuma URL de banco foi definida para check de migrations.",
+  );
+  process.exit(1);
+} else {
+  console.warn("⚠️  Nenhuma URL de banco definida. Check de migrations aplicadas foi ignorado.");
+}
 
 if (shouldRunIntegration) {
   steps.push({
@@ -33,7 +51,10 @@ function runStep(step) {
   const result = spawnSync(step.cmd, step.args, {
     stdio: "inherit",
     shell: false,
-    env: process.env,
+    env: {
+      ...process.env,
+      ...(step.env ?? {}),
+    },
   });
 
   if (result.status !== 0) {
