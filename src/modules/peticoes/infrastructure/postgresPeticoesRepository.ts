@@ -59,7 +59,8 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
       { id: "extracao_de_fatos", nome: "Extração de fatos", priorizadaMvp: true },
       { id: "estrategia_juridica", nome: "Estratégia jurídica", priorizadaMvp: true },
       { id: "redacao", nome: "Redação de minuta", priorizadaMvp: true },
-      { id: "revisao", nome: "Revisão e aprovação", priorizadaMvp: true },
+      { id: "revisao", nome: "Revisão humana", priorizadaMvp: true },
+      { id: "aprovacao", nome: "Aprovação", priorizadaMvp: true },
     ];
   }
 

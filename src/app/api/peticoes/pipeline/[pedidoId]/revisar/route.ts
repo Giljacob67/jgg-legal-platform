@@ -26,8 +26,8 @@ export async function POST(
     await writeAuditLog({
       request,
       session: authResult.session,
-      action: "approve",
-      resource: "peticoes.pipeline.aprovacao",
+      action: "update",
+      resource: "peticoes.pipeline.revisao",
       resourceId: pedidoId,
       result: "denied",
     });
@@ -35,33 +35,43 @@ export async function POST(
   }
 
   try {
-    const body = (await request.json().catch(() => ({}))) as { comentario?: string };
+    const body = (await request.json().catch(() => ({}))) as {
+      comentario?: string;
+      checklistConferido?: boolean;
+    };
     const comentario = typeof body.comentario === "string" ? body.comentario.trim() : "";
+    const checklistConferido = body.checklistConferido !== false;
 
     const infra = getPeticoesOperacionalInfra();
-    const revisao = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(pedidoId, "revisao");
-    const revisaoHumanaConcluida =
-      revisao?.status === "concluido" &&
-      Boolean((revisao.saidaEstruturada as { revisaoHumanaConcluida?: boolean }).revisaoHumanaConcluida);
-
-    if (!revisaoHumanaConcluida) {
+    const redacao = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(pedidoId, "redacao");
+    if (!redacao || redacao.status !== "concluido") {
       return apiError(
         "CONFLICT",
-        "A revisão humana ainda não foi concluída. Finalize a etapa de revisão antes de aprovar.",
+        "A redação ainda não foi concluída. Finalize a etapa de redação antes da revisão humana.",
         409,
+      );
+    }
+
+    if (!checklistConferido) {
+      return apiError(
+        "VALIDATION_ERROR",
+        "Checklist de revisão não confirmado. Conclua a conferência antes de avançar.",
+        400,
       );
     }
 
     const snapshot = await infra.pipelineSnapshotRepository.salvarNovaVersao({
       pedidoId,
-      etapa: "aprovacao",
+      etapa: "revisao",
       entradaRef: {
         origem: "revisao_humana",
-        aprovadoPorUserId: authResult.session.user.id,
-        aprovadoPor: authResult.session.user.name ?? authResult.session.user.email ?? "Usuário",
+        revisadoPorUserId: authResult.session.user.id,
+        revisadoPor: authResult.session.user.name ?? authResult.session.user.email ?? "Usuário",
+        redacaoVersao: redacao.versao,
       },
       saidaEstruturada: {
-        aprovado: true,
+        revisaoHumanaConcluida: true,
+        checklistConferido: true,
         comentario: comentario || null,
       },
       status: "concluido",
@@ -71,20 +81,25 @@ export async function POST(
     await writeAuditLog({
       request,
       session: authResult.session,
-      action: "approve",
-      resource: "peticoes.pipeline.aprovacao",
+      action: "update",
+      resource: "peticoes.pipeline.revisao",
       resourceId: pedidoId,
       result: "success",
-      details: { comentario: comentario || null, versao: snapshot.versao },
+      details: { versao: snapshot.versao, comentario: comentario || null, redacaoVersao: redacao.versao },
     });
 
     return NextResponse.json({
       ok: true,
       pedidoId,
       versao: snapshot.versao,
-      aprovadoEm: snapshot.executadoEm,
+      revisadoEm: snapshot.executadoEm,
+      redacaoVersao: redacao.versao,
     });
   } catch (error) {
-    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Falha ao aprovar revisão.", 500);
+    return apiError(
+      "INTERNAL_ERROR",
+      error instanceof Error ? error.message : "Falha ao concluir revisão humana.",
+      500,
+    );
   }
 }

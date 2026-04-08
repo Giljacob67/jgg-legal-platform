@@ -75,6 +75,25 @@ test.describe("Release Readiness Core Flow", () => {
       const secondRunText = await duplicateRes.text();
       expect(secondRunText.length).toBeGreaterThan(20);
     }
+
+    const aprovarSemRevisaoRes = await page.request.post(`/api/peticoes/pipeline/${pedidoId}/aprovar`, {
+      data: {},
+    });
+    expect(aprovarSemRevisaoRes.status()).toBe(409);
+    const aprovarSemRevisaoBody = await aprovarSemRevisaoRes.json() as { code?: string };
+    expect(aprovarSemRevisaoBody.code).toBe("CONFLICT");
+
+    const revisarRes = await page.request.post(`/api/peticoes/pipeline/${pedidoId}/revisar`, {
+      data: { checklistConferido: true, comentario: "Checklist técnico-jurídico validado para aprovação." },
+    });
+    expect(revisarRes.status()).toBe(200);
+
+    const aprovarComRevisaoRes = await page.request.post(`/api/peticoes/pipeline/${pedidoId}/aprovar`, {
+      data: { comentario: "Aprovado após revisão humana obrigatória." },
+    });
+    expect(aprovarComRevisaoRes.status()).toBe(200);
+    const aprovarComRevisaoBody = await aprovarComRevisaoRes.json() as { ok?: boolean };
+    expect(aprovarComRevisaoBody.ok).toBe(true);
   });
 
   test("trilha de auditoria fica disponível para perfil com acesso administrativo", async ({ page }) => {

@@ -14,7 +14,8 @@
 2. Confiabilidade de pipeline
 - Saída dos estágios executáveis com validação estruturada.
 - Controle de execução ativo (`rate-limit`, lock e idempotência).
-- Aprovação humana obrigatória para etapa `aprovacao`.
+- Revisão humana explícita obrigatória via `POST /api/peticoes/pipeline/[pedidoId]/revisar`.
+- Aprovação final obrigatória via `POST /api/peticoes/pipeline/[pedidoId]/aprovar` (bloqueada sem revisão concluída).
 
 3. Observabilidade
 - Sentry com contexto de execução (`pedidoId`, `casoId`, `estagio`, `executionMode`).
