@@ -155,4 +155,5 @@ export interface NovoContratoPayload {
   valorReais?: number;
   vigenciaInicio?: string;
   vigenciaFim?: string;
+  responsavelId?: string;
 }

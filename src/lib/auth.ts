@@ -1,52 +1,24 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { hash as hashArgon2id, verify as verifyArgon2id } from "@node-rs/argon2";
 import type { PerfilUsuario } from "@/modules/auth/domain/types";
+import { getMockUsers } from "@/lib/mock-users";
 
-// ─────────────────────────────────────────────────────────────
-// DEMO USERS — utilizados apenas em DATA_MODE=mock
-// ─────────────────────────────────────────────────────────────
-const DEMO_USERS = [
-  {
-    id: "usr-adv-001",
-    email: "mariana@jgg.com.br",
-    password: "jgg2026",
-    name: "Mariana Couto",
-    initials: "MC",
-    role: "advogado" as PerfilUsuario,
-  },
-  {
-    id: "usr-soc-001",
-    email: "gilberto@jgg.com.br",
-    password: "jgg2026",
-    name: "Gilberto Jacob",
-    initials: "GJ",
-    role: "socio_direcao" as PerfilUsuario,
-  },
-  {
-    id: "usr-adm-001",
-    email: "admin@jgg.com.br",
-    password: "jgg2026",
-    name: "Administrador",
-    initials: "AD",
-    role: "administrador_sistema" as PerfilUsuario,
-  },
-  {
-    id: "usr-coord-001",
-    email: "coordenador@jgg.com.br",
-    password: "jgg2026",
-    name: "Carlos Mendes",
-    initials: "CM",
-    role: "coordenador_juridico" as PerfilUsuario,
-  },
-  {
-    id: "usr-est-001",
-    email: "estagiario@jgg.com.br",
-    password: "jgg2026",
-    name: "Lucas Ferreira",
-    initials: "LF",
-    role: "estagiario_assistente" as PerfilUsuario,
-  },
-];
+const ARGON2_OPTIONS = {
+  algorithm: 2,
+  memoryCost: 19456,
+  timeCost: 2,
+  parallelism: 1,
+} as const;
+
+if (process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET) {
+  console.error("[auth] AUTH_SECRET não definido em produção. Defina a variável para evitar sessões frágeis.");
+}
+
+const resolvedAuthSecret =
+  process.env.AUTH_SECRET ??
+  (process.env.NODE_ENV === "production" ? undefined : "dev-insecure-auth-secret");
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS DA SESSÃO
@@ -74,12 +46,40 @@ declare module "next-auth" {
 type DbUserRow = {
   id: string;
   email: string;
+  password_hash: string;
   name: string;
   initials: string | null;
   role: string | null;
   perfil: string | null;
   ativo: boolean;
 };
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function isArgon2Hash(hash: string): boolean {
+  return hash.startsWith("$argon2");
+}
+
+function verifyLegacySha256(password: string, expectedHash: string): boolean {
+  const actual = Buffer.from(sha256Hex(password), "utf-8");
+  const expected = Buffer.from(expectedHash, "utf-8");
+
+  if (actual.length !== expected.length) {
+    return false;
+  }
+
+  return timingSafeEqual(actual, expected);
+}
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  if (isArgon2Hash(storedHash)) {
+    return verifyArgon2id(storedHash, password);
+  }
+
+  return verifyLegacySha256(password, storedHash);
+}
 
 async function autenticarNoBanco(
   email: string,
@@ -88,15 +88,12 @@ async function autenticarNoBanco(
   try {
     // Import dinâmico para não quebrar o Edge runtime quando DATA_MODE=mock
     const { getSqlClient } = await import("@/lib/database/client");
-    const { createHash } = await import("node:crypto");
     const sql = getSqlClient();
-    const passwordHash = createHash("sha256").update(password).digest("hex");
 
     const rows = await sql<DbUserRow[]>`
-      SELECT id, email, name, initials, role, perfil, ativo
+      SELECT id, email, password_hash, name, initials, role, perfil, ativo
       FROM users
       WHERE email = ${email}
-        AND password_hash = ${passwordHash}
         AND ativo = true
       LIMIT 1
     `;
@@ -104,6 +101,21 @@ async function autenticarNoBanco(
     if (rows.length === 0) return null;
 
     const u = rows[0];
+    const passwordOk = await verifyPassword(password, u.password_hash);
+    if (!passwordOk) {
+      return null;
+    }
+
+    if (!isArgon2Hash(u.password_hash)) {
+      const upgradedHash = await hashArgon2id(password, ARGON2_OPTIONS);
+      await sql`
+        UPDATE users
+        SET password_hash = ${upgradedHash}
+        WHERE id = ${u.id}
+          AND password_hash = ${u.password_hash}
+      `;
+    }
+
     // Preferir perfil (chave técnica) sobre role (label legado)
     const perfilFinal = (u.perfil ?? u.role ?? "advogado") as PerfilUsuario;
 
@@ -124,6 +136,7 @@ async function autenticarNoBanco(
 // NEXTAUTH CONFIG
 // ─────────────────────────────────────────────────────────────
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: resolvedAuthSecret,
   providers: [
     Credentials({
       name: "Credenciais",
@@ -138,24 +151,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!email || !password) return null;
 
         const dataMode = process.env.DATA_MODE ?? "mock";
-
-        if (dataMode === "real") {
-          return await autenticarNoBanco(email, password);
-        }
-
-        // Modo mock: validar contra lista de demo users
-        const user = DEMO_USERS.find(
+        const mockUser = getMockUsers().find(
           (u) => u.email === email && u.password === password,
         );
 
-        if (!user) return null;
+        if (dataMode === "real") {
+          const dbUser = await autenticarNoBanco(email, password);
+          if (dbUser) {
+            return dbUser;
+          }
+
+          if (process.env.NODE_ENV !== "production" && mockUser) {
+            return {
+              id: mockUser.id,
+              name: mockUser.name,
+              email: mockUser.email,
+              initials: mockUser.initials,
+              role: mockUser.role,
+            };
+          }
+
+          return null;
+        }
+
+        // Modo mock: validar contra lista de demo users
+        if (!mockUser) return null;
 
         return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          initials: user.initials,
-          role: user.role,
+          id: mockUser.id,
+          name: mockUser.name,
+          email: mockUser.email,
+          initials: mockUser.initials,
+          role: mockUser.role,
         };
       },
     }),

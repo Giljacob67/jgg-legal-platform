@@ -23,7 +23,6 @@ type PipelineWorkspaceProps = {
 };
 
 // Estágios executáveis via IA (mapeados em MAPA_ESTAGIO_PIPELINE)
-const ESTAGIOS_IA = Object.keys(MAPA_ESTAGIO_PIPELINE) as EstagioExecutavel[];
 // Mapear EtapaPipeline → EstagioExecutavel para lookup
 const PIPELINE_PARA_ESTAGIO = Object.fromEntries(
   Object.entries(MAPA_ESTAGIO_PIPELINE).map(([k, v]) => [v, k as EstagioExecutavel]),
@@ -48,7 +47,7 @@ function toStatus(
     }
 
     if (snapshot.status === "mock_controlado") {
-      return { label: "mockado", variant: "implantacao" };
+      return { label: "não implementado", variant: "implantacao" };
     }
   }
 
@@ -57,7 +56,7 @@ function toStatus(
   }
 
   if (!etapa.priorizadaMvp) {
-    return { label: "mockado", variant: "implantacao" };
+    return { label: "não implementado", variant: "implantacao" };
   }
 
   return { label: "pendente", variant: "neutro" };
@@ -74,6 +73,8 @@ export function PipelineWorkspace({
   const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
   const [streamTexts, setStreamTexts] = useState<Partial<Record<EstagioExecutavel, string>>>({});
   const [streamErrors, setStreamErrors] = useState<Partial<Record<EstagioExecutavel, string>>>({});
+  const [aprovando, setAprovando] = useState(false);
+  const [erroAprovacao, setErroAprovacao] = useState<string | null>(null);
 
   const executarEstagio = useCallback(async (estagio: EstagioExecutavel) => {
     setStreamingEstagio(estagio);
@@ -109,6 +110,30 @@ export function PipelineWorkspace({
       }));
     } finally {
       setStreamingEstagio(null);
+    }
+  }, [pedidoId]);
+
+  const aprovarRevisaoHumana = useCallback(async () => {
+    setAprovando(true);
+    setErroAprovacao(null);
+    try {
+      const res = await fetch(`/api/peticoes/pipeline/${pedidoId}/aprovar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json()) as { message?: string; error?: string };
+        setErroAprovacao(err.message ?? err.error ?? "Falha ao aprovar revisão.");
+        return;
+      }
+
+      window.location.reload();
+    } catch (err) {
+      setErroAprovacao(err instanceof Error ? err.message : "Falha ao aprovar revisão.");
+    } finally {
+      setAprovando(false);
     }
   }, [pedidoId]);
 
@@ -156,7 +181,7 @@ export function PipelineWorkspace({
                 <p className="mt-2 text-xs text-[var(--color-muted)]">
                   {etapa.priorizadaMvp
                     ? "Etapa funcional nesta versão do MVP."
-                    : "Etapa visível e tipada para evolução posterior."}
+                    : "Etapa visível, porém não implementada para execução nesta fase."}
                 </p>
                 {snapshot ? (
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
@@ -181,6 +206,24 @@ export function PipelineWorkspace({
                       <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-xs text-[var(--color-ink)]">
                         {streamTexts[PIPELINE_PARA_ESTAGIO[etapa.id]!]}
                       </pre>
+                    )}
+                  </div>
+                )}
+                {etapa.id === "aprovacao" && (
+                  <div className="mt-3 space-y-2">
+                    <button
+                      onClick={aprovarRevisaoHumana}
+                      disabled={aprovando || snapshot?.status === "concluido"}
+                      className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {snapshot?.status === "concluido"
+                        ? "Revisão aprovada"
+                        : aprovando
+                          ? "Aprovando..."
+                          : "Aprovar revisão humana"}
+                    </button>
+                    {erroAprovacao && (
+                      <p className="text-xs text-red-600">{erroAprovacao}</p>
                     )}
                   </div>
                 )}

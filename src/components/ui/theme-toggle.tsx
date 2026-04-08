@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export function ThemeToggle() {
-  // Começa como null para não renderizar nada até o cliente saber o tema real
-  const [isDark, setIsDark] = useState<boolean | null>(null);
+  const isDark = useSyncExternalStore(
+    (onStoreChange) => {
+      if (typeof document === "undefined") {
+        return () => {};
+      }
 
-  useEffect(() => {
-    // Lê o estado real do DOM após hidratação
-    setIsDark(document.documentElement.classList.contains("dark"));
-  }, []);
+      const observer = new MutationObserver(() => onStoreChange());
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      return () => observer.disconnect();
+    },
+    () => (typeof document !== "undefined" ? document.documentElement.classList.contains("dark") : false),
+    () => false,
+  );
 
   function toggle() {
     const html = document.documentElement;
@@ -23,14 +32,6 @@ export function ThemeToggle() {
       localStorage.setItem("jgg-theme", "light");
     }
 
-    setIsDark(novaEscuridao);
-  }
-
-  // Não renderiza nada no servidor (evita hydration mismatch no ícone)
-  if (isDark === null) {
-    return (
-      <div className="h-9 w-9 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]" />
-    );
   }
 
   return (

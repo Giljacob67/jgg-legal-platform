@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+const DEMO_EMAIL = process.env.E2E_LOGIN_EMAIL ?? "mariana@jgg.com.br";
+const DEMO_PASSWORD = process.env.E2E_LOGIN_PASSWORD ?? "dev-only-change-me";
+
 test.describe("Login Flow", () => {
   test("should show login page with demo credentials", async ({ page }) => {
     await page.goto("/login");
@@ -10,8 +13,8 @@ test.describe("Login Flow", () => {
   test("should login with valid credentials and redirect to dashboard", async ({ page }) => {
     await page.goto("/login");
 
-    await page.fill('input[type="email"]', "mariana@jgg.com.br");
-    await page.fill('input[type="password"]', "jgg2026");
+    await page.fill('input[type="email"]', DEMO_EMAIL);
+    await page.fill('input[type="password"]', DEMO_PASSWORD);
     await page.click('button[type="submit"]');
 
     await page.waitForURL("/dashboard", { timeout: 10000 });

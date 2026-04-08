@@ -87,9 +87,10 @@ const CLIENTES_MOCK: Cliente[] = [
 const clientesStore: Cliente[] = [...CLIENTES_MOCK];
 
 export class MockClientesRepository {
-  async listar(filtros?: { status?: StatusCliente }): Promise<Cliente[]> {
+  async listar(filtros?: { status?: StatusCliente; responsavelId?: string }): Promise<Cliente[]> {
     let resultado = [...clientesStore];
     if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);
+    if (filtros?.responsavelId) resultado = resultado.filter((c) => c.responsavelId === filtros.responsavelId);
     return resultado.sort((a, b) => a.nome.localeCompare(b.nome));
   }
 

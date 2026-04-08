@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireSessionWithPermission } from "@/lib/api-auth";
+import { apiError } from "@/lib/api-response";
 import { getDb } from "@/lib/database/client";
 import { minutas as minutasTable, versoesMinuta } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type RouteContext = { params: Promise<{ minutaId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
+  const authResult = await requireSessionWithPermission({ modulo: "peticoes", acao: "write" });
+  if (authResult.response) return authResult.response;
+  const { session } = authResult;
 
   const { minutaId } = await params;
 
@@ -19,12 +20,12 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   try {
     const body = (await req.json()) as { conteudo: string; resumo?: string };
     if (!body.conteudo || typeof body.conteudo !== "string") {
-      return NextResponse.json({ error: "Campo 'conteudo' é obrigatório." }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Campo 'conteudo' é obrigatório.", 400);
     }
     conteudo = body.conteudo;
     resumo = body.resumo;
   } catch {
-    return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
+    return apiError("VALIDATION_ERROR", "Corpo da requisição inválido.", 400);
   }
 
   try {
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     // Verificar se a minuta existe
     const rows = await db.select().from(minutasTable).where(eq(minutasTable.id, minutaId));
     if (rows.length === 0) {
-      return NextResponse.json({ error: "Minuta não encontrada." }, { status: 404 });
+      return apiError("NOT_FOUND", "Minuta não encontrada.", 404);
     }
 
     // Atualizar conteúdo atual
@@ -63,6 +64,16 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       conteudo,
     });
 
+    await writeAuditLog({
+      request: req,
+      session,
+      action: "update",
+      resource: "peticoes.minutas",
+      resourceId: minutaId,
+      result: "success",
+      details: { versaoId, numero: proximoNumero },
+    });
+
     return NextResponse.json({
       ok: true,
       versaoId,
@@ -71,9 +82,6 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     });
   } catch (error) {
     console.error("[api/peticoes/minutas/PATCH] Erro ao salvar minuta:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro ao salvar minuta." },
-      { status: 500 },
-    );
+    return apiError("INTERNAL_ERROR", error instanceof Error ? error.message : "Erro ao salvar minuta.", 500);
   }
 }

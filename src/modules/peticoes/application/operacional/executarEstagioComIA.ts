@@ -1,6 +1,7 @@
 import "server-only";
 import { streamText } from "ai";
 import { getAIProvider, getDefaultModelId } from "@/lib/ai/client";
+import { validateStageOutput } from "@/lib/ai/stage-output-validation";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import {
@@ -17,6 +18,15 @@ export async function executarEstagioComIA(
   buildPromptFn: (pipeline: Awaited<ReturnType<typeof obterPipelineDoPedido>>) =>
     | { system: string; prompt: string }
     | Promise<{ system: string; prompt: string }>,
+  options?: {
+    ragDegraded?: boolean;
+    onFinalized?: (result: {
+      status: "completed" | "failed";
+      schemaValid: boolean;
+      ragDegraded: boolean;
+      errorMessage?: string;
+    }) => Promise<void> | void;
+  },
 ): Promise<ReadableStream<string>> {
   const provider = getAIProvider();
   if (!provider) {
@@ -32,7 +42,7 @@ export async function executarEstagioComIA(
   await infra.pipelineSnapshotRepository.salvarNovaVersao({
     pedidoId,
     etapa: etapaPipeline,
-    entradaRef: { origem: "ia_streaming", estagio },
+    entradaRef: { origem: "ia_streaming", estagio, ragDegraded: options?.ragDegraded ?? false },
     saidaEstruturada: {},
     status: "em_andamento",
     tentativa: 1,
@@ -47,17 +57,38 @@ export async function executarEstagioComIA(
   });
 
   const onComplete = async (textoCompleto: string) => {
+    const validation = validateStageOutput(estagio, textoCompleto);
+    const status = validation.schemaValid ? "concluido" : "erro";
+
     // NOTE: Using salvarNovaVersao directly (not sincronizarPipelinePedido)
     // because sincronizarPipelinePedido is a full orchestrator that reprocesses
     // ALL documents — not appropriate for persisting a single AI stage output.
     await infra.pipelineSnapshotRepository.salvarNovaVersao({
       pedidoId,
       etapa: etapaPipeline,
-      entradaRef: { origem: "ia_streaming", estagio },
-      saidaEstruturada: { textoGerado: textoCompleto, geradoPorIA: true },
-      status: "concluido",
+      entradaRef: { origem: "ia_streaming", estagio, ragDegraded: options?.ragDegraded ?? false },
+      saidaEstruturada: {
+        textoGerado: textoCompleto,
+        geradoPorIA: true,
+        schemaValid: validation.schemaValid,
+        ragDegraded: options?.ragDegraded ?? false,
+        output: validation.structured,
+        validationError: validation.validationError,
+      },
+      status,
+      codigoErro: validation.schemaValid ? undefined : "SCHEMA_VALIDATION_FAILED",
+      mensagemErro: validation.validationError,
       tentativa: 1,
     });
+
+    await options?.onFinalized?.({
+      status: validation.schemaValid ? "completed" : "failed",
+      schemaValid: validation.schemaValid,
+      ragDegraded: options?.ragDegraded ?? false,
+      errorMessage: validation.validationError,
+    });
+
+    return validation;
   };
 
   // Converter AsyncIterable para ReadableStream
@@ -68,21 +99,35 @@ export async function executarEstagioComIA(
           controller.enqueue(chunk);
         }
         const textoCompleto = await textPromise;
-        await onComplete(textoCompleto);
+        const validation = await onComplete(textoCompleto);
+        if (!validation.schemaValid) {
+          controller.enqueue(
+            `\n\n[VALIDACAO_DE_SCHEMA_FALHOU] ${validation.validationError ?? "Saída não aderente ao contrato esperado."}`,
+          );
+        }
         controller.close();
       } catch (err) {
         try {
           await infra.pipelineSnapshotRepository.salvarNovaVersao({
             pedidoId,
             etapa: etapaPipeline,
-            entradaRef: { origem: "ia_streaming", estagio },
+            entradaRef: { origem: "ia_streaming", estagio, ragDegraded: options?.ragDegraded ?? false },
             saidaEstruturada: {},
             status: "erro",
             mensagemErro: err instanceof Error ? err.message : "Erro desconhecido",
             tentativa: 1,
           });
+          await options?.onFinalized?.({
+            status: "failed",
+            schemaValid: false,
+            ragDegraded: options?.ragDegraded ?? false,
+            errorMessage: err instanceof Error ? err.message : "Erro desconhecido",
+          });
         } finally {
-          controller.error(err);
+          controller.enqueue(
+            `\n\n[ERRO_DE_EXECUCAO] ${err instanceof Error ? err.message : "Erro desconhecido durante streaming."}`,
+          );
+          controller.close();
         }
       }
     },

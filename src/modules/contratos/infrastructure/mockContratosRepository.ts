@@ -101,10 +101,11 @@ const CONTRATOS_MOCK: Contrato[] = [
 const contratosStore: Contrato[] = [...CONTRATOS_MOCK];
 
 export class MockContratosRepository {
-  async listar(filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"] }): Promise<Contrato[]> {
+  async listar(filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"]; responsavelId?: string }): Promise<Contrato[]> {
     let resultado = [...contratosStore];
     if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);
     if (filtros?.tipo) resultado = resultado.filter((c) => c.tipo === filtros.tipo);
+    if (filtros?.responsavelId) resultado = resultado.filter((c) => c.responsavelId === filtros.responsavelId);
     return resultado.sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm));
   }
 
