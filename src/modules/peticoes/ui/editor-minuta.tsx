@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useMemo, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
@@ -146,7 +146,7 @@ export function EditorMinuta({
         texto += decoder.decode(value, { stream: true });
         setSugestaoIA(texto);
       }
-    } catch (e) {
+    } catch {
       setSugestaoIA("Erro ao conectar com a IA.");
     } finally {
       setLoadingIA(false);

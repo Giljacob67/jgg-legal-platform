@@ -1,6 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { ListaContratos } from "@/modules/contratos/ui/lista-contratos";
 import { listarContratos } from "@/modules/contratos/application";
 import { LABEL_STATUS_CONTRATO } from "@/modules/contratos/domain/types";
