@@ -46,6 +46,9 @@ npm run test:e2e
 
 # Integração com banco real (core: casos, petições, documentos)
 TEST_DATABASE_URL=postgres://... npm run test:integration
+
+# Gate de readiness para release (lint, typecheck, build, testes)
+npm run release:check
 ```
 
 ## Migrations SQL
@@ -75,3 +78,7 @@ Workflow em `.github/workflows/ci.yml` executa:
 - typecheck
 - build
 - integração com Postgres real (pgvector) via `npm run test:integration`
+
+## Operação e go-live
+- Checklist de release: `docs/06-release-readiness.md`
+- Endpoint de trilha de auditoria (admin): `GET /api/administracao/auditoria`

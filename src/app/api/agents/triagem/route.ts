@@ -166,18 +166,30 @@ ${equipeStr}
 
       const intencaoMock: IntencaoProcessual = intencaoExplicita ??
         (poloDetectado === "passivo" ? "redigir_contestacao" : "analisar_documento_adverso");
+      const tipoPecaMock: TipoPeca = poloDetectado === "passivo" ? "Contestação" : "Petição inicial";
+      const prioridadeMock: PrioridadePedido = "alta";
+
+      const novoPedido = await services.peticoesRepository.simularCriacaoPedido({
+        casoId,
+        titulo: `${tipoPecaMock} — ${caso.titulo}`,
+        tipoPeca: tipoPecaMock,
+        prioridade: prioridadeMock,
+        prazoFinal: prazoDefault,
+        intencaoProcessual: intencaoMock,
+      });
 
       const response = NextResponse.json({
         casoId,
         modo: "mock",
+        pedidoCriado: novoPedido.id,
         aviso: "OPENAI_API_KEY não configurada — resultado simulado.",
         polo: poloDetectado,
         triagem: {
           poloDetectado,
           justificativaPolo: `Cliente "${caso.cliente}" identificado como ${poloDetectado === "ativo" ? "autor" : poloDetectado === "passivo" ? "réu" : "polo não identificado"} nas partes do caso.`,
-          tipoPecaClassificado: poloDetectado === "passivo" ? "Contestação" : "Petição inicial",
+          tipoPecaClassificado: tipoPecaMock,
           intencaoDetectada: intencaoMock,
-          prioridade: "alta" as PrioridadePedido,
+          prioridade: prioridadeMock,
           prazoSugerido: prazoDefault,
           responsavelSugerido: EQUIPE_JGG[0].nome,
           resumoJustificativa: `Caso ${caso.materia} representando o polo ${poloDetectado}. Configure OPENAI_API_KEY para análise real.`,
@@ -191,9 +203,9 @@ ${equipeStr}
         session: authResult.session,
         action: "execute",
         resource: "peticoes.triagem",
-        resourceId: casoId,
+        resourceId: novoPedido.id,
         result: "success",
-        details: { modo: "mock" },
+        details: { modo: "mock", casoId },
       });
       return response;
     }

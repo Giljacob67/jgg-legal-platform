@@ -5,6 +5,7 @@ import { requireSessionWithPermission } from "@/lib/api-auth";
 import { apiError } from "@/lib/api-response";
 import {
   executarEstagioComIA,
+  executarEstagioMock,
   type EstagioExecutavel,
 } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
 import {
@@ -29,6 +30,7 @@ import {
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { requireResourceScope } from "@/lib/authz";
 import { services } from "@/services/container";
+import { getDataMode } from "@/lib/data-mode";
 
 export const maxDuration = 300; // Vercel Pro: até 300s para streaming
 
@@ -120,10 +122,6 @@ export async function POST(
     return response;
   }
 
-  if (!isAIAvailable()) {
-    return apiError("INTERNAL_ERROR", "IA não configurada. Defina OPENROUTER_API_KEY.", 503);
-  }
-
   const { pedidoId, estagio } = await params;
 
   if (!ESTAGIOS_VALIDOS.includes(estagio as EstagioExecutavel)) {
@@ -135,6 +133,7 @@ export async function POST(
   }
 
   let controlId: string | null = null;
+  let entradaHash = "";
 
   try {
     const pedido = await services.peticoesRepository.obterPedidoPorId(pedidoId);
@@ -159,13 +158,27 @@ export async function POST(
     }
 
     const pipeline = await obterPipelineDoPedido(pedidoId);
-    const preparedPrompt = await buildPromptParaEstagio(estagio as EstagioExecutavel, pipeline);
-    const entradaHash = hashEntrada({
+    const aiAvailable = isAIAvailable();
+    const executionMode: "ai" | "mock" =
+      aiAvailable || getDataMode() === "real" || process.env.ALLOW_STAGE_EXECUTION_MOCK === "false"
+        ? "ai"
+        : "mock";
+
+    if (executionMode === "ai" && !aiAvailable) {
+      return apiError("INTERNAL_ERROR", "IA não configurada. Defina OPENROUTER_API_KEY.", 503);
+    }
+
+    const preparedPrompt = executionMode === "ai"
+      ? await buildPromptParaEstagio(estagio as EstagioExecutavel, pipeline)
+      : null;
+    const ragDegraded = preparedPrompt?.ragDegraded ?? false;
+    entradaHash = hashEntrada({
       pedidoId,
       estagio,
+      mode: executionMode,
       snapshotRefs: pipeline.snapshots.map((snapshot) => `${snapshot.etapa}:${snapshot.versao}`),
-      system: preparedPrompt.system,
-      prompt: preparedPrompt.prompt,
+      system: preparedPrompt?.system ?? "mock",
+      prompt: preparedPrompt?.prompt ?? "mock",
     });
 
     const control = await acquireExecutionControl({
@@ -183,7 +196,9 @@ export async function POST(
     Sentry.setContext("pipeline_execution", {
       pedidoId,
       estagio,
-      ragDegraded: preparedPrompt.ragDegraded,
+      casoId: pedido.casoId,
+      ragDegraded,
+      executionMode,
     });
 
     await writeAuditLog({
@@ -193,52 +208,67 @@ export async function POST(
       resource: "peticoes.pipeline.estagio",
       resourceId: `${pedidoId}:${estagio}`,
       result: "success",
-      details: { started: true, ragDegraded: preparedPrompt.ragDegraded },
+      details: { started: true, ragDegraded, executionMode },
     });
 
-    const stream = await executarEstagioComIA(
-      pedidoId,
-      estagio as EstagioExecutavel,
-      async () => ({ system: preparedPrompt.system, prompt: preparedPrompt.prompt }),
-      {
-        ragDegraded: preparedPrompt.ragDegraded,
-        onFinalized: async (result) => {
-          if (controlId) {
-            await finalizeExecutionControl({
-              controlId,
-              pedidoId,
-              estagio,
-              inputHash: entradaHash,
-              status: result.status,
-              schemaValid: result.schemaValid,
-              ragDegraded: result.ragDegraded,
-              errorMessage: result.errorMessage,
-            });
-          }
+    const onFinalized = async (result: {
+      status: "completed" | "failed";
+      schemaValid: boolean;
+      ragDegraded: boolean;
+      errorMessage?: string;
+    }) => {
+      if (controlId) {
+        await finalizeExecutionControl({
+          controlId,
+          pedidoId,
+          estagio,
+          inputHash: entradaHash,
+          status: result.status,
+          schemaValid: result.schemaValid,
+          ragDegraded: result.ragDegraded,
+          errorMessage: result.errorMessage,
+        });
+      }
 
-          await writeAuditLog({
-            request: req,
-            session,
-            action: "execute",
-            resource: "peticoes.pipeline.estagio",
-            resourceId: `${pedidoId}:${estagio}`,
-            result: result.status === "completed" ? "success" : "error",
-            details: {
-              schemaValid: result.schemaValid,
-              ragDegraded: result.ragDegraded,
-              errorMessage: result.errorMessage,
-            },
-          });
+      await writeAuditLog({
+        request: req,
+        session,
+        action: "execute",
+        resource: "peticoes.pipeline.estagio",
+        resourceId: `${pedidoId}:${estagio}`,
+        result: result.status === "completed" ? "success" : "error",
+        details: {
+          schemaValid: result.schemaValid,
+          ragDegraded: result.ragDegraded,
+          errorMessage: result.errorMessage,
+          executionMode,
         },
-      },
-    );
+      });
+    };
+
+    const stream = executionMode === "mock"
+      ? await executarEstagioMock(
+        pedidoId,
+        estagio as EstagioExecutavel,
+        { onFinalized },
+      )
+      : await executarEstagioComIA(
+        pedidoId,
+        estagio as EstagioExecutavel,
+        async () => ({ system: preparedPrompt!.system, prompt: preparedPrompt!.prompt }),
+        {
+          ragDegraded,
+          onFinalized,
+        },
+      );
 
     const response = new Response(stream, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "X-Accel-Buffering": "no",
         "Cache-Control": "no-cache",
-        "X-Rag-Degraded": preparedPrompt.ragDegraded ? "1" : "0",
+        "X-Rag-Degraded": ragDegraded ? "1" : "0",
+        "X-Execution-Mode": executionMode,
         "X-Schema-Validation": "deferred",
       },
     });
@@ -249,7 +279,7 @@ export async function POST(
         controlId,
         pedidoId,
         estagio,
-        inputHash: "",
+        inputHash: entradaHash,
         status: "failed",
         schemaValid: false,
         errorMessage: err instanceof Error ? err.message : "Erro interno",
