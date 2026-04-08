@@ -86,6 +86,7 @@ Parâmetros opcionais:
   --password <senha>       Sobrescreve SMOKE_PASSWORD
   --case-id <id>           Caso usado na triagem (default: CAS-2026-001)
   --timeout-ms <ms>        Timeout por request (default: 30000)
+  --vercel-bypass-token    Token de bypass para previews protegidos no Vercel
   --allow-non-admin-audit  Não falha se usuário não puder ler auditoria
 `);
     process.exit(0);
@@ -96,6 +97,11 @@ Parâmetros opcionais:
   const password = args.password ?? process.env.SMOKE_PASSWORD ?? process.env.E2E_LOGIN_PASSWORD ?? "dev-only-change-me";
   const caseId = args["case-id"] ?? process.env.SMOKE_CASE_ID ?? "CAS-2026-001";
   const timeoutMs = Number(args["timeout-ms"] ?? process.env.SMOKE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+  const vercelBypassToken =
+    args["vercel-bypass-token"] ??
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET ??
+    process.env.VERCEL_BYPASS_TOKEN ??
+    "";
   const requireAdminAudit = args["allow-non-admin-audit"] !== "true";
 
   if (!baseUrl) {
@@ -113,9 +119,14 @@ Parâmetros opcionais:
     const headers = new Headers(options.headers ?? {});
     const cookieHeader = jar.toHeader();
     if (cookieHeader) headers.set("cookie", cookieHeader);
+    const targetUrl = new URL(`${baseUrl}${path}`);
+    if (vercelBypassToken) {
+      targetUrl.searchParams.set("x-vercel-set-bypass-cookie", "true");
+      targetUrl.searchParams.set("x-vercel-protection-bypass", vercelBypassToken);
+    }
 
     try {
-      const response = await fetch(`${baseUrl}${path}`, {
+      const response = await fetch(targetUrl.toString(), {
         method: options.method ?? "GET",
         headers,
         body: options.body,
@@ -141,6 +152,11 @@ Parâmetros opcionais:
   console.log(`Usuário: ${email}`);
 
   const rootRes = await request("/", { method: "GET" });
+  if (rootRes.status === 401 && !vercelBypassToken) {
+    throw new Error(
+      "Deployment protegido por Vercel Authentication. Defina VERCEL_AUTOMATION_BYPASS_SECRET (ou --vercel-bypass-token) para o smoke automatizado.",
+    );
+  }
   assertStatus(rootRes, [200, 307, 308], "Home");
   console.log(`✔ Home respondeu ${rootRes.status}`);
 

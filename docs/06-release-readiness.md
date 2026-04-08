@@ -43,6 +43,13 @@ SMOKE_EMAIL=advogado@empresa.com \
 SMOKE_PASSWORD=senha-segura \
 npm run smoke:deploy
 
+# Preview protegido por Vercel Authentication (Automation Bypass)
+BASE_URL=https://seu-deploy.vercel.app \
+SMOKE_EMAIL=advogado@empresa.com \
+SMOKE_PASSWORD=senha-segura \
+VERCEL_AUTOMATION_BYPASS_SECRET=seu_token \
+npm run smoke:deploy
+
 # Permite continuar quando o perfil não for admin para auditoria
 BASE_URL=https://seu-deploy.vercel.app \
 SMOKE_EMAIL=advogado@empresa.com \
@@ -63,6 +70,7 @@ Parâmetros adicionais:
 - `--email` / `--password` (ou `SMOKE_EMAIL` / `SMOKE_PASSWORD`);
 - `--case-id` (default `CAS-2026-001`);
 - `--timeout-ms` (default `30000`);
+- `--vercel-bypass-token` (ou `VERCEL_AUTOMATION_BYPASS_SECRET`);
 - `--allow-non-admin-audit`.
 
 ## Checklist de deploy
