@@ -25,6 +25,31 @@ export interface InsightIA {
   geradoEm: string;
 }
 
+export interface MetricaObservabilidadePipelineEstagio {
+  estagio: string;
+  totalExecucoes: number;
+  totalFalhas: number;
+  taxaFalhaPct: number;
+  latenciaMediaMs: number;
+  latenciaP95Ms: number;
+  schemaInvalidoPct: number;
+  ragDegradadoPct: number;
+}
+
+export interface MetricaObservabilidadePipeline {
+  janelaHoras: number;
+  totalExecucoes: number;
+  totalFalhas: number;
+  taxaFalhaPct: number;
+  latenciaMediaMs: number;
+  latenciaP95Ms: number;
+  schemaInvalidoPct: number;
+  ragDegradadoPct: number;
+  porEstagio: MetricaObservabilidadePipelineEstagio[];
+  principaisErros: { erro: string; count: number }[];
+  geradoEm: string;
+}
+
 export const COR_INSIGHT: Record<InsightIA["tipo"], string> = {
   oportunidade: "bg-emerald-50 text-emerald-800 border-emerald-200",
   risco: "bg-rose-50 text-rose-800 border-rose-200",

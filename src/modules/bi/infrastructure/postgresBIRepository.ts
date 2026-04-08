@@ -1,6 +1,12 @@
 import { getDb } from "@/lib/database/client";
+import { getSqlClient } from "@/lib/database/client";
 import { casos, pedidosPeca, contratos as contratosTable, jurisprudencia as jurisprudenciaTable } from "@/lib/database/schema";
-import type { MetricaFinanceira, MetricaJuridica, InsightIA } from "@/modules/bi/domain/types";
+import type {
+  MetricaFinanceira,
+  MetricaJuridica,
+  InsightIA,
+  MetricaObservabilidadePipeline,
+} from "@/modules/bi/domain/types";
 import type { MockBIRepository } from "@/modules/bi/infrastructure/mockBIRepository";
 
 export type BIRepository = InstanceType<typeof MockBIRepository>;
@@ -159,5 +165,116 @@ export class PostgresBIRepository implements BIRepository {
     }
 
     return insights;
+  }
+
+  async obterObservabilidadePipeline(): Promise<MetricaObservabilidadePipeline> {
+    const janelaHoras = Number(process.env.BI_PIPELINE_WINDOW_HOURS ?? 24);
+    const sql = getSqlClient();
+
+    try {
+      const totalRows = await sql<{
+        total: number;
+        falhas: number;
+        latencia_media_ms: number | null;
+        latencia_p95_ms: number | null;
+        schema_invalido_count: number;
+        rag_degradado_count: number;
+      }[]>`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status = 'failed')::int AS falhas,
+          AVG(EXTRACT(EPOCH FROM (COALESCE(finished_at, created_at) - created_at)) * 1000)::float8 AS latencia_media_ms,
+          PERCENTILE_CONT(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (COALESCE(finished_at, created_at) - created_at)) * 1000
+          )::float8 AS latencia_p95_ms,
+          COUNT(*) FILTER (WHERE schema_valid = false)::int AS schema_invalido_count,
+          COUNT(*) FILTER (WHERE rag_degraded = true)::int AS rag_degradado_count
+        FROM pipeline_execution_control
+        WHERE created_at > NOW() - (${janelaHoras} * interval '1 hour')
+      `;
+
+      const estagiosRows = await sql<{
+        estagio: string;
+        total: number;
+        falhas: number;
+        latencia_media_ms: number | null;
+        latencia_p95_ms: number | null;
+        schema_invalido_count: number;
+        rag_degradado_count: number;
+      }[]>`
+        SELECT
+          estagio,
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status = 'failed')::int AS falhas,
+          AVG(EXTRACT(EPOCH FROM (COALESCE(finished_at, created_at) - created_at)) * 1000)::float8 AS latencia_media_ms,
+          PERCENTILE_CONT(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (COALESCE(finished_at, created_at) - created_at)) * 1000
+          )::float8 AS latencia_p95_ms,
+          COUNT(*) FILTER (WHERE schema_valid = false)::int AS schema_invalido_count,
+          COUNT(*) FILTER (WHERE rag_degraded = true)::int AS rag_degradado_count
+        FROM pipeline_execution_control
+        WHERE created_at > NOW() - (${janelaHoras} * interval '1 hour')
+        GROUP BY estagio
+        ORDER BY total DESC, estagio ASC
+      `;
+
+      const errosRows = await sql<{ erro: string; count: number }[]>`
+        SELECT
+          COALESCE(NULLIF(error_message, ''), 'Erro não especificado') AS erro,
+          COUNT(*)::int AS count
+        FROM pipeline_execution_control
+        WHERE created_at > NOW() - (${janelaHoras} * interval '1 hour')
+          AND status = 'failed'
+        GROUP BY COALESCE(NULLIF(error_message, ''), 'Erro não especificado')
+        ORDER BY count DESC
+        LIMIT 5
+      `;
+
+      const total = totalRows[0]?.total ?? 0;
+      const falhas = totalRows[0]?.falhas ?? 0;
+      const safePct = (count: number) => (total > 0 ? Number(((count / total) * 100).toFixed(1)) : 0);
+
+      return {
+        janelaHoras,
+        totalExecucoes: total,
+        totalFalhas: falhas,
+        taxaFalhaPct: safePct(falhas),
+        latenciaMediaMs: Math.round(totalRows[0]?.latencia_media_ms ?? 0),
+        latenciaP95Ms: Math.round(totalRows[0]?.latencia_p95_ms ?? 0),
+        schemaInvalidoPct: safePct(totalRows[0]?.schema_invalido_count ?? 0),
+        ragDegradadoPct: safePct(totalRows[0]?.rag_degradado_count ?? 0),
+        porEstagio: estagiosRows.map((row) => {
+          const pct = (count: number) =>
+            row.total > 0 ? Number(((count / row.total) * 100).toFixed(1)) : 0;
+          return {
+            estagio: row.estagio,
+            totalExecucoes: row.total,
+            totalFalhas: row.falhas,
+            taxaFalhaPct: pct(row.falhas),
+            latenciaMediaMs: Math.round(row.latencia_media_ms ?? 0),
+            latenciaP95Ms: Math.round(row.latencia_p95_ms ?? 0),
+            schemaInvalidoPct: pct(row.schema_invalido_count),
+            ragDegradadoPct: pct(row.rag_degradado_count),
+          };
+        }),
+        principaisErros: errosRows.map((row) => ({ erro: row.erro, count: row.count })),
+        geradoEm: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.warn("[bi] Falha ao consultar observabilidade de pipeline.", error);
+      return {
+        janelaHoras,
+        totalExecucoes: 0,
+        totalFalhas: 0,
+        taxaFalhaPct: 0,
+        latenciaMediaMs: 0,
+        latenciaP95Ms: 0,
+        schemaInvalidoPct: 0,
+        ragDegradadoPct: 0,
+        porEstagio: [],
+        principaisErros: [],
+        geradoEm: new Date().toISOString(),
+      };
+    }
   }
 }
