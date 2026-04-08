@@ -1,13 +1,15 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { listarUsuarios, listarAuditoria, obterConfiguracoes } from "@/modules/administracao/application";
+import { listarUsuarios, obterConfiguracoes } from "@/modules/administracao/application";
 import { LABEL_PERFIL } from "@/modules/administracao/domain/types";
+import { listAuditLog } from "@/lib/security/audit-log";
+import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
 
 export default async function AdministracaoPage() {
-  const [usuarios, auditoria, configuracoes] = await Promise.all([
+  const [usuarios, auditoriaRecente, configuracoes] = await Promise.all([
     listarUsuarios(),
-    listarAuditoria(5),
+    listAuditLog({ limit: 5 }),
     obterConfiguracoes(),
   ]);
 
@@ -56,11 +58,12 @@ export default async function AdministracaoPage() {
       </div>
 
       {/* Ações rápidas */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { href: "/administracao/usuarios", emoji: "👥", titulo: "Usuários", desc: "Gerenciar equipe e perfis de acesso" },
           { href: "/administracao/permissoes", emoji: "🔐", titulo: "Permissões", desc: "Matriz de acesso por módulo" },
           { href: "/administracao/configuracoes", emoji: "⚙️", titulo: "Configurações", desc: "Provedor de IA, tema e preferências" },
+          { href: "/administracao/auditoria", emoji: "🧾", titulo: "Auditoria", desc: "Trilha completa com filtros e inspeção de eventos" },
         ].map((item) => (
           <Link
             key={item.href}
@@ -75,25 +78,38 @@ export default async function AdministracaoPage() {
       </div>
 
       {/* Auditoria recente */}
-      <Card title="Auditoria recente" subtitle="Últimas ações administrativas">
-        {auditoria.length === 0 ? (
-          <p className="text-sm text-[var(--color-muted)]">Nenhuma ação registrada.</p>
+      <Card title="Auditoria recente" subtitle="Últimos eventos do log de segurança operacional.">
+        {auditoriaRecente.length === 0 ? (
+          <p className="text-sm text-[var(--color-muted)]">Nenhum evento registrado.</p>
         ) : (
-          <div className="space-y-2">
-            {auditoria.map((reg) => (
-              <div key={reg.id} className="flex items-start gap-3 text-sm">
-                <span className="text-lg">📋</span>
+          <div className="space-y-3">
+            {auditoriaRecente.map((reg) => (
+              <div key={reg.id} className="flex items-start justify-between gap-3 rounded-lg border border-[var(--color-border)] p-3 text-sm">
                 <div>
-                  <p className="font-medium text-[var(--color-ink)]">{reg.userNome}</p>
+                  <p className="font-medium text-[var(--color-ink)]">{reg.userEmail ?? reg.userId}</p>
                   <p className="text-xs text-[var(--color-muted)]">
-                    {reg.acao.replace(/_/g, " ")} —{" "}
-                    {new Date(reg.criadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    {reg.action} • {reg.resource}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    {new Date(reg.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                   </p>
                 </div>
+                <StatusBadge
+                  label={reg.result}
+                  variant={reg.result === "success" ? "sucesso" : reg.result === "error" ? "alerta" : "neutro"}
+                />
               </div>
             ))}
           </div>
         )}
+        <div className="mt-4">
+          <Link
+            href="/administracao/auditoria"
+            className="inline-flex rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)]"
+          >
+            Abrir trilha completa
+          </Link>
+        </div>
       </Card>
     </div>
   );

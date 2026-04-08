@@ -42,6 +42,11 @@ export default async function BIPage() {
   const maxMes = Math.max(...financeiro.receitaPorMes.map((m) => m.valor), 1);
   const maxMateria = Math.max(...juridico.casosPorMateria.map((m) => m.count), 1);
   const maxPedido = Math.max(...juridico.pedidosPorTipo.map((p) => p.count), 1);
+  const estagioCritico =
+    observabilidade.porEstagio.length > 0
+      ? [...observabilidade.porEstagio].sort((a, b) =>
+        b.taxaFalhaPct - a.taxaFalhaPct || b.latenciaP95Ms - a.latenciaP95Ms)[0]
+      : null;
 
   const EMOJI_INSIGHT: Record<string, string> = {
     oportunidade: "🌟", risco: "⚠️", tendencia: "📈", recomendacao: "💡",
@@ -149,6 +154,15 @@ export default async function BIPage() {
           </div>
         </div>
 
+        {estagioCritico ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+            <p className="font-semibold text-amber-800">Estágio mais crítico: {estagioCritico.estagio}</p>
+            <p className="text-amber-700">
+              Falha {estagioCritico.taxaFalhaPct}% • P95 {formatarMs(estagioCritico.latenciaP95Ms)} • Execuções {estagioCritico.totalExecucoes}
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--color-border)]">
           <table className="w-full min-w-[740px] text-sm">
             <thead className="bg-[var(--color-surface-alt)] text-xs uppercase tracking-wide text-[var(--color-muted)]">
@@ -174,9 +188,13 @@ export default async function BIPage() {
                   <tr key={item.estagio} className="border-t border-[var(--color-border)]">
                     <td className="px-3 py-2 font-medium text-[var(--color-ink)]">{item.estagio}</td>
                     <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.totalExecucoes}</td>
-                    <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.taxaFalhaPct}%</td>
+                    <td className={`px-3 py-2 text-right font-semibold ${
+                      item.taxaFalhaPct >= 20 ? "text-rose-700" : item.taxaFalhaPct >= 10 ? "text-amber-700" : "text-emerald-700"
+                    }`}>{item.taxaFalhaPct}%</td>
                     <td className="px-3 py-2 text-right text-[var(--color-ink)]">{formatarMs(item.latenciaMediaMs)}</td>
-                    <td className="px-3 py-2 text-right text-[var(--color-ink)]">{formatarMs(item.latenciaP95Ms)}</td>
+                    <td className={`px-3 py-2 text-right ${
+                      item.latenciaP95Ms >= 12000 ? "font-semibold text-rose-700" : "text-[var(--color-ink)]"
+                    }`}>{formatarMs(item.latenciaP95Ms)}</td>
                     <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.schemaInvalidoPct}%</td>
                     <td className="px-3 py-2 text-right text-[var(--color-ink)]">{item.ragDegradadoPct}%</td>
                   </tr>

@@ -28,9 +28,13 @@ test.describe("Release Readiness Core Flow", () => {
     const triagemBody = await triagemRes.json() as { pedidoCriado?: string };
     expect(triagemBody.pedidoCriado).toBeTruthy();
 
-    // Em DATA_MODE=mock, rotas podem executar em contextos com memória não compartilhada.
-    // Para evitar flaky tests, o fluxo técnico usa um pedido seedado estável.
-    const pedidoId = "PED-2026-001";
+    await page.goto("/peticoes");
+    const primeiroLinkPipeline = page.locator('a[href^="/peticoes/pipeline/"]').first();
+    await expect(primeiroLinkPipeline).toBeVisible();
+    const hrefPipeline = await primeiroLinkPipeline.getAttribute("href");
+    expect(hrefPipeline).toBeTruthy();
+    const pedidoId = hrefPipeline!.split("/").pop()!;
+    expect(pedidoId).toBeTruthy();
 
     const vinculos = JSON.stringify([
       { tipoEntidade: "caso", entidadeId: "CAS-2026-001", papel: "principal" },
@@ -118,6 +122,18 @@ test.describe("Release Readiness Core Flow", () => {
           (entry.result === "success" || entry.result === "denied"),
       ),
     ).toBe(true);
+
+    const auditFilteredRes = await page.request.get(
+      "/api/administracao/auditoria?limit=20&resource=contratos&action=read&result=success",
+    );
+    expect(auditFilteredRes.status()).toBe(200);
+    const auditFilteredBody = await auditFilteredRes.json() as {
+      logs?: Array<{ resource?: string; action?: string; result?: string }>;
+    };
+    expect(Array.isArray(auditFilteredBody.logs)).toBe(true);
+    expect(auditFilteredBody.logs!.every((entry) => entry.resource === "contratos")).toBe(true);
+    expect(auditFilteredBody.logs!.every((entry) => entry.action === "read")).toBe(true);
+    expect(auditFilteredBody.logs!.every((entry) => entry.result === "success")).toBe(true);
   });
 
   test("perfil sem permissão administrativa recebe 403 ao consultar auditoria", async ({ page }) => {

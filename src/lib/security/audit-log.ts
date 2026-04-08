@@ -14,6 +14,8 @@ export type AuditAction =
   | "execute"
   | "approve";
 
+export type AuditResult = "success" | "error" | "denied";
+
 type RequestLike = Request | { headers: Headers };
 
 export type AuditLogEntry = {
@@ -24,7 +26,7 @@ export type AuditLogEntry = {
   action: AuditAction;
   resource: string;
   resourceId: string | null;
-  result: "success" | "error" | "denied";
+  result: AuditResult;
   details: Record<string, unknown>;
   ip: string | null;
   userAgent: string | null;
@@ -60,7 +62,7 @@ export async function writeAuditLog(input: {
   action: AuditAction;
   resource: string;
   resourceId?: string;
-  result: "success" | "error" | "denied";
+  result: AuditResult;
   details?: Record<string, unknown>;
 }): Promise<void> {
   const { request, session, action, resource, resourceId, result, details } = input;
@@ -136,16 +138,22 @@ export async function listAuditLog(input?: {
   limit?: number;
   userId?: string;
   resource?: string;
+  action?: AuditAction;
+  result?: AuditResult;
 }): Promise<AuditLogEntry[]> {
   const limit = Math.max(1, Math.min(200, input?.limit ?? 50));
   const userId = input?.userId?.trim();
   const resource = input?.resource?.trim();
+  const action = input?.action;
+  const result = input?.result;
 
   if (getDataMode() !== "real") {
     const store = getMockAuditStore();
     return store
       .filter((entry) => (userId ? entry.userId === userId : true))
       .filter((entry) => (resource ? entry.resource === resource : true))
+      .filter((entry) => (action ? entry.action === action : true))
+      .filter((entry) => (result ? entry.result === result : true))
       .slice(0, limit);
   }
 
@@ -158,7 +166,7 @@ export async function listAuditLog(input?: {
     acao: AuditAction;
     recurso: string;
     recurso_id: string | null;
-    resultado: "success" | "error" | "denied";
+    resultado: AuditResult;
     detalhes: Record<string, unknown> | null;
     ip: string | null;
     user_agent: string | null;
@@ -180,6 +188,8 @@ export async function listAuditLog(input?: {
     FROM audit_log
     WHERE (${userId ?? null}::text IS NULL OR user_id = ${userId ?? null})
       AND (${resource ?? null}::text IS NULL OR recurso = ${resource ?? null})
+      AND (${action ?? null}::text IS NULL OR acao = ${action ?? null})
+      AND (${result ?? null}::text IS NULL OR resultado = ${result ?? null})
     ORDER BY criado_em DESC
     LIMIT ${limit}
   `;
