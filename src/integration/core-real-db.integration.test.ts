@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { Session } from "next-auth";
 import { getSqlClient } from "@/lib/database/client";
 import { assertMigrationsApplied, truncateCoreTables, uniqueId } from "@/integration/helpers/db";
 
@@ -149,5 +150,208 @@ describe("Core Integration (Postgres real)", () => {
     const segundaSync = await sincronizarPipelinePedido(pedido.id);
     expect(segundaSync.snapshots.length).toBe(snapshotsPrimeira.length);
     expect(segundaSync.etapaAtual).toBe("aprovacao");
+  });
+
+  it("persiste trilha de auditoria em audit_log para ações sensíveis", async () => {
+    const { writeAuditLog } = await import("@/lib/security/audit-log");
+
+    const request = new Request("http://localhost/api/peticoes", {
+      headers: {
+        "x-forwarded-for": "203.0.113.15",
+        "user-agent": "integration-test-agent/1.0",
+      },
+    });
+
+    const session: Session = {
+      user: {
+        id: "usr-int-audit-001",
+        email: "audit.integration@jgg.com.br",
+        role: "advogado",
+        name: "Audit Integration",
+        initials: "AI",
+      },
+      expires: new Date(Date.now() + 60_000).toISOString(),
+    };
+
+    await writeAuditLog({
+      request,
+      session,
+      action: "read",
+      resource: "peticoes.pipeline.estagio",
+      resourceId: "PED-INT-AUD-001:triagem",
+      result: "success",
+      details: { stage: "triagem", scenario: "audit-log-success" },
+    });
+
+    await writeAuditLog({
+      request,
+      session,
+      action: "approve",
+      resource: "peticoes.pipeline.aprovacao",
+      resourceId: "PED-INT-AUD-001",
+      result: "denied",
+      details: { scenario: "audit-log-denied" },
+    });
+
+    const sql = getSqlClient();
+    const rows = await sql<{
+      user_id: string;
+      acao: string;
+      recurso: string;
+      recurso_id: string | null;
+      resultado: string;
+      ip: string | null;
+      user_agent: string | null;
+      detalhes: Record<string, unknown>;
+    }[]>`
+      SELECT user_id, acao, recurso, recurso_id, resultado, ip, user_agent, detalhes
+      FROM audit_log
+      WHERE user_id = ${session.user.id}
+      ORDER BY criado_em ASC
+    `;
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0].acao).toBe("read");
+    expect(rows[0].resultado).toBe("success");
+    expect(rows[0].recurso).toBe("peticoes.pipeline.estagio");
+    expect(rows[0].ip).toBe("203.0.113.15");
+    expect(rows[0].user_agent).toContain("integration-test-agent");
+    expect(rows[0].detalhes?.scenario).toBe("audit-log-success");
+
+    expect(rows[1].acao).toBe("approve");
+    expect(rows[1].resultado).toBe("denied");
+    expect(rows[1].recurso).toBe("peticoes.pipeline.aprovacao");
+    expect(rows[1].detalhes?.scenario).toBe("audit-log-denied");
+  });
+
+  it("aplica lock/idempotência de execução no pipeline_execution_control", async () => {
+    const { acquireExecutionControl, finalizeExecutionControl, hashEntrada } = await import(
+      "@/lib/security/execution-control"
+    );
+
+    const pedidoId = "PED-INT-EXEC-001";
+    const estagio = "triagem";
+    const hashA = hashEntrada({ pedidoId, estagio, payload: "A" });
+    const hashB = hashEntrada({ pedidoId, estagio, payload: "B" });
+
+    const started = await acquireExecutionControl({
+      pedidoId,
+      estagio,
+      userId: "usr-int-lock-001",
+      inputHash: hashA,
+    });
+    expect(started.ok).toBe(true);
+    if (!started.ok) {
+      return;
+    }
+
+    const runningDenied = await acquireExecutionControl({
+      pedidoId,
+      estagio,
+      userId: "usr-int-lock-002",
+      inputHash: hashB,
+    });
+    expect(runningDenied.ok).toBe(false);
+    if (!runningDenied.ok) {
+      expect(runningDenied.reason).toBe("running");
+    }
+
+    await finalizeExecutionControl({
+      controlId: started.controlId,
+      pedidoId,
+      estagio,
+      inputHash: hashA,
+      status: "completed",
+      schemaValid: true,
+      ragDegraded: false,
+    });
+
+    const duplicateDenied = await acquireExecutionControl({
+      pedidoId,
+      estagio,
+      userId: "usr-int-lock-003",
+      inputHash: hashA,
+    });
+    expect(duplicateDenied.ok).toBe(false);
+    if (!duplicateDenied.ok) {
+      expect(duplicateDenied.reason).toBe("duplicate");
+    }
+
+    const second = await acquireExecutionControl({
+      pedidoId,
+      estagio,
+      userId: "usr-int-lock-004",
+      inputHash: hashB,
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+    await finalizeExecutionControl({
+      controlId: second.controlId,
+      pedidoId,
+      estagio,
+      inputHash: hashB,
+      status: "failed",
+      schemaValid: false,
+      ragDegraded: true,
+      errorMessage: "integration-failure",
+    });
+
+    const sql = getSqlClient();
+    const rows = await sql<{
+      status: string;
+      input_hash: string;
+      schema_valid: boolean | null;
+      rag_degraded: boolean | null;
+      error_message: string | null;
+    }[]>`
+      SELECT status, input_hash, schema_valid, rag_degraded, error_message
+      FROM pipeline_execution_control
+      WHERE pedido_id = ${pedidoId}
+        AND estagio = ${estagio}
+      ORDER BY created_at ASC
+    `;
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      status: "completed",
+      input_hash: hashA,
+      schema_valid: true,
+      rag_degraded: false,
+    });
+    expect(rows[1]).toMatchObject({
+      status: "failed",
+      input_hash: hashB,
+      schema_valid: false,
+      rag_degraded: true,
+      error_message: "integration-failure",
+    });
+  });
+
+  it("persiste contagem de rate limit no banco e bloqueia excedente", async () => {
+    const { checkRateLimit } = await import("@/lib/security/rate-limit");
+
+    const bucketKey = `rl-${uniqueId("integration")}`;
+    const limit = 2;
+    const windowSeconds = 60;
+
+    const first = await checkRateLimit({ key: bucketKey, limit, windowSeconds });
+    const second = await checkRateLimit({ key: bucketKey, limit, windowSeconds });
+    const third = await checkRateLimit({ key: bucketKey, limit, windowSeconds });
+
+    expect(first.allowed).toBe(true);
+    expect(second.allowed).toBe(true);
+    expect(third.allowed).toBe(false);
+    expect(third.count).toBe(3);
+    expect(third.retryAfterSeconds).toBeGreaterThan(0);
+
+    const sql = getSqlClient();
+    const [row] = await sql<{ count: number }[]>`
+      SELECT MAX(count)::int AS count
+      FROM api_rate_limit
+      WHERE bucket_key = ${bucketKey}
+    `;
+    expect(row.count).toBe(3);
   });
 });
