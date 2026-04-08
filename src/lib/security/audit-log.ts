@@ -140,12 +140,17 @@ export async function listAuditLog(input?: {
   resource?: string;
   action?: AuditAction;
   result?: AuditResult;
+  fromHours?: number;
 }): Promise<AuditLogEntry[]> {
   const limit = Math.max(1, Math.min(200, input?.limit ?? 50));
   const userId = input?.userId?.trim();
   const resource = input?.resource?.trim();
   const action = input?.action;
   const result = input?.result;
+  const fromHours = Number.isFinite(input?.fromHours)
+    ? Math.max(1, Math.min(24 * 30, Math.round(input?.fromHours ?? 24)))
+    : undefined;
+  const fromCutoffTs = fromHours ? Date.now() - fromHours * 60 * 60 * 1000 : null;
 
   if (getDataMode() !== "real") {
     const store = getMockAuditStore();
@@ -154,6 +159,11 @@ export async function listAuditLog(input?: {
       .filter((entry) => (resource ? entry.resource === resource : true))
       .filter((entry) => (action ? entry.action === action : true))
       .filter((entry) => (result ? entry.result === result : true))
+      .filter((entry) => {
+        if (!fromCutoffTs) return true;
+        const entryTs = new Date(entry.createdAt).getTime();
+        return Number.isFinite(entryTs) ? entryTs >= fromCutoffTs : true;
+      })
       .slice(0, limit);
   }
 
@@ -190,6 +200,7 @@ export async function listAuditLog(input?: {
       AND (${resource ?? null}::text IS NULL OR recurso = ${resource ?? null})
       AND (${action ?? null}::text IS NULL OR acao = ${action ?? null})
       AND (${result ?? null}::text IS NULL OR resultado = ${result ?? null})
+      AND (${fromHours ?? null}::int IS NULL OR criado_em > NOW() - (${fromHours ?? 24} * interval '1 hour'))
     ORDER BY criado_em DESC
     LIMIT ${limit}
   `;

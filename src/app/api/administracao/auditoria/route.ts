@@ -23,6 +23,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limitRaw = Number(searchParams.get("limit") ?? "50");
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.round(limitRaw))) : 50;
+    const fromHoursRaw = Number(searchParams.get("fromHours") ?? "24");
+    const fromHours = Number.isFinite(fromHoursRaw)
+      ? Math.max(1, Math.min(24 * 30, Math.round(fromHoursRaw)))
+      : 24;
     const userId = searchParams.get("userId") ?? undefined;
     const resource = searchParams.get("resource") ?? undefined;
     const actionRaw = searchParams.get("action");
@@ -44,7 +48,7 @@ export async function GET(request: Request) {
         ? (resultRaw as AuditResult)
         : undefined;
 
-    const logs = await listAuditLog({ limit, userId, resource, action, result });
+    const logs = await listAuditLog({ limit, userId, resource, action, result, fromHours });
 
     await writeAuditLog({
       request,
@@ -59,6 +63,7 @@ export async function GET(request: Request) {
         resource: resource ?? null,
         action: action ?? null,
         result: result ?? null,
+        fromHours,
       },
     });
 
@@ -71,6 +76,7 @@ export async function GET(request: Request) {
         resource: resource ?? null,
         action: action ?? null,
         result: result ?? null,
+        fromHours,
       },
     });
   } catch (error) {

@@ -63,6 +63,7 @@ export function TrilhaAuditoria() {
   const [resource, setResource] = useState("");
   const [action, setAction] = useState("");
   const [result, setResult] = useState("");
+  const [fromHours, setFromHours] = useState("24");
   const [limit, setLimit] = useState("50");
 
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,7 @@ export function TrilhaAuditoria() {
     try {
       const params = new URLSearchParams();
       params.set("limit", limit || "50");
+      params.set("fromHours", fromHours || "24");
       if (userId.trim()) params.set("userId", userId.trim());
       if (resource.trim()) params.set("resource", resource.trim());
       if (action) params.set("action", action);
@@ -105,6 +107,7 @@ export function TrilhaAuditoria() {
     setResource("");
     setAction("");
     setResult("");
+    setFromHours("24");
     setLimit("50");
   }
 
@@ -124,7 +127,7 @@ export function TrilhaAuditoria() {
   return (
     <div className="space-y-4">
       <form
-        className="grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 md:grid-cols-2 xl:grid-cols-6"
+        className="grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 md:grid-cols-2 xl:grid-cols-7"
         onSubmit={(e) => {
           e.preventDefault();
           void carregar();
@@ -179,6 +182,22 @@ export function TrilhaAuditoria() {
                 {item.label}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">Janela</span>
+          <select
+            value={fromHours}
+            onChange={(e) => setFromHours(e.target.value)}
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+          >
+            <option value="1">1h</option>
+            <option value="6">6h</option>
+            <option value="24">24h</option>
+            <option value="72">72h</option>
+            <option value="168">7 dias</option>
+            <option value="720">30 dias</option>
           </select>
         </label>
 
