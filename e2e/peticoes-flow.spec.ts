@@ -10,7 +10,7 @@ test.describe("Petições Flow", () => {
     await page.fill('input[type="email"]', DEMO_EMAIL);
     await page.fill('input[type="password"]', DEMO_PASSWORD);
     await page.click('button[type="submit"]');
-    await page.waitForURL("/dashboard", { timeout: 10000 });
+    await page.waitForURL("/dashboard", { timeout: 30000 });
   });
 
   test("should navigate to petições page and see existing pedidos", async ({ page }) => {

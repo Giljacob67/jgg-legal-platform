@@ -4,6 +4,7 @@ import { apiError } from "@/lib/api-response";
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { services } from "@/services/container";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
+import { requireResourceScope } from "@/lib/authz";
 
 export async function POST(
   request: Request,
@@ -16,6 +17,21 @@ export async function POST(
   const pedido = await services.peticoesRepository.obterPedidoPorId(pedidoId);
   if (!pedido) {
     return apiError("NOT_FOUND", `Pedido ${pedidoId} não encontrado.`, 404);
+  }
+  const scopeDenied = requireResourceScope({
+    session: authResult.session,
+    ownerName: pedido.responsavel ?? null,
+  });
+  if (scopeDenied) {
+    await writeAuditLog({
+      request,
+      session: authResult.session,
+      action: "approve",
+      resource: "peticoes.pipeline.aprovacao",
+      resourceId: pedidoId,
+      result: "denied",
+    });
+    return scopeDenied;
   }
 
   try {

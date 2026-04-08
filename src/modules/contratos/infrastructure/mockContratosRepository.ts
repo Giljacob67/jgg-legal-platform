@@ -38,7 +38,7 @@ const CONTRATOS_MOCK: Contrato[] = [
     versoes: [
       { id: "v1", numero: 1, autorNome: "Gilberto Jacob", resumoMudancas: "Versão inicial", conteudo: "", criadoEm: "2025-06-15T10:00:00Z" },
     ],
-    responsavelId: "usr-001",
+    responsavelId: "usr-soc-001",
     criadoEm: "2025-06-15T10:00:00Z",
     atualizadoEm: "2025-07-01T09:00:00Z",
   },
@@ -57,7 +57,7 @@ const CONTRATOS_MOCK: Contrato[] = [
     valorReais: 1500000, // R$ 15.000,00
     conteudoAtual: "CONTRATO DE HONORÁRIOS ADVOCATÍCIOS\n\nPelo presente instrumento...",
     versoes: [],
-    responsavelId: "usr-002",
+    responsavelId: "usr-adv-001",
     criadoEm: "2026-01-10T14:30:00Z",
     atualizadoEm: "2026-01-12T11:00:00Z",
   },
@@ -76,7 +76,7 @@ const CONTRATOS_MOCK: Contrato[] = [
     vigenciaFim: "2027-06-30",
     conteudoAtual: "CONTRATO DE PARCERIA AGRÍCOLA\n\nAo [dia] de [mês] de [ano]...",
     versoes: [],
-    responsavelId: "usr-003",
+    responsavelId: "usr-coord-001",
     criadoEm: "2026-03-20T08:00:00Z",
     atualizadoEm: "2026-03-28T16:00:00Z",
   },
