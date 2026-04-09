@@ -100,26 +100,20 @@ export default function LoginPage() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
 
-          {/* Demo credentials hint */}
-          <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-              Credenciais de demonstração
-            </p>
-            <div className="space-y-1 text-xs text-[var(--color-muted)]">
-              <p>
-                <strong>Advogado:</strong> mariana@jgg.com.br
-              </p>
-              <p>
-                <strong>Sócio:</strong> gilberto@jgg.com.br
-              </p>
-              <p>
-                <strong>Admin:</strong> admin@jgg.com.br
-              </p>
-              <p>
-                <strong>Senha (todos):</strong> jgg2026
-              </p>
-            </div>
-          </div>
+          {/* Demo hint — só mostra em ambiente de desenvolvimento se configurado */}
+          {process.env.NEXT_PUBLIC_ENV === "development" &&
+            process.env.NEXT_PUBLIC_SHOW_DEMO_HINTS === "true" && (
+              <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                  Demonstração
+                </p>
+                <p className="text-xs text-[var(--color-muted)]">
+                  Configure <code className="text-[10px]">NEXT_PUBLIC_SHOW_DEMO_HINTS=true</code>{" "}
+                  e <code className="text-[10px]">DEMO_USERS_JSON</code> no .env para
+                  exibir credenciais de demo aqui.
+                </p>
+              </div>
+            )}
         </form>
       </div>
     </div>
