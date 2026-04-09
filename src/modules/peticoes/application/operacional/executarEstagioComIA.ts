@@ -1,6 +1,6 @@
 import "server-only";
 import { streamText } from "ai";
-import { getAIProvider, getDefaultModelId } from "@/lib/ai/client";
+import { getLLM } from "@/lib/ai/provider";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import {
@@ -18,9 +18,13 @@ export async function executarEstagioComIA(
     | { system: string; prompt: string }
     | Promise<{ system: string; prompt: string }>,
 ): Promise<ReadableStream<string>> {
-  const provider = getAIProvider();
-  if (!provider) {
-    throw new Error("AI não configurada. Defina OPENROUTER_API_KEY no ambiente.");
+  let model;
+  try {
+    model = getLLM();
+  } catch (err) {
+    throw new Error(
+      `AI não configurada. Verifique OPENAI_API_KEY, OPENROUTER_API_KEY ou ANTHROPIC_API_KEY.`,
+    );
   }
 
   const pipeline = await obterPipelineDoPedido(pedidoId);
@@ -39,7 +43,7 @@ export async function executarEstagioComIA(
   });
 
   const { textStream, text: textPromise } = await streamText({
-    model: provider(getDefaultModelId()),
+    model,
     system,
     prompt,
     temperature: 0.3,

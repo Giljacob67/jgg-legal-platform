@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isAIAvailable } from "@/lib/ai/client";
+import { isAIAvailable } from "@/lib/ai/provider";
 import {
   executarEstagioComIA,
   type EstagioExecutavel,

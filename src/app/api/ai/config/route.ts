@@ -38,7 +38,15 @@ export async function GET() {
       disponivel:
         m.provedor === "openai"
           ? Boolean(process.env.OPENAI_API_KEY)
-          : Boolean(process.env.OPENROUTER_API_KEY),
+          : m.provedor === "openrouter"
+            ? Boolean(process.env.OPENROUTER_API_KEY)
+            : m.provedor === "kilocode"
+              ? Boolean(process.env.KILO_API_KEY)
+              : m.provedor === "anthropic"
+                ? Boolean(process.env.ANTHROPIC_API_KEY)
+                : m.provedor === "google"
+                  ? Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY)
+                  : false,
     })),
     instrucoes: {
       openai: "Configure OPENAI_API_KEY no .env.local",
