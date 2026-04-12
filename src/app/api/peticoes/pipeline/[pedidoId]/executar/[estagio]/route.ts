@@ -1,10 +1,10 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isAIAvailable } from "@/lib/ai/provider";
-import {
-  executarEstagioComIA,
-  type EstagioExecutavel,
-} from "@/modules/peticoes/application/operacional/executarEstagioComIA";
+import { isAIAvailable, getLLM } from "@/lib/ai/provider";
+import { streamText } from "ai";
+import { retryStreamText } from "@/lib/ai/retry";
+import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import {
   buildTriagemPrompt,
   buildExtracaoFatosPrompt,
@@ -16,10 +16,12 @@ import {
   normalizarMateriaCanonica,
   normalizarTipoPecaCanonica,
 } from "@/modules/peticoes/domain/geracao-minuta";
-import type { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { buscarChunksRelevantes } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
+import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
+import type { EstagioExecutavel } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
+import type { EtapaPipeline } from "@/modules/peticoes/domain/types";
 
-export const maxDuration = 300; // Vercel Pro: até 300s para streaming
+export const maxDuration = 300;
 
 const ESTAGIOS_VALIDOS: EstagioExecutavel[] = [
   "triagem",
@@ -89,19 +91,102 @@ export async function POST(
 
   if (!ESTAGIOS_VALIDOS.includes(estagio as EstagioExecutavel)) {
     return NextResponse.json(
-      {
-        error: `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}`,
-      },
+      { error: `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}` },
       { status: 400 },
     );
   }
 
+  const infra = getPeticoesOperacionalInfra();
+  let modelId = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5";
+
+  // ── Marcar início do estágio ──────────────────────────────────
+  const MAPA_ESTAGIO: Record<EstagioExecutavel, EtapaPipeline> = {
+    triagem: "classificacao",
+    "extracao-fatos": "extracao_de_fatos",
+    "analise-adversa": "analise_adversa",
+    estrategia: "estrategia_juridica",
+    minuta: "redacao",
+  };
+
+  const etapaPipeline = MAPA_ESTAGIO[estagio as EstagioExecutavel];
+
+  await infra.pipelineSnapshotRepository.salvarNovaVersao({
+    pedidoId,
+    etapa: etapaPipeline,
+    entradaRef: { origem: "ia_streaming", estagio },
+    saidaEstruturada: {},
+    status: "em_andamento",
+    tentativa: 1,
+  });
+
+  // ── Retry loop para streamText ──────────────────────────────
+  let textoCompleto = "";
+  let tentativaFinal = 1;
+
   try {
-    const stream = await executarEstagioComIA(
-      pedidoId,
-      estagio as EstagioExecutavel,
-      (pipeline) => buildPromptParaEstagio(estagio as EstagioExecutavel, pipeline),
+    const { textStream, textPromise, attempts } = await retryStreamText(
+      async () => {
+        const model = getLLM(modelId);
+        const pipeline = await obterPipelineDoPedido(pedidoId);
+        const { system, prompt } = await buildPromptParaEstagio(estagio as EstagioExecutavel, pipeline);
+
+        const result = streamText({ model, system, prompt, temperature: 0.3, maxOutputTokens: 4000 });
+        // Wrap AI SDK v6 StreamTextResult to match the { textStream, text } shape expected by retryStreamText
+        return { textStream: result.textStream, text: result.text };
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 1000,
+        maxDelayMs: 30000,
+        onRetry: (attempt, err, delayMs) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(
+            `[pipeline:${estagio}] tentativa ${attempt} falhou — retry em ${delayMs}ms: ${msg.slice(0, 100)}`,
+          );
+          // Tentar próximo modelo fallback
+          const fallbackModels = ["anthropic/claude-sonnet-4-5", "gpt-4o-mini", "gpt-4o"];
+          const idx = attempt - 1;
+          if (idx < fallbackModels.length) {
+            modelId = fallbackModels[idx];
+          }
+        },
+      },
     );
+
+    tentativaFinal = attempts;
+
+    // Pipe stream → client
+    const stream = new ReadableStream<string>({
+      async start(controller) {
+        try {
+          for await (const chunk of textStream) {
+            controller.enqueue(chunk);
+          }
+          textoCompleto = await textPromise;
+          await infra.pipelineSnapshotRepository.salvarNovaVersao({
+            pedidoId,
+            etapa: etapaPipeline,
+            entradaRef: { origem: "ia_streaming", estagio },
+            saidaEstruturada: { textoGerado: textoCompleto, geradoPorIA: true },
+            status: "concluido",
+            tentativa: attempts,
+          });
+          controller.close();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Erro no stream";
+          await infra.pipelineSnapshotRepository.salvarNovaVersao({
+            pedidoId,
+            etapa: etapaPipeline,
+            entradaRef: { origem: "ia_streaming", estagio },
+            saidaEstruturada: { textoGerado: textoCompleto },
+            status: "erro",
+            mensagemErro: msg,
+            tentativa: attempts,
+          });
+          controller.error(err);
+        }
+      },
+    });
 
     return new Response(stream, {
       headers: {
@@ -111,7 +196,16 @@ export async function POST(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro interno";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Erro interno";
+    await infra.pipelineSnapshotRepository.salvarNovaVersao({
+      pedidoId,
+      etapa: etapaPipeline,
+      entradaRef: { origem: "ia_streaming", estagio },
+      saidaEstruturada: { textoGerado: textoCompleto },
+      status: "erro",
+      mensagemErro: msg,
+      tentativa: tentativaFinal,
+    });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
