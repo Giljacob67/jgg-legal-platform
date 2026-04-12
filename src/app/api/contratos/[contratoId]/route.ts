@@ -5,7 +5,7 @@ import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { obterContratoPorId, salvarAnaliseRisco, atualizarStatusContrato } from "@/modules/contratos/application";
 import type { StatusContrato } from "@/modules/contratos/domain/types";
 import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClausulas";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ contratoId: string }> };
 
@@ -26,6 +26,9 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("contratos", "edicao");
+  if (rbac) return rbac;
 
   const { contratoId } = await params;
   try {
@@ -56,6 +59,9 @@ const AnaliseSchema = z.object({
 export async function POST(request: Request, { params }: Params) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("contratos", "edicao");
+  if (rbac) return rbac;
 
   const { contratoId } = await params;
   const body = (await request.json()) as { acao?: string };

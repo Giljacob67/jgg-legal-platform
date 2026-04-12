@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listarJurisprudencias, pesquisarJurisprudencias, criarJurisprudencia } from "@/modules/jurisprudencia/application";
 import type { TipoDecisao, Jurisprudencia } from "@/modules/jurisprudencia/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
   const unauth = await requireAuth();
@@ -27,6 +27,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("jurisprudencia", "edicao");
+  if (rbac) return rbac;
 
   try {
     const body = (await request.json()) as Omit<Jurisprudencia, "id" | "criadoEm">;

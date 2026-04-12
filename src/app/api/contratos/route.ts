@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listarContratos, criarContrato } from "@/modules/contratos/application";
 import type { NovoContratoPayload, StatusContrato, TipoContrato } from "@/modules/contratos/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
   const unauth = await requireAuth();
@@ -24,6 +24,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("contratos", "edicao");
+  if (rbac) return rbac;
 
   try {
     const body = (await request.json()) as NovoContratoPayload;

@@ -13,6 +13,7 @@ import type {
   SnapshotPipelineEtapa,
 } from "@/modules/peticoes/domain/types";
 import { processarDocumentoJuridico } from "@/modules/processamento-documental/application/processarDocumentoJuridico";
+import { parallelMap } from "@/lib/parallel";
 import type { ResultadoEtapaDocumental } from "@/modules/processamento-documental/domain/types";
 
 const ETAPAS_IMPLEMENTADAS_PIPELINE: EtapaPipeline[] = [
@@ -429,13 +430,21 @@ export async function sincronizarPipelinePedido(pedidoId: string): Promise<{
       ? documentosPorPedido
       : await listarDocumentosComDetalhes({ casoId: pedido.casoId });
 
-  const resultadosProcessamento: Array<{ documento: DocumentoComArquivoEVinculos; etapas: ResultadoEtapaDocumental[] }> =
-    [];
+  const resultadosProcessamentoRaw = await parallelMap(
+    documentos,
+    5,
+    async (documento) => {
+      const resultado = await processarDocumentoJuridico(documento);
+      return { documento, etapas: resultado.resultados };
+    },
+  );
 
-  for (const documento of documentos) {
-    const resultado = await processarDocumentoJuridico(documento);
-    resultadosProcessamento.push({ documento, etapas: resultado.resultados });
-  }
+  const resultadosProcessamento = resultadosProcessamentoRaw.filter(
+    (
+      r,
+    ): r is { documento: DocumentoComArquivoEVinculos; etapas: ResultadoEtapaDocumental[] } =>
+      r !== undefined,
+  );
 
   const consolidadoClassificacao = consolidarClassificacao(resultadosProcessamento);
   const consolidadoLeitura = consolidarLeitura(resultadosProcessamento);

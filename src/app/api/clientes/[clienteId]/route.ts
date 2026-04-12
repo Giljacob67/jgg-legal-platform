@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { obterClientePorId, atualizarCliente } from "@/modules/clientes/application";
 import type { NovoClientePayload } from "@/modules/clientes/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ clienteId: string }> };
 
@@ -18,6 +18,9 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("clientes", "edicao");
+  if (rbac) return rbac;
 
   const { clienteId } = await params;
   try {

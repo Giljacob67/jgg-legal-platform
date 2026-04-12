@@ -14,7 +14,7 @@
  */
 
 import postgres from "postgres";
-import { createHash } from "node:crypto";
+import bcrypt from "bcrypt";
 
 const AGORA = new Date();
 const FORMAT_DATE = (d) => d.toISOString().split("T")[0];
@@ -34,7 +34,6 @@ async function main() {
   try {
     // ── 1. USUÁRIOS DO ESCRITÓRIO ────────────────────────────────────
     console.log("👤 Semeando usuários do escritório...");
-    const hashSenha = (senha) => createHash("sha256").update(senha).digest("hex");
     const senhaDefault = "jgg@2026!";
 
     const USUARIOS_SEED = [
@@ -53,7 +52,7 @@ async function main() {
         VALUES (
           gen_random_uuid(),
           ${u.email},
-          ${hashSenha(u.senha)},
+          ${await bcrypt.hash(u.senha, 12)},
           ${u.name},
           ${u.initials},
           ${u.role},
