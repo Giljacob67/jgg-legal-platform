@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBibliotecaRepo } from "@/modules/biblioteca-conhecimento/infrastructure/mockBibliotecaRepository";
+import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
 import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastructure/processamentoPipeline.server";
 import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
 import type { TipoDocumentoBC } from "@/modules/biblioteca-conhecimento/domain/types";
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const tituloFinal = titulo || nomeArquivo.replace(/\.[^.]+$/, "");
 
     // Registra documento
-    const repo = getBibliotecaRepo();
+    const repo = getBibliotecaRepository();
     const doc = await repo.criar({
       titulo: tituloFinal,
       tipo: tipoInferido,

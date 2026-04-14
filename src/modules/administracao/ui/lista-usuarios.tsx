@@ -3,9 +3,12 @@
 import { useState, useTransition } from "react";
 import type { Usuario, PerfilUsuario } from "../domain/types";
 import { LABEL_PERFIL, ORDEM_PERFIL } from "../domain/types";
+import { PermissionGate } from "@/components/ui/permission-gate";
 
 type ListaUsuariosProps = {
   usuariosIniciais: Usuario[];
+  /** Perfil do usuário logado — controla visibilidade das ações administrativas. */
+  perfilAtual?: PerfilUsuario | string;
 };
 
 const BADGE_PERFIL: Record<PerfilUsuario, string> = {
@@ -31,7 +34,7 @@ function AvatarInicial({ iniciais, ativo }: { iniciais: string; ativo: boolean }
   );
 }
 
-export function ListaUsuarios({ usuariosIniciais }: ListaUsuariosProps) {
+export function ListaUsuarios({ usuariosIniciais, perfilAtual }: ListaUsuariosProps) {
   const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciais);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState("");
@@ -107,16 +110,26 @@ export function ListaUsuarios({ usuariosIniciais }: ListaUsuariosProps) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <select
-                    value={u.perfil}
-                    disabled={isPending}
-                    onChange={(e) => alterarPerfil(u, e.target.value as PerfilUsuario)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${BADGE_PERFIL[u.perfil]} cursor-pointer`}
+                  <PermissionGate
+                    perfil={perfilAtual}
+                    allowedRoles={["administrador_sistema", "socio_direcao"]}
+                    fallback={
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${BADGE_PERFIL[u.perfil]}`}>
+                        {LABEL_PERFIL[u.perfil]}
+                      </span>
+                    }
                   >
-                    {Object.entries(LABEL_PERFIL).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
+                    <select
+                      value={u.perfil}
+                      disabled={isPending}
+                      onChange={(e) => alterarPerfil(u, e.target.value as PerfilUsuario)}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${BADGE_PERFIL[u.perfil]} cursor-pointer`}
+                    >
+                      {Object.entries(LABEL_PERFIL).map(([key, label]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                  </PermissionGate>
                 </td>
                 <td className="px-4 py-3 text-xs text-[var(--color-muted)]">
                   {u.ultimoAcesso
@@ -129,13 +142,18 @@ export function ListaUsuarios({ usuariosIniciais }: ListaUsuariosProps) {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => toggleAtivo(u)}
-                    disabled={isPending}
-                    className="rounded-lg border border-[var(--color-border)] px-3 py-1 text-xs font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)] disabled:opacity-40"
+                  <PermissionGate
+                    perfil={perfilAtual}
+                    allowedRoles={["administrador_sistema", "socio_direcao"]}
                   >
-                    {u.ativo ? "Desativar" : "Ativar"}
-                  </button>
+                    <button
+                      onClick={() => toggleAtivo(u)}
+                      disabled={isPending}
+                      className="rounded-lg border border-[var(--color-border)] px-3 py-1 text-xs font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-alt)] disabled:opacity-40"
+                    >
+                      {u.ativo ? "Desativar" : "Ativar"}
+                    </button>
+                  </PermissionGate>
                 </td>
               </tr>
             ))}

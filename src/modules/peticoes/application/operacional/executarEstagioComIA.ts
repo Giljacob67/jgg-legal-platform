@@ -7,6 +7,46 @@ import {
   type EstagioExecutavel,
   MAPA_ESTAGIO_PIPELINE,
 } from "@/modules/peticoes/domain/types";
+import { SCHEMAS_POR_ESTAGIO } from "@/modules/peticoes/domain/schemas-pipeline";
+
+/**
+ * Tenta extrair e parsear JSON do texto produzido pela IA.
+ * Remove blocos markdown (```json ... ```) antes de parsear.
+ * Retorna null se o texto não for JSON válido.
+ */
+function parseJsonFromText(text: string): Record<string, unknown> | null {
+  try {
+    // Remove fences markdown ```json ... ``` ou ``` ... ```
+    const stripped = text.replace(/^```(?:json)?\s*/m, "").replace(/\s*```\s*$/m, "").trim();
+    const parsed = JSON.parse(stripped);
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parseia e valida o output da IA para o estágio usando o schema Zod correspondente.
+ * Retorna o objeto validado, ou null se o texto não for JSON válido ou não passar no schema.
+ */
+function parseAIOutput(estagio: EstagioExecutavel, text: string): Record<string, unknown> | null {
+  if (estagio === "minuta") return null; // prose text, sem schema estruturado
+
+  const schema = SCHEMAS_POR_ESTAGIO[estagio as keyof typeof SCHEMAS_POR_ESTAGIO];
+  if (!schema) return null;
+
+  const parsed = parseJsonFromText(text);
+  if (!parsed) return null;
+
+  const result = schema.safeParse(parsed);
+  if (result.success) return result.data as Record<string, unknown>;
+
+  // Fallback: retornar o JSON bruto mesmo sem validação completa
+  return parsed;
+}
 
 export type { EstagioExecutavel };
 export { MAPA_ESTAGIO_PIPELINE };
@@ -54,11 +94,16 @@ export async function executarEstagioComIA(
     // NOTE: Using salvarNovaVersao directly (not sincronizarPipelinePedido)
     // because sincronizarPipelinePedido is a full orchestrator that reprocesses
     // ALL documents — not appropriate for persisting a single AI stage output.
+    const dadosEstruturados = parseAIOutput(estagio, textoCompleto);
+    const saidaEstruturada: Record<string, unknown> = dadosEstruturados
+      ? { ...dadosEstruturados, textoGerado: textoCompleto, geradoPorIA: true }
+      : { textoGerado: textoCompleto, geradoPorIA: true };
+
     await infra.pipelineSnapshotRepository.salvarNovaVersao({
       pedidoId,
       etapa: etapaPipeline,
       entradaRef: { origem: "ia_streaming", estagio },
-      saidaEstruturada: { textoGerado: textoCompleto, geradoPorIA: true },
+      saidaEstruturada,
       status: "concluido",
       tentativa: 1,
     });

@@ -2,14 +2,26 @@ import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
-import { requireAuth } from "@/lib/api-auth";
+import { getSessionPerfil } from "@/lib/api-auth";
+import { verificarRateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ pedidoId: string }> }
 ) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const sessionPerfil = await getSessionPerfil();
+  if (!sessionPerfil) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  const rl = verificarRateLimit(sessionPerfil.userId, "agents-ia", 20);
+  if (!rl.permitido) {
+    const resetMin = Math.ceil(rl.resetEmMs / 60000);
+    return NextResponse.json(
+      { error: `Limite de chamadas de IA atingido. Tente novamente em ${resetMin} minuto(s).` },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetEmMs / 1000)) } },
+    );
+  }
 
   try {
     const { pedidoId } = await params;

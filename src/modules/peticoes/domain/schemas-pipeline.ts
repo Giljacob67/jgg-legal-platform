@@ -1,5 +1,49 @@
 import { z } from "zod";
 
+// ── Estágio: triagem ──────────────────────────────────────────────────────────
+
+/**
+ * Schema de saída para o estágio de triagem/classificação.
+ * Corresponde ao JSON solicitado em buildTriagemPrompt().
+ */
+export const TriagemPipelineSchema = z.object({
+  tipo_peca: z.string().describe("Tipo de peça jurídica mais adequada"),
+  materia: z.string().describe("Matéria jurídica principal"),
+  polo_representado: z.enum(["ativo", "passivo", "indefinido"]),
+  urgencia: z.enum(["urgente", "normal"]),
+  complexidade: z.enum(["simples", "media", "complexa"]),
+  justificativa_polo: z.string().optional(),
+  justificativa_urgencia: z.string().optional(),
+  justificativa_complexidade: z.string().optional(),
+});
+
+export type TriagemPipelineOutput = z.infer<typeof TriagemPipelineSchema>;
+
+// ── Estágio: extracao-fatos ───────────────────────────────────────────────────
+
+/**
+ * Schema de saída para o estágio de extração de fatos.
+ * Corresponde ao JSON solicitado em buildExtracaoFatosPrompt().
+ */
+export const ExtracaoFatosSchema = z.object({
+  fatos_cronologicos: z.array(
+    z.object({
+      data: z.string(),
+      descricao: z.string(),
+      documentos_referenciados: z.array(z.string()).optional(),
+      controverso: z.boolean().optional(),
+    }),
+  ),
+  prazo_prescricional: z.string().optional(),
+  prazo_decadencial: z.string().optional(),
+  dados_especificos_materia: z.record(z.unknown()).optional(),
+  observacoes: z.string().optional(),
+});
+
+export type ExtracaoFatosOutput = z.infer<typeof ExtracaoFatosSchema>;
+
+// ── Estágio: analise-adversa ──────────────────────────────────────────────────
+
 /**
  * Schema de saída para o estágio de análise adversarial.
  * Usado para validar estruturação e consistência dos outputs da IA.
@@ -43,7 +87,7 @@ export const PesquisaApoioSchema = z.object({
   lacunas_conhecimento: z
     .array(z.string())
     .describe("Áreas onde a biblioteca não possui informação suficiente"),
-  calidad_informacional: z
+  qualidade_informacional: z
     .enum(["alta", "media", "baixa"])
     .describe("Qualidade geral da informação disponível na biblioteca"),
   recomendacao_expansao: z
@@ -83,6 +127,42 @@ export const AnaliseDocumentalClienteSchema = z.object({
 });
 
 export type AnaliseDocumentalClienteOutput = z.infer<typeof AnaliseDocumentalClienteSchema>;
+
+// ── Estágio: estrategia ───────────────────────────────────────────────────────
+
+/**
+ * Schema de saída para o estágio de estratégia jurídica.
+ * Corresponde ao JSON solicitado em buildEstrategiaPrompt().
+ */
+export const EstrategiaSchema = z.object({
+  teses_aplicaveis: z.array(
+    z.object({
+      titulo: z.string(),
+      fundamento_legal: z.string(),
+      prioridade: z.enum(["principal", "secundaria"]),
+    }),
+  ),
+  linha_argumentativa: z.string(),
+  pontos_a_evitar: z.array(z.string()).optional(),
+  pedidos_recomendados: z.array(z.string()).optional(),
+});
+
+export type EstrategiaOutput = z.infer<typeof EstrategiaSchema>;
+
+// ── Mapa de schemas por estágio ───────────────────────────────────────────────
+
+/**
+ * Schemas para os estágios que produzem JSON estruturado.
+ * O estágio "minuta" é intencionalmente omitido — gera texto livre (prose).
+ */
+export const SCHEMAS_POR_ESTAGIO = {
+  triagem: TriagemPipelineSchema,
+  "extracao-fatos": ExtracaoFatosSchema,
+  "analise-adversa": AnaliseAdversaSchema,
+  estrategia: EstrategiaSchema,
+} as const;
+
+// ── Estágio: aprovacao ────────────────────────────────────────────────────────
 
 /**
  * Schema de saída para o estágio de aprovação.

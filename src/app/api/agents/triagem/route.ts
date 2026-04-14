@@ -5,7 +5,8 @@ import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { getSessionPerfil } from "@/lib/api-auth";
+import { verificarRateLimit } from "@/lib/rate-limit";
 
 const TriagemSchema = z.object({
   poloDetectado: z.enum(["ativo", "passivo", "indefinido"]).describe(
@@ -75,8 +76,19 @@ Por segurança, analise AMBAS as perspectivas e sinalize que o advogado deve con
 }
 
 export async function POST(request: Request) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const sessionPerfil = await getSessionPerfil();
+  if (!sessionPerfil) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  const rl = verificarRateLimit(sessionPerfil.userId, "agents-ia", 20);
+  if (!rl.permitido) {
+    const resetMin = Math.ceil(rl.resetEmMs / 60000);
+    return NextResponse.json(
+      { error: `Limite de chamadas de IA atingido. Tente novamente em ${resetMin} minuto(s).` },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetEmMs / 1000)) } },
+    );
+  }
 
   try {
     const body = await request.json();

@@ -1,10 +1,10 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { BibliotecaConhecimento } from "@/modules/biblioteca-conhecimento/ui/biblioteca-conhecimento";
-import { getBibliotecaRepo } from "@/modules/biblioteca-conhecimento/infrastructure/mockBibliotecaRepository";
+import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
 import { isDriveConfigurado } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
 
 export default async function BibliotecaJuridicaPage() {
-  const repo = getBibliotecaRepo();
+  const repo = getBibliotecaRepository();
   const [documentos, stats] = await Promise.all([repo.listar(), repo.contar()]);
 
   const driveConfigurado = isDriveConfigurado();

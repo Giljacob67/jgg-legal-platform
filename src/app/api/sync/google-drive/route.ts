@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBibliotecaRepo } from "@/modules/biblioteca-conhecimento/infrastructure/mockBibliotecaRepository";
+import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
 import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastructure/processamentoPipeline.server";
 import { isDriveConfigurado, listarArquivosDrive, baixarArquivoDrive } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
 import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
@@ -40,7 +40,7 @@ export async function POST() {
   let erros = 0;
 
   try {
-    const repo = getBibliotecaRepo();
+    const repo = getBibliotecaRepository();
     const arquivos = await listarArquivosDrive();
 
     for (const arquivo of arquivos) {

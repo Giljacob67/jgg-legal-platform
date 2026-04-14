@@ -4,7 +4,7 @@
  * Server-side only.
  */
 
-import { getBibliotecaRepo } from "./mockBibliotecaRepository";
+import { getBibliotecaRepository } from "./provider.server";
 import { extrairTexto } from "./textExtractor.server";
 import { dividirEmChunks } from "./chunkingService";
 import { gerarEmbeddingsLote } from "@/lib/ai/embeddings";
@@ -15,7 +15,7 @@ export async function processarDocumento(
   buffer: Buffer,
   mimeType: string
 ): Promise<{ chunksGerados: number }> {
-  const repo = getBibliotecaRepo();
+  const repo = getBibliotecaRepository();
 
   await repo.atualizarStatus(documentoId, "processando");
 

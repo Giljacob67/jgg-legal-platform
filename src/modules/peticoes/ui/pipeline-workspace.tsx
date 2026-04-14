@@ -20,7 +20,13 @@ type PipelineWorkspaceProps = {
   historico: HistoricoPipeline[];
   snapshots: SnapshotPipelineEtapa[];
   contextoAtual: ContextoJuridicoPedido | null;
+  /** Perfil do usuário atual, passado pelo layout autenticado. */
+  perfilUsuario?: string;
 };
+
+type ResultadoAprovacao = "aprovado" | "rejeitado" | "revisao_pendente";
+
+const PERFIS_QUE_APROVAM = ["coordenador_juridico", "socio_direcao", "administrador_sistema"];
 
 // Estágios executáveis via IA (mapeados em MAPA_ESTAGIO_PIPELINE)
 const ESTAGIOS_IA = Object.keys(MAPA_ESTAGIO_PIPELINE) as EstagioExecutavel[];
@@ -70,10 +76,16 @@ export function PipelineWorkspace({
   historico,
   snapshots,
   contextoAtual,
+  perfilUsuario,
 }: PipelineWorkspaceProps) {
   const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
   const [streamTexts, setStreamTexts] = useState<Partial<Record<EstagioExecutavel, string>>>({});
   const [streamErrors, setStreamErrors] = useState<Partial<Record<EstagioExecutavel, string>>>({});
+  const [aprovacaoObservacoes, setAprovacaoObservacoes] = useState("");
+  const [aprovacaoStatus, setAprovacaoStatus] = useState<"idle" | "loading" | "sucesso" | "erro">("idle");
+  const [aprovacaoMensagem, setAprovacaoMensagem] = useState<string | null>(null);
+
+  const podeAprovar = perfilUsuario ? PERFIS_QUE_APROVAM.includes(perfilUsuario) : false;
 
   const executarEstagio = useCallback(async (estagio: EstagioExecutavel) => {
     setStreamingEstagio(estagio);
@@ -111,6 +123,35 @@ export function PipelineWorkspace({
       setStreamingEstagio(null);
     }
   }, [pedidoId]);
+
+  const enviarAprovacao = useCallback(async (resultado: ResultadoAprovacao) => {
+    setAprovacaoStatus("loading");
+    setAprovacaoMensagem(null);
+    try {
+      const res = await fetch(`/api/peticoes/pipeline/${pedidoId}/aprovacao`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resultado, observacoes: aprovacaoObservacoes || undefined }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        setAprovacaoStatus("erro");
+        setAprovacaoMensagem(data.error ?? "Erro ao registrar aprovação.");
+      } else {
+        setAprovacaoStatus("sucesso");
+        setAprovacaoMensagem(
+          resultado === "aprovado"
+            ? "Minuta aprovada com sucesso."
+            : resultado === "rejeitado"
+              ? "Minuta rejeitada. Solicitar revisão ao responsável."
+              : "Pendência de revisão registrada.",
+        );
+      }
+    } catch (err) {
+      setAprovacaoStatus("erro");
+      setAprovacaoMensagem(err instanceof Error ? err.message : "Erro desconhecido.");
+    }
+  }, [pedidoId, aprovacaoObservacoes]);
 
   const snapshotsMap = useMemo(() => {
     const map = new Map<EtapaPipeline, SnapshotPipelineEtapa>();
@@ -225,6 +266,69 @@ export function PipelineWorkspace({
             <p>
               <strong>Referências documentais:</strong> {contextoAtual.referenciasDocumentais.length}
             </p>
+          </div>
+        )}
+      </Card>
+
+      <Card
+        title="Aprovação da minuta"
+        subtitle={
+          podeAprovar
+            ? "Registre a decisão formal de aprovação, rejeição ou solicitação de revisão."
+            : "Somente coordenadores, sócios e administradores podem aprovar minutas."
+        }
+      >
+        {!podeAprovar ? (
+          <p className="text-sm text-[var(--color-muted)]">
+            Seu perfil não possui permissão para aprovar minutas neste pedido.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--color-ink)]">
+                Observações (opcional)
+              </label>
+              <textarea
+                value={aprovacaoObservacoes}
+                onChange={(e) => setAprovacaoObservacoes(e.target.value)}
+                disabled={aprovacaoStatus === "loading"}
+                rows={3}
+                placeholder="Registre comentários, ressalvas ou instruções de revisão..."
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-muted)] disabled:opacity-50"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => enviarAprovacao("aprovado")}
+                disabled={aprovacaoStatus === "loading"}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aprovacaoStatus === "loading" ? "Registrando..." : "Aprovar"}
+              </button>
+              <button
+                onClick={() => enviarAprovacao("revisao_pendente")}
+                disabled={aprovacaoStatus === "loading"}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] hover:bg-[var(--color-border)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Solicitar revisão
+              </button>
+              <button
+                onClick={() => enviarAprovacao("rejeitado")}
+                disabled={aprovacaoStatus === "loading"}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Rejeitar
+              </button>
+            </div>
+            {aprovacaoMensagem && (
+              <p
+                className={`text-sm font-medium ${
+                  aprovacaoStatus === "sucesso" ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                {aprovacaoMensagem}
+              </p>
+            )}
           </div>
         )}
       </Card>
