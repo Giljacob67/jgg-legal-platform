@@ -7,9 +7,12 @@ import { validarTipoDocumento } from "@/modules/documentos/application/validatio
 
 const MIME_TYPES_PERMITIDOS = [
   "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/msword", // .doc
   "text/plain",
 ];
+
+const TAMANHO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 
 type UploadClientPayload = {
   filename: string;
@@ -66,11 +69,16 @@ export async function POST(request: Request) {
       body,
       request,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
-        parseTokenPayload(clientPayload);
+        const payload = parseTokenPayload(clientPayload);
+
+        // Validar tamanho antes de gerar token
+        if (payload.sizeBytes > TAMANHO_MAXIMO_BYTES) {
+          throw new Error(`Arquivo excede o limite de ${TAMANHO_MAXIMO_BYTES / 1024 / 1024}MB.`);
+        }
 
         return {
           allowedContentTypes: MIME_TYPES_PERMITIDOS,
-          maximumSizeInBytes: 1024 * 1024 * 100,
+          maximumSizeInBytes: TAMANHO_MAXIMO_BYTES,
           addRandomSuffix: true,
           tokenPayload: clientPayload,
         };

@@ -219,6 +219,10 @@ export const pedidosPeca = pgTable("pedidos_peca", {
   etapaAtual: varchar("etapa_atual", { length: 100 }).notNull(),
   responsavel: varchar("responsavel", { length: 255 }),
   prazoFinal: timestamp("prazo_final"),
+  /** Objetivo processual do pedido — guia o agente de IA (ver IntencaoProcessual em domain/types.ts) */
+  intencaoProcessual: varchar("intencao_processual", { length: 100 }),
+  /** ID do documento jurídico que originou este pedido */
+  documentoOrigemId: text("documento_origem_id"),
   criadoEm: timestamp("criado_em").defaultNow().notNull(),
 });
 
@@ -339,6 +343,30 @@ export const minutaVersaoContexto = pgTable(
 );
 
 // ─────────────────────────────────────────────────────────────
+// BIBLIOTECA DE CONHECIMENTO — metadados de documentos
+// ─────────────────────────────────────────────────────────────
+export const bibliotecaDocumentos = pgTable(
+  "biblioteca_documentos",
+  {
+    id: text("id").primaryKey(),
+    titulo: varchar("titulo", { length: 255 }).notNull(),
+    tipo: varchar("tipo", { length: 50 }).notNull(),
+    subtipo: varchar("subtipo", { length: 100 }),
+    fonte: varchar("fonte", { length: 50 }).notNull().default("upload_manual"),
+    driveFileId: text("drive_file_id"),
+    driveFolderPath: text("drive_folder_path"),
+    urlArquivo: text("url_arquivo"),
+    mimeType: varchar("mime_type", { length: 100 }),
+    tamanhoBytes: bigint("tamanho_bytes", { mode: "number" }),
+    chunksGerados: integer("chunks_gerados").notNull().default(0),
+    embeddingStatus: varchar("embedding_status", { length: 20 }).notNull().default("pendente"),
+    erroProcessamento: text("erro_processamento"),
+    processadoEm: timestamp("processado_em", { withTimezone: true }),
+    criadoEm: timestamp("criado_em", { withTimezone: true }).defaultNow().notNull(),
+  },
+);
+
+// ─────────────────────────────────────────────────────────────
 // BIBLIOTECA DE CONHECIMENTO — RAG (pgvector)
 // ─────────────────────────────────────────────────────────────
 export const bibliotecaChunks = pgTable(
@@ -439,7 +467,7 @@ export const clientes = pgTable("clientes", {
   cpfCnpj: varchar("cpf_cnpj", { length: 30 }),
   email: varchar("email", { length: 255 }),
   telefone: varchar("telefone", { length: 30 }),
-  enderecoJson: text("endereco_json"),
+  enderecoJson: jsonb("endereco_json"),
   status: varchar("status", { length: 30 }).notNull().default("ativo"),
   responsavelId: varchar("responsavel_id", { length: 50 }),
   anotacoes: text("anotacoes"),
@@ -459,9 +487,9 @@ export const jurisprudencia = pgTable("jurisprudencia", {
   relator: varchar("relator", { length: 255 }),
   dataJulgamento: varchar("data_julgamento", { length: 20 }),
   tipo: varchar("tipo", { length: 50 }).notNull(),
-  materiasJson: text("materias_json").notNull().default("[]"),
+  materiasJson: jsonb("materias_json").notNull().default([]),
   tese: text("tese"),
-  fundamentosLegaisJson: text("fundamentos_legais_json").notNull().default("[]"),
+  fundamentosLegaisJson: jsonb("fundamentos_legais_json").notNull().default([]),
   urlOrigem: varchar("url_origem", { length: 500 }),
   relevancia: integer("relevancia").notNull().default(3),
   criadoEm: timestamp("criado_em").defaultNow().notNull(),
@@ -478,15 +506,15 @@ export const contratos = pgTable("contratos", {
   tipo: varchar("tipo", { length: 100 }).notNull(),
   status: varchar("status", { length: 50 }).notNull().default("rascunho"),
   objeto: text("objeto").notNull(),
-  partesJson: text("partes_json").notNull().default("[]"),
-  clausulasJson: text("clausulas_json").notNull().default("[]"),
+  partesJson: jsonb("partes_json").notNull().default([]),
+  clausulasJson: jsonb("clausulas_json").notNull().default([]),
   valorReais: integer("valor_reais"),
   vigenciaInicio: varchar("vigencia_inicio", { length: 20 }),
   vigenciaFim: varchar("vigencia_fim", { length: 20 }),
   conteudoAtual: text("conteudo_atual").notNull().default(""),
-  versoesJson: text("versoes_json").notNull().default("[]"),
+  versoesJson: jsonb("versoes_json").notNull().default([]),
   responsavelId: varchar("responsavel_id", { length: 50 }),
-  analiseRiscoJson: text("analise_risco_json"),
+  analiseRiscoJson: jsonb("analise_risco_json"),
   criadoEm: timestamp("criado_em").defaultNow().notNull(),
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });

@@ -3,6 +3,15 @@ import type { TipoDocumento } from "@/modules/documentos/domain/types";
 import { uploadDocumento } from "@/modules/documentos/application/uploadDocumento";
 import { requireAuth } from "@/lib/api-auth";
 
+const TAMANHO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
+
+const MIME_TYPES_PERMITIDOS = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/msword", // .doc
+  "text/plain",
+]);
+
 type VinculoInput = {
   tipoEntidade: "caso" | "pedido_peca";
   entidadeId: string;
@@ -94,6 +103,23 @@ export async function POST(request: Request) {
 
     if (!parseVinculosResult.ok) {
       return NextResponse.json({ error: parseVinculosResult.message }, { status: 400 });
+    }
+
+    // Validar tamanho do arquivo
+    if (file.size > TAMANHO_MAXIMO_BYTES) {
+      return NextResponse.json(
+        { error: `Arquivo excede o limite de ${TAMANHO_MAXIMO_BYTES / 1024 / 1024}MB.` },
+        { status: 413 },
+      );
+    }
+
+    // Validar tipo MIME
+    const mimeType = file.type || "application/octet-stream";
+    if (!MIME_TYPES_PERMITIDOS.has(mimeType)) {
+      return NextResponse.json(
+        { error: `Tipo de arquivo não suportado: ${mimeType}. Permitidos: PDF, DOCX, DOC, TXT.` },
+        { status: 415 },
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { obterConfiguracoes, atualizarConfiguracao } from "@/modules/administracao/application";
-import { requireAuth } from "@/lib/api-auth";
+import { requireRole } from "@/lib/api-auth";
 
 export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  // Leitura de configurações: administrador e sócios
+  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  if (forbidden) return forbidden;
 
   try {
     const configuracoes = await obterConfiguracoes();
@@ -15,8 +16,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  // Alteração de configurações: apenas administrador do sistema
+  const forbidden = await requireRole(["administrador_sistema"]);
+  if (forbidden) return forbidden;
 
   try {
     const body = (await request.json()) as { chave: string; valor: string };

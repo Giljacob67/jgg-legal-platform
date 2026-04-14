@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireRole } from "@/lib/api-auth";
 
 interface OpenRouterModel {
   id: string;
@@ -30,8 +30,9 @@ interface OpenRouterModelsResponse {
  * Busca todos os modelos disponíveis no OpenRouter e/ou KiloCode, incluindo os gratuitos.
  */
 export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  // Catálogo de modelos: administrador e sócios
+  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  if (forbidden) return forbidden;
 
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   const kiloKey = process.env.KILO_API_KEY;

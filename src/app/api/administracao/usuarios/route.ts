@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
 import { listarUsuarios, convidarUsuario } from "@/modules/administracao/application";
 import type { ConviteUsuario } from "@/modules/administracao/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireRole } from "@/lib/api-auth";
 import { enviarEmailConvite } from "@/lib/email/convite";
 
+// Apenas administrador e sócio podem gerenciar usuários
+const ROLES_GESTAO_USUARIOS = ["administrador_sistema", "socio_direcao"] as const;
+
 export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const forbidden = await requireRole([...ROLES_GESTAO_USUARIOS]);
+  if (forbidden) return forbidden;
 
   const usuarios = await listarUsuarios();
   return NextResponse.json({ usuarios });
 }
 
 export async function POST(request: Request) {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const forbidden = await requireRole([...ROLES_GESTAO_USUARIOS]);
+  if (forbidden) return forbidden;
 
   try {
     const body = (await request.json()) as ConviteUsuario;

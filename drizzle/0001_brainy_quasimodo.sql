@@ -1,1 +1,0 @@
-ALTER TABLE "teses_juridicas" ADD COLUMN "embedding" vector(1536);

@@ -1,5 +1,5 @@
-import { getDb } from "@/lib/database/client";
-import { pedidosPeca, minutas as minutasTable, versoesMinuta, historicoPipeline } from "@/lib/database/schema";
+import { getDb, getSqlClient } from "@/lib/database/client";
+import { pedidosPeca, minutas as minutasTable, versoesMinuta } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { PeticoesRepository } from "@/modules/peticoes/infrastructure/mockPeticoesRepository";
 import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
@@ -13,31 +13,11 @@ import type {
   PrioridadePedido,
   StatusPedido,
   EtapaPipeline,
+  IntencaoProcessual,
 } from "@/modules/peticoes/domain/types";
 
 export class PostgresPeticoesRepository implements PeticoesRepository {
-  async listarPedidos(): Promise<PedidoDePeca[]> {
-    const db = getDb();
-    const rows = await db.select().from(pedidosPeca);
-    return rows.map((row) => ({
-      id: row.id,
-      casoId: row.casoId ?? "",
-      titulo: row.titulo,
-      tipoPeca: row.tipoPeca as TipoPeca,
-      prioridade: row.prioridade as PrioridadePedido,
-      status: row.status as StatusPedido,
-      etapaAtual: row.etapaAtual as EtapaPipeline,
-      responsavel: row.responsavel ?? "",
-      prazoFinal: row.prazoFinal ? row.prazoFinal.toISOString().split("T")[0] : "",
-      criadoEm: row.criadoEm.toISOString(),
-    }));
-  }
-
-  async obterPedidoPorId(pedidoId: string): Promise<PedidoDePeca | undefined> {
-    const db = getDb();
-    const rows = await db.select().from(pedidosPeca).where(eq(pedidosPeca.id, pedidoId));
-    if (rows.length === 0) return undefined;
-    const row = rows[0];
+  private mapPedido(row: typeof pedidosPeca.$inferSelect): PedidoDePeca {
     return {
       id: row.id,
       casoId: row.casoId ?? "",
@@ -49,7 +29,22 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
       responsavel: row.responsavel ?? "",
       prazoFinal: row.prazoFinal ? row.prazoFinal.toISOString().split("T")[0] : "",
       criadoEm: row.criadoEm.toISOString(),
+      intencaoProcessual: row.intencaoProcessual as IntencaoProcessual | undefined ?? undefined,
+      documentoOrigemId: row.documentoOrigemId ?? undefined,
     };
+  }
+
+  async listarPedidos(): Promise<PedidoDePeca[]> {
+    const db = getDb();
+    const rows = await db.select().from(pedidosPeca);
+    return rows.map((row) => this.mapPedido(row));
+  }
+
+  async obterPedidoPorId(pedidoId: string): Promise<PedidoDePeca | undefined> {
+    const db = getDb();
+    const rows = await db.select().from(pedidosPeca).where(eq(pedidosPeca.id, pedidoId));
+    if (rows.length === 0) return undefined;
+    return this.mapPedido(rows[0]);
   }
 
   async listarEtapasPipeline(): Promise<EtapaPipelineInfo[]> {
@@ -64,18 +59,35 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
   }
 
   async listarHistoricoPipeline(pedidoId: string): Promise<HistoricoPipeline[]> {
-    const db = getDb();
-    const rows = await db
-      .select()
-      .from(historicoPipeline)
-      .where(eq(historicoPipeline.pedidoId, pedidoId));
+    // Derive history from pedido_pipeline_snapshot — the canonical source of truth.
+    // The legacy historico_pipeline table is not written to in the current system.
+    const sql = getSqlClient();
+    const rows = await sql<Array<{
+      id: string;
+      etapa: string;
+      status: string;
+      executado_em: string | null;
+    }>>`
+      SELECT id, etapa, status, executado_em
+      FROM pedido_pipeline_snapshot
+      WHERE pedido_id = ${pedidoId}
+      ORDER BY executado_em DESC, versao DESC
+    `;
+
+    const descricaoPorStatus: Record<string, string> = {
+      concluido: "concluído com sucesso.",
+      em_andamento: "em processamento.",
+      erro: "concluído com erro.",
+      mock_controlado: "mantido em mock controlado.",
+      pendente: "aguardando execução.",
+    };
+
     return rows.map((r) => ({
-      id: r.id,
-      pedidoId: r.pedidoId ?? "",
+      id: `HIST-${r.id}`,
       etapa: r.etapa as EtapaPipeline,
-      descricao: r.descricao,
-      data: r.data.toISOString(),
-      responsavel: r.responsavel ?? "",
+      descricao: `${r.etapa.replaceAll("_", " ")}: ${descricaoPorStatus[r.status] ?? "processado."}`,
+      data: r.executado_em ?? new Date().toISOString(),
+      responsavel: "Sistema",
     }));
   }
 
@@ -124,6 +136,8 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
       etapaAtual: "classificacao",
       responsavel: "Distribuição automática",
       prazoFinal: new Date(payload.prazoFinal),
+      intencaoProcessual: payload.intencaoProcessual ?? null,
+      documentoOrigemId: payload.documentoOrigemId ?? null,
     });
 
     return this.obterPedidoPorId(novoId) as Promise<PedidoDePeca>;

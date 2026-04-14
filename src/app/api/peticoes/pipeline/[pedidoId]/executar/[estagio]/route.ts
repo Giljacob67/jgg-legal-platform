@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isAIAvailable } from "@/lib/ai/provider";
+import { isAIAvailable, } from "@/lib/ai/provider";
 import {
   executarEstagioComIA,
   type EstagioExecutavel,
@@ -18,6 +18,9 @@ import {
 } from "@/modules/peticoes/domain/geracao-minuta";
 import type { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { buscarChunksRelevantes } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
+import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
+import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
+import { verificarRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 300; // Vercel Pro: até 300s para streaming
 
@@ -28,6 +31,9 @@ const ESTAGIOS_VALIDOS: EstagioExecutavel[] = [
   "estrategia",
   "minuta",
 ];
+
+// Perfis que podem executar estágios de IA no pipeline
+const PERFIS_EXECUCAO_PIPELINE = ["advogado", "coordenador_juridico", "socio_direcao", "administrador_sistema"] as const;
 
 type Pipeline = Awaited<ReturnType<typeof obterPipelineDoPedido>>;
 
@@ -74,8 +80,13 @@ export async function POST(
   { params }: { params: Promise<{ pedidoId: string; estagio: string }> },
 ) {
   const session = await auth();
-  if (!session) {
+  if (!session?.user) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
+  const perfil = resolverPerfilUsuario(session.user.role as string | undefined);
+  if (!PERFIS_EXECUCAO_PIPELINE.includes(perfil as typeof PERFIS_EXECUCAO_PIPELINE[number])) {
+    return NextResponse.json({ error: "Perfil sem permissão para executar o pipeline." }, { status: 403 });
   }
 
   if (!isAIAvailable()) {
@@ -93,6 +104,34 @@ export async function POST(
         error: `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}`,
       },
       { status: 400 },
+    );
+  }
+
+  // Rate limiting: 20 execuções de IA por hora por usuário
+  const rl = verificarRateLimit(session.user.id, "pipeline-ia", 20);
+  if (!rl.permitido) {
+    const resetMin = Math.ceil(rl.resetEmMs / 60000);
+    return NextResponse.json(
+      { error: `Limite de execuções de IA atingido. Tente novamente em ${resetMin} minuto(s).` },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.resetEmMs / 1000)) },
+      },
+    );
+  }
+
+  // Validar que o pedido existe (e opcionalmente que pertence ao usuário)
+  const pedido = await obterPedidoDePeca(pedidoId);
+  if (!pedido) {
+    return NextResponse.json({ error: "Pedido não encontrado." }, { status: 404 });
+  }
+
+  // Verificar ownership: advogados só podem executar em seus próprios pedidos
+  // Coordenadores, sócios e admins podem executar em qualquer pedido
+  if (perfil === "advogado" && pedido.responsavel && pedido.responsavel !== session.user.name) {
+    return NextResponse.json(
+      { error: "Acesso negado. Este pedido não está atribuído ao seu usuário." },
+      { status: 403 },
     );
   }
 

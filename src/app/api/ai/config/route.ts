@@ -4,15 +4,15 @@ import {
   getConfigAtual,
   isAIAvailable,
 } from "@/lib/ai/provider";
-import { requireAuth } from "@/lib/api-auth";
+import { requireRole } from "@/lib/api-auth";
 
 /**
  * GET /api/ai/config
  * Retorna configuração atual do provedor IA e catálogo de modelos disponíveis.
  */
 export async function GET() {
-  const unauth = await requireAuth();
-  if (unauth) return unauth;
+  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  if (forbidden) return forbidden;
 
   const configAtual = getConfigAtual();
 

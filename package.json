@@ -13,7 +13,9 @@
     "test:e2e": "playwright test",
     "db:migrate": "node scripts/run-migrations.mjs",
     "db:seed": "node scripts/seed.mjs",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.66",
