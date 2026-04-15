@@ -49,6 +49,7 @@ export default async function ConfiguracoesPage() {
               "OPENROUTER_API_KEY",
               "KILO_API_KEY",
               "OLLAMA_BASE_URL",
+              "OLLAMA_API_KEY",
               "BLOB_READ_WRITE_TOKEN",
             ].map((v) => (
               <li key={v} className="flex items-center gap-2">

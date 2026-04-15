@@ -567,7 +567,7 @@ export function getProvedor(): ProvedorIA {
   if (process.env.GROQ_API_KEY) return "groq";
   if (process.env.XAI_API_KEY) return "xai";
   if (process.env.MISTRAL_API_KEY) return "mistral";
-  if (process.env.OLLAMA_BASE_URL) return "ollama";
+  if (process.env.OLLAMA_BASE_URL || process.env.OLLAMA_API_KEY) return "ollama";
   return "openai";
 }
 
@@ -628,8 +628,12 @@ export function getLLM(modeloOverride?: string): LanguageModel {
 
     case "ollama": {
       const baseURL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+      const headers: Record<string, string> = {};
+      if (process.env.OLLAMA_API_KEY) {
+        headers["Authorization"] = `Bearer ${process.env.OLLAMA_API_KEY}`;
+      }
       // ollama-ai-provider retorna LanguageModelV1 — cast via unknown para compatibilidade
-      return createOllama({ baseURL })(modeloId) as unknown as LanguageModel;
+      return createOllama({ baseURL, headers })(modeloId) as unknown as LanguageModel;
     }
 
     case "openrouter": {
@@ -684,7 +688,8 @@ export function isAIAvailable(): boolean {
     process.env.GROQ_API_KEY ||
     process.env.XAI_API_KEY ||
     process.env.MISTRAL_API_KEY ||
-    process.env.OLLAMA_BASE_URL
+    process.env.OLLAMA_BASE_URL ||
+    process.env.OLLAMA_API_KEY
   );
 }
 

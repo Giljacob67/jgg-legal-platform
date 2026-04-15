@@ -47,8 +47,8 @@ const GRUPOS_PROVEDORES: GrupoProvedor[] = [
   {
     label: "Local (sem custo de API)",
     provedores: ["ollama"],
-    envVar: "OLLAMA_BASE_URL (padrão: http://localhost:11434)",
-    obs: "Requer Ollama instalado localmente. Nenhum dado sai da sua máquina.",
+    envVar: "OLLAMA_BASE_URL · OLLAMA_API_KEY (opcional, para Ollama Pro ou instâncias remotas)",
+    obs: "Local: sem custo, nenhum dado sai da máquina. Remoto/Pro: configure OLLAMA_BASE_URL + OLLAMA_API_KEY.",
   },
 ];
 
