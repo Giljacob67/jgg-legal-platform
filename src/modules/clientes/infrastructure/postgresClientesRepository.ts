@@ -16,7 +16,7 @@ function nextId(): string {
 function mapRow(row: typeof clientesTable.$inferSelect): Cliente {
   let endereco: Endereco | undefined;
   if (row.enderecoJson) {
-    try { endereco = JSON.parse(row.enderecoJson) as Endereco; } catch { /* ignorar */ }
+    endereco = row.enderecoJson as Endereco;
   }
   return {
     id: row.id,
@@ -65,7 +65,7 @@ export class PostgresClientesRepository implements ClientesRepository {
       cpfCnpj: payload.cpfCnpj ?? null,
       email: payload.email ?? null,
       telefone: payload.telefone ?? null,
-      enderecoJson: payload.endereco ? JSON.stringify(payload.endereco) : null,
+      enderecoJson: payload.endereco ?? null,
       status: payload.status ?? "ativo",
       responsavelId: payload.responsavelId ?? null,
       anotacoes: payload.anotacoes ?? null,
@@ -83,7 +83,7 @@ export class PostgresClientesRepository implements ClientesRepository {
     if (dados.cpfCnpj !== undefined) updates.cpfCnpj = dados.cpfCnpj;
     if (dados.email !== undefined) updates.email = dados.email;
     if (dados.telefone !== undefined) updates.telefone = dados.telefone;
-    if (dados.endereco !== undefined) updates.enderecoJson = JSON.stringify(dados.endereco);
+    if (dados.endereco !== undefined) updates.enderecoJson = dados.endereco;
     if (dados.status !== undefined) updates.status = dados.status;
     if (dados.responsavelId !== undefined) updates.responsavelId = dados.responsavelId;
     if (dados.anotacoes !== undefined) updates.anotacoes = dados.anotacoes;

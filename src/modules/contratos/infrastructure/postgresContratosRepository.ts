@@ -19,11 +19,11 @@ function mapRow(row: typeof contratosTable.$inferSelect): Contrato {
   let clausulas: Clausula[] = [];
   let versoes: VersaoContrato[] = [];
   let analiseRisco: AnaliseRiscoContrato | undefined;
-  try { partes = JSON.parse(row.partesJson) as ParteContrato[]; } catch { /* ignorar */ }
-  try { clausulas = JSON.parse(row.clausulasJson) as Clausula[]; } catch { /* ignorar */ }
-  try { versoes = JSON.parse(row.versoesJson) as VersaoContrato[]; } catch { /* ignorar */ }
+  partes = (row.partesJson as ParteContrato[]) ?? [];
+  clausulas = (row.clausulasJson as Clausula[]) ?? [];
+  versoes = (row.versoesJson as VersaoContrato[]) ?? [];
   if (row.analiseRiscoJson) {
-    try { analiseRisco = JSON.parse(row.analiseRiscoJson) as AnaliseRiscoContrato; } catch { /* ignorar */ }
+    analiseRisco = row.analiseRiscoJson as AnaliseRiscoContrato;
   }
 
   return {
@@ -78,13 +78,13 @@ export class PostgresContratosRepository implements ContratosRepository {
       tipo: payload.tipo,
       status: "rascunho",
       objeto: payload.objeto,
-      partesJson: JSON.stringify(payload.partes),
-      clausulasJson: "[]",
+      partesJson: payload.partes,
+      clausulasJson: [],
       valorReais: payload.valorReais ?? null,
       vigenciaInicio: payload.vigenciaInicio ?? null,
       vigenciaFim: payload.vigenciaFim ?? null,
       conteudoAtual: "",
-      versoesJson: "[]",
+      versoesJson: [],
       responsavelId: null,
       analiseRiscoJson: null,
       criadoEm: agora,
@@ -110,7 +110,7 @@ export class PostgresContratosRepository implements ContratosRepository {
     await db
       .update(contratosTable)
       .set({
-        analiseRiscoJson: analise ? JSON.stringify(analise) : null,
+        analiseRiscoJson: analise ?? null,
         atualizadoEm: new Date(),
       })
       .where(eq(contratosTable.id, id));

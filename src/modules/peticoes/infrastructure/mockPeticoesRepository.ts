@@ -36,7 +36,7 @@ export class MockPeticoesRepository implements PeticoesRepository {
   // ──────────────────────────────────────────────────────────────
   // PEDIDOS DE PEÇA (12 pedidos cobrindo todos os tipos)
   // ──────────────────────────────────────────────────────────────
-  private readonly pedidos: PedidoDePeca[] = [
+  private pedidos: PedidoDePeca[] = [
     // 1. Petição Inicial — CAS-001
     {
       id: "PED-2026-001",
@@ -673,8 +673,7 @@ export class MockPeticoesRepository implements PeticoesRepository {
 
   async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
     const novoId = `PED-MOCK-${Math.floor(Math.random() * 9000) + 1000}`;
-
-    return Promise.resolve({
+    const novoPedido: PedidoDePeca = {
       id: novoId,
       casoId: payload.casoId,
       titulo: payload.titulo,
@@ -685,7 +684,9 @@ export class MockPeticoesRepository implements PeticoesRepository {
       responsavel: "Distribuição automática",
       prazoFinal: payload.prazoFinal,
       criadoEm: new Date().toISOString(),
-    });
+    };
+    this.pedidos = [...this.pedidos, novoPedido];
+    return Promise.resolve(novoPedido);
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {

@@ -36,7 +36,7 @@ export const ExtracaoFatosSchema = z.object({
   ),
   prazo_prescricional: z.string().optional(),
   prazo_decadencial: z.string().optional(),
-  dados_especificos_materia: z.record(z.unknown()).optional(),
+  dados_especificos_materia: z.record(z.string(), z.unknown()).optional(),
   observacoes: z.string().optional(),
 });
 

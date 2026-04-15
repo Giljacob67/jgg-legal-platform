@@ -7,6 +7,7 @@ import {
   varchar,
   uuid,
   integer,
+  bigint,
   boolean,
   customType,
   jsonb,

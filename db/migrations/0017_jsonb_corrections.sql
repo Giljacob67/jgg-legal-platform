@@ -1,8 +1,14 @@
 -- Migration 0017: converter campos text → jsonb onde o banco já armazenava JSON
 -- Corrige mismatch entre schema Drizzle (text) e banco real (jsonb conforme migration 0014).
 -- Feito com USING para conversão segura do conteúdo existente.
+-- NOTA: defaults '[]'::text são dropados antes e recolocados como '[]'::jsonb após conversão.
 
 -- ── contratos ──────────────────────────────────────────────────────────────────
+
+ALTER TABLE contratos
+  ALTER COLUMN partes_json DROP DEFAULT,
+  ALTER COLUMN clausulas_json DROP DEFAULT,
+  ALTER COLUMN versoes_json DROP DEFAULT;
 
 ALTER TABLE contratos
   ALTER COLUMN partes_json TYPE JSONB
@@ -30,7 +36,16 @@ ALTER TABLE contratos
       ELSE NULL
     END;
 
+ALTER TABLE contratos
+  ALTER COLUMN partes_json SET DEFAULT '[]'::jsonb,
+  ALTER COLUMN clausulas_json SET DEFAULT '[]'::jsonb,
+  ALTER COLUMN versoes_json SET DEFAULT '[]'::jsonb;
+
 -- ── jurisprudencia ────────────────────────────────────────────────────────────
+
+ALTER TABLE jurisprudencia
+  ALTER COLUMN materias_json DROP DEFAULT,
+  ALTER COLUMN fundamentos_legais_json DROP DEFAULT;
 
 ALTER TABLE jurisprudencia
   ALTER COLUMN materias_json TYPE JSONB
@@ -45,6 +60,10 @@ ALTER TABLE jurisprudencia
       WHEN fundamentos_legais_json ~ '^\s*[\[\{]' THEN fundamentos_legais_json::jsonb
       ELSE '[]'::jsonb
     END;
+
+ALTER TABLE jurisprudencia
+  ALTER COLUMN materias_json SET DEFAULT '[]'::jsonb,
+  ALTER COLUMN fundamentos_legais_json SET DEFAULT '[]'::jsonb;
 
 -- ── clientes ──────────────────────────────────────────────────────────────────
 

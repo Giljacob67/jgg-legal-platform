@@ -9,8 +9,8 @@ export type JurisprudenciaRepository = InstanceType<typeof MockJurisprudenciaRep
 function mapRow(row: typeof jurisprudenciaTable.$inferSelect): Jurisprudencia {
   let materias: string[] = [];
   let fundamentosLegais: string[] = [];
-  try { materias = JSON.parse(row.materiasJson) as string[]; } catch { /* ignorar */ }
-  try { fundamentosLegais = JSON.parse(row.fundamentosLegaisJson) as string[]; } catch { /* ignorar */ }
+  materias = (row.materiasJson as string[]) ?? [];
+  fundamentosLegais = (row.fundamentosLegaisJson as string[]) ?? [];
 
   return {
     id: row.id,
@@ -87,9 +87,9 @@ export class PostgresJurisprudenciaRepository implements JurisprudenciaRepositor
       relator: dados.relator ?? null,
       dataJulgamento: dados.dataJulgamento ?? null,
       tipo: dados.tipo,
-      materiasJson: JSON.stringify(dados.materias),
+      materiasJson: dados.materias,
       tese: dados.tese ?? null,
-      fundamentosLegaisJson: JSON.stringify(dados.fundamentosLegais),
+      fundamentosLegaisJson: dados.fundamentosLegais,
       urlOrigem: dados.urlOrigem ?? null,
       relevancia: dados.relevancia,
     });

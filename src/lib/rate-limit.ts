@@ -59,6 +59,11 @@ export function verificarRateLimit(
  * Limpa buckets expirados para evitar memory leak em processos de longa duração.
  * Chamar periodicamente se necessário (ex: em cron ou a cada N requests).
  */
+/** Apenas para uso em testes — apaga todos os buckets sem verificar expiração. */
+export function _resetBuckets(): void {
+  buckets.clear();
+}
+
 export function limparBucketsExpirados(): void {
   const agora = Date.now();
   const janelaMs = 60 * 60 * 1000;

@@ -3,19 +3,18 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 // rate-limit uses "server-only" which is a Next.js guard. Mock it to run in Vitest.
 vi.mock("server-only", () => ({}));
 
-const { verificarRateLimit, limparBucketsExpirados } = await import("@/lib/rate-limit");
+const { verificarRateLimit, limparBucketsExpirados, _resetBuckets } = await import("@/lib/rate-limit");
 
 describe("verificarRateLimit", () => {
   const userId = "user-test-123";
   const key = "test-action";
 
   beforeEach(() => {
-    // Reset the module between tests so bucket state is clean
-    limparBucketsExpirados();
+    _resetBuckets();
   });
 
   afterEach(() => {
-    limparBucketsExpirados();
+    _resetBuckets();
   });
 
   it("deve permitir a primeira chamada", () => {
