@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { ListaUsuarios } from "@/modules/administracao/ui/lista-usuarios";
@@ -6,9 +7,12 @@ import { listarUsuarios } from "@/modules/administracao/application";
 import { auth } from "@/lib/auth";
 import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
 
+const PERFIS_ADMIN = ["administrador_sistema", "socio_direcao"];
+
 export default async function UsuariosPage() {
   const [usuarios, session] = await Promise.all([listarUsuarios(), auth()]);
   const perfilAtual = resolverPerfilUsuario(session?.user?.role as string | undefined);
+  if (!PERFIS_ADMIN.includes(perfilAtual)) redirect("/sem-permissao");
 
   return (
     <div className="space-y-6">

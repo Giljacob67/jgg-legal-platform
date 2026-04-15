@@ -1,10 +1,18 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { listarUsuarios, listarAuditoria, obterConfiguracoes } from "@/modules/administracao/application";
-import { LABEL_PERFIL } from "@/modules/administracao/domain/types";
+import { LABEL_PERFIL, resolverPerfilUsuario } from "@/modules/administracao/domain/types";
+import { auth } from "@/lib/auth";
 import Link from "next/link";
 
+const PERFIS_ADMIN = ["administrador_sistema", "socio_direcao"];
+
 export default async function AdministracaoPage() {
+  const session = await auth();
+  const perfil = resolverPerfilUsuario(session?.user?.role as string | undefined);
+  if (!PERFIS_ADMIN.includes(perfil)) redirect("/sem-permissao");
+
   const [usuarios, auditoria, configuracoes] = await Promise.all([
     listarUsuarios(),
     listarAuditoria(5),

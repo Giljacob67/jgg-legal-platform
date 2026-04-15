@@ -1,11 +1,18 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { ConfiguracoesIA } from "@/modules/administracao/ui/configuracoes-ia";
 import { obterConfiguracoes } from "@/modules/administracao/application";
 import { MODELOS_CATALOGADOS } from "@/lib/ai/provider";
+import { auth } from "@/lib/auth";
+import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
+
+const PERFIS_ADMIN = ["administrador_sistema", "socio_direcao"];
 
 export default async function ConfiguracoesPage() {
-  const configuracoes = await obterConfiguracoes();
+  const [configuracoes, session] = await Promise.all([obterConfiguracoes(), auth()]);
+  const perfil = resolverPerfilUsuario(session?.user?.role as string | undefined);
+  if (!PERFIS_ADMIN.includes(perfil)) redirect("/sem-permissao");
 
   return (
     <div className="space-y-6">
