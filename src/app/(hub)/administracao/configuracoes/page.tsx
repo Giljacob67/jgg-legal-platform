@@ -35,7 +35,22 @@ export default async function ConfiguracoesPage() {
         <div className="space-y-2 text-sm text-[var(--color-muted)]">
           <p>As variáveis abaixo são lidas diretamente do ambiente e não podem ser alteradas pela interface:</p>
           <ul className="mt-2 space-y-1 font-mono text-xs">
-            {["DATABASE_URL", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "KILO_API_KEY", "AI_PROVIDER", "AI_MODEL", "DATA_MODE"].map((v) => (
+            {[
+              "DATABASE_URL",
+              "AI_PROVIDER",
+              "AI_MODEL",
+              "DATA_MODE",
+              "OPENAI_API_KEY",
+              "ANTHROPIC_API_KEY",
+              "GOOGLE_GENERATIVE_AI_API_KEY",
+              "GROQ_API_KEY",
+              "XAI_API_KEY",
+              "MISTRAL_API_KEY",
+              "OPENROUTER_API_KEY",
+              "KILO_API_KEY",
+              "OLLAMA_BASE_URL",
+              "BLOB_READ_WRITE_TOKEN",
+            ].map((v) => (
               <li key={v} className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
                 {v}

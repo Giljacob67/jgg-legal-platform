@@ -1,27 +1,37 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
+import { createXai } from "@ai-sdk/xai";
+import { createMistral } from "@ai-sdk/mistral";
+import { createOllama } from "ollama-ai-provider";
 import type { LanguageModel } from "ai";
 
 /**
  * Catálogo de modelos suportados na plataforma JGG.
- * Cada modelo tem um ID, label de exibição, provedor e características.
  */
 export interface ModeloCatalogo {
   id: string;
   label: string;
-  provedor: "openai" | "openrouter" | "kilocode" | "anthropic" | "google";
-  /** Slug para exibição amigável do provedor */
+  provedor: ProvedorIA;
   provedorLabel: string;
   descricao: string;
-  /** Capacidades: suporta visão? suporta structured output? */
   suportaVisao: boolean;
   suportaStructuredOutput: boolean;
-  /** Tier de custo relativo */
-  custo: "gratuito" | "baixo" | "medio" | "alto";
-  /** Adequado para tarefas jurídicas complexas */
+  custo: "gratuito" | "baixo" | "medio" | "alto" | "local";
   recomendado: boolean;
 }
+
+export type ProvedorIA =
+  | "openai"
+  | "openrouter"
+  | "kilocode"
+  | "anthropic"
+  | "google"
+  | "groq"
+  | "xai"
+  | "mistral"
+  | "ollama";
 
 export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
   // ── OpenAI ──────────────────────────────────────────────────────────
@@ -38,7 +48,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
   },
   {
     id: "gpt-4o-mini",
-    label: "GPT-4o Mini",
+    label: "GPT-4o Mini ⭐",
     provedor: "openai",
     provedorLabel: "OpenAI",
     descricao: "Versão rápida e econômica. Ideal para triagem, sugestões e extração de fatos.",
@@ -69,13 +79,283 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     custo: "baixo",
     recomendado: true,
   },
+  {
+    id: "o4-mini",
+    label: "o4-mini",
+    provedor: "openai",
+    provedorLabel: "OpenAI",
+    descricao: "Modelo de raciocínio econômico da OpenAI. Ótimo para análise jurídica estruturada.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: false,
+  },
+  // ── Anthropic Direto ─────────────────────────────────────────────────
+  {
+    id: "claude-opus-4-5",
+    label: "Claude Opus 4.5",
+    provedor: "anthropic",
+    provedorLabel: "Anthropic",
+    descricao: "Modelo mais poderoso da Anthropic via API direta. Máxima qualidade para petições complexas.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "alto",
+    recomendado: true,
+  },
+  {
+    id: "claude-sonnet-4-5",
+    label: "Claude Sonnet 4.5 ⭐",
+    provedor: "anthropic",
+    provedorLabel: "Anthropic",
+    descricao: "Melhor equilíbrio qualidade/custo via API direta Anthropic.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: true,
+  },
+  {
+    id: "claude-haiku-4-5",
+    label: "Claude Haiku 4.5",
+    provedor: "anthropic",
+    provedorLabel: "Anthropic",
+    descricao: "Rápido e econômico. Ideal para triagem, sugestões e extração de fatos.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  // ── Google Direto ─────────────────────────────────────────────────────
+  {
+    id: "gemini-2.5-pro-preview-05-06",
+    label: "Gemini 2.5 Pro",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Modelo mais avançado do Google. Raciocínio de alta qualidade e contexto longo.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "alto",
+    recomendado: true,
+  },
+  {
+    id: "gemini-2.0-flash",
+    label: "Gemini 2.0 Flash ⭐",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Muito rápido e econômico. Ideal para processar grandes volumes de documentos.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: true,
+  },
+  {
+    id: "gemini-2.0-flash-lite",
+    label: "Gemini 2.0 Flash Lite",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Versão mais leve do Flash. Excelente custo-benefício para tarefas simples.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  {
+    id: "gemini-1.5-flash",
+    label: "Gemini 1.5 Flash",
+    provedor: "google",
+    provedorLabel: "Google AI",
+    descricao: "Geração anterior do Flash. Contexto longo e econômico.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  // ── Groq ─────────────────────────────────────────────────────────────
+  {
+    id: "llama-3.3-70b-versatile",
+    label: "Llama 3.3 70B ⭐",
+    provedor: "groq",
+    provedorLabel: "Groq",
+    descricao: "Llama 3.3 rodando na infraestrutura ultra-rápida do Groq. Ótimo custo-benefício.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: true,
+  },
+  {
+    id: "llama-3.1-8b-instant",
+    label: "Llama 3.1 8B Instant",
+    provedor: "groq",
+    provedorLabel: "Groq",
+    descricao: "Modelo pequeno e extremamente rápido. Para triagem e respostas instantâneas.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  {
+    id: "mixtral-8x7b-32768",
+    label: "Mixtral 8x7B",
+    provedor: "groq",
+    provedorLabel: "Groq",
+    descricao: "Modelo MoE da Mistral via Groq. Bom desempenho com contexto longo (32k).",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  {
+    id: "gemma2-9b-it",
+    label: "Gemma 2 9B",
+    provedor: "groq",
+    provedorLabel: "Groq",
+    descricao: "Modelo Google Gemma 2 via Groq. Rápido e eficiente para análises simples.",
+    suportaVisao: false,
+    suportaStructuredOutput: false,
+    custo: "baixo",
+    recomendado: false,
+  },
+  // ── xAI / Grok ───────────────────────────────────────────────────────
+  {
+    id: "grok-3",
+    label: "Grok 3 ⭐",
+    provedor: "xai",
+    provedorLabel: "xAI",
+    descricao: "Modelo mais capaz da xAI. Raciocínio avançado com acesso a dados em tempo real.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "alto",
+    recomendado: true,
+  },
+  {
+    id: "grok-3-mini",
+    label: "Grok 3 Mini",
+    provedor: "xai",
+    provedorLabel: "xAI",
+    descricao: "Versão econômica do Grok 3. Boa relação custo-benefício para tarefas do dia a dia.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: false,
+  },
+  {
+    id: "grok-2",
+    label: "Grok 2",
+    provedor: "xai",
+    provedorLabel: "xAI",
+    descricao: "Geração anterior. Ainda capaz e mais econômico que o Grok 3.",
+    suportaVisao: true,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: false,
+  },
+  // ── Mistral Direto ───────────────────────────────────────────────────
+  {
+    id: "mistral-large-latest",
+    label: "Mistral Large ⭐",
+    provedor: "mistral",
+    provedorLabel: "Mistral AI",
+    descricao: "Modelo mais capaz da Mistral. Excelente em português e análise jurídica estruturada.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: true,
+  },
+  {
+    id: "mistral-small-latest",
+    label: "Mistral Small",
+    provedor: "mistral",
+    provedorLabel: "Mistral AI",
+    descricao: "Versão econômica do Mistral. Boa para triagem e extração de fatos.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  {
+    id: "codestral-latest",
+    label: "Codestral",
+    provedor: "mistral",
+    provedorLabel: "Mistral AI",
+    descricao: "Especializado em código. Útil para automações e scripts jurídicos.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "baixo",
+    recomendado: false,
+  },
+  // ── Ollama (local) ───────────────────────────────────────────────────
+  {
+    id: "llama3.3",
+    label: "Llama 3.3 (local)",
+    provedor: "ollama",
+    provedorLabel: "Ollama",
+    descricao: "Llama 3.3 rodando localmente via Ollama. Sem custo, sem envio de dados.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "local",
+    recomendado: true,
+  },
+  {
+    id: "llama3.2",
+    label: "Llama 3.2 (local)",
+    provedor: "ollama",
+    provedorLabel: "Ollama",
+    descricao: "Modelo leve e rápido para rodar localmente. Ideal para desenvolvimento.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "local",
+    recomendado: false,
+  },
+  {
+    id: "qwen2.5:14b",
+    label: "Qwen 2.5 14B (local)",
+    provedor: "ollama",
+    provedorLabel: "Ollama",
+    descricao: "Qwen 2.5 14B rodando localmente. Excelente em tarefas de análise de texto em português.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "local",
+    recomendado: true,
+  },
+  {
+    id: "deepseek-r1:8b",
+    label: "DeepSeek R1 8B (local)",
+    provedor: "ollama",
+    provedorLabel: "Ollama",
+    descricao: "Modelo de raciocínio local. Bom para análises lógicas sem custo de API.",
+    suportaVisao: false,
+    suportaStructuredOutput: false,
+    custo: "local",
+    recomendado: false,
+  },
+  {
+    id: "mistral",
+    label: "Mistral 7B (local)",
+    provedor: "ollama",
+    provedorLabel: "Ollama",
+    descricao: "Mistral 7B rodando localmente. Rápido e eficiente para a maioria das tarefas.",
+    suportaVisao: false,
+    suportaStructuredOutput: false,
+    custo: "local",
+    recomendado: false,
+  },
+  {
+    id: "phi4",
+    label: "Phi-4 (local)",
+    provedor: "ollama",
+    provedorLabel: "Ollama",
+    descricao: "Modelo compacto da Microsoft. Surpreendente para seu tamanho, roda em hardware modesto.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "local",
+    recomendado: false,
+  },
   // ── OpenRouter → Anthropic ───────────────────────────────────────────
   {
     id: "anthropic/claude-opus-4-5",
     label: "Claude Opus 4.5",
     provedor: "openrouter",
     provedorLabel: "Anthropic via OpenRouter",
-    descricao: "Modelo mais poderoso do Claude. Máxima qualidade para petições complexas e análise de contratos.",
+    descricao: "Modelo mais poderoso do Claude via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "alto",
@@ -86,7 +366,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Claude Sonnet 4.5 ⭐",
     provedor: "openrouter",
     provedorLabel: "Anthropic via OpenRouter",
-    descricao: "Melhor equilíbrio qualidade/custo. Recomendado para redação jurídica e análise de documentos.",
+    descricao: "Melhor equilíbrio qualidade/custo via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "medio",
@@ -97,7 +377,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Claude 3.5 Sonnet",
     provedor: "openrouter",
     provedorLabel: "Anthropic via OpenRouter",
-    descricao: "Geração anterior do Sonnet. Excelente para redação jurídica e análise de documentos longos.",
+    descricao: "Geração anterior do Sonnet. Excelente para documentos longos.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "medio",
@@ -108,20 +388,9 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Claude 3.5 Haiku",
     provedor: "openrouter",
     provedorLabel: "Anthropic via OpenRouter",
-    descricao: "Rápido e econômico. Ótimo para triagem, correções e sugestões inline no editor.",
+    descricao: "Rápido e econômico para triagem e sugestões.",
     suportaVisao: true,
     suportaStructuredOutput: true,
-    custo: "baixo",
-    recomendado: false,
-  },
-  {
-    id: "anthropic/claude-3-haiku",
-    label: "Claude 3 Haiku",
-    provedor: "openrouter",
-    provedorLabel: "Anthropic via OpenRouter",
-    descricao: "Versão legada, muito econômica. Adequada para tarefas simples de extração de texto.",
-    suportaVisao: false,
-    suportaStructuredOutput: false,
     custo: "baixo",
     recomendado: false,
   },
@@ -131,7 +400,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Gemini 2.5 Pro",
     provedor: "openrouter",
     provedorLabel: "Google via OpenRouter",
-    descricao: "Modelo mais avançado do Google. Raciocínio de alta qualidade e contexto longo.",
+    descricao: "Modelo mais avançado do Google via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "alto",
@@ -142,7 +411,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Gemini 2.0 Flash",
     provedor: "openrouter",
     provedorLabel: "Google via OpenRouter",
-    descricao: "Muito rápido, contexto longo. Ideal para processar grandes volumes de documentos.",
+    descricao: "Muito rápido, contexto longo, via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "baixo",
@@ -153,7 +422,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Gemini 2.0 Flash Lite (Gratuito)",
     provedor: "openrouter",
     provedorLabel: "Google via OpenRouter",
-    descricao: "Versão gratuita e leve do Gemini. Ótimo para testes e tarefas simples.",
+    descricao: "Versão gratuita e leve do Gemini via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: false,
     custo: "gratuito",
@@ -165,7 +434,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Llama 4 Maverick",
     provedor: "openrouter",
     provedorLabel: "Meta via OpenRouter",
-    descricao: "Modelo mais avançado da Meta. Excelente raciocínio e suporte a contexto longo.",
+    descricao: "Modelo mais avançado da Meta via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "medio",
@@ -176,21 +445,10 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Llama 4 Scout (Gratuito)",
     provedor: "openrouter",
     provedorLabel: "Meta via OpenRouter",
-    descricao: "Modelo gratuito e capaz da Meta. Ótima opção para testes sem custo.",
+    descricao: "Modelo gratuito e capaz da Meta via OpenRouter.",
     suportaVisao: true,
     suportaStructuredOutput: false,
     custo: "gratuito",
-    recomendado: false,
-  },
-  {
-    id: "meta-llama/llama-3.1-70b-instruct",
-    label: "Llama 3.1 70B",
-    provedor: "openrouter",
-    provedorLabel: "Meta via OpenRouter",
-    descricao: "Open source poderoso. Boa opção para quem prefere não usar modelos proprietários.",
-    suportaVisao: false,
-    suportaStructuredOutput: false,
-    custo: "baixo",
     recomendado: false,
   },
   // ── OpenRouter → Mistral ─────────────────────────────────────────────
@@ -199,21 +457,10 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Mistral Small 3.2",
     provedor: "openrouter",
     provedorLabel: "Mistral via OpenRouter",
-    descricao: "Excelente em português. Bom custo-benefício para tarefas jurídicas de médio porte.",
+    descricao: "Excelente em português. Bom custo-benefício via OpenRouter.",
     suportaVisao: false,
     suportaStructuredOutput: true,
     custo: "baixo",
-    recomendado: false,
-  },
-  {
-    id: "mistralai/mistral-large",
-    label: "Mistral Large",
-    provedor: "openrouter",
-    provedorLabel: "Mistral via OpenRouter",
-    descricao: "Versão anterior, grande e capaz. Bom para análises jurídicas detalhadas.",
-    suportaVisao: false,
-    suportaStructuredOutput: true,
-    custo: "medio",
     recomendado: false,
   },
   // ── OpenRouter → DeepSeek ────────────────────────────────────────────
@@ -222,7 +469,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "DeepSeek V3 (Mar/2025)",
     provedor: "openrouter",
     provedorLabel: "DeepSeek via OpenRouter",
-    descricao: "Versão mais recente do DeepSeek. Raciocínio avançado com custo muito baixo.",
+    descricao: "Versão mais recente do DeepSeek via OpenRouter.",
     suportaVisao: false,
     suportaStructuredOutput: true,
     custo: "baixo",
@@ -233,21 +480,10 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "DeepSeek R1 (Gratuito)",
     provedor: "openrouter",
     provedorLabel: "DeepSeek via OpenRouter",
-    descricao: "Modelo de raciocínio gratuito. Bom para análise lógica e estruturada.",
+    descricao: "Modelo de raciocínio gratuito via OpenRouter.",
     suportaVisao: false,
     suportaStructuredOutput: false,
     custo: "gratuito",
-    recomendado: false,
-  },
-  {
-    id: "deepseek/deepseek-chat",
-    label: "DeepSeek V3 (legado)",
-    provedor: "openrouter",
-    provedorLabel: "DeepSeek via OpenRouter",
-    descricao: "Versão anterior do DeepSeek. Custo extremamente baixo com alta capacidade de raciocínio.",
-    suportaVisao: false,
-    suportaStructuredOutput: true,
-    custo: "baixo",
     recomendado: false,
   },
   // ── OpenRouter → Qwen ────────────────────────────────────────────────
@@ -256,7 +492,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Qwen 3.6 Plus (Gratuito)",
     provedor: "openrouter",
     provedorLabel: "Alibaba via OpenRouter",
-    descricao: "Modelo gratuito da Alibaba com boa performance em tarefas de texto em português.",
+    descricao: "Modelo gratuito da Alibaba via OpenRouter.",
     suportaVisao: false,
     suportaStructuredOutput: false,
     custo: "gratuito",
@@ -267,76 +503,8 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Qwen 2.5 72B",
     provedor: "openrouter",
     provedorLabel: "Alibaba via OpenRouter",
-    descricao: "Modelo robusto da Alibaba. Bom desempenho em análise de texto jurídico.",
+    descricao: "Modelo robusto da Alibaba via OpenRouter.",
     suportaVisao: false,
-    suportaStructuredOutput: true,
-    custo: "baixo",
-    recomendado: false,
-  },
-  // ── Anthropic Direto ─────────────────────────────────────────────────
-  {
-    id: "claude-opus-4-5",
-    label: "Claude Opus 4.5 (Direto)",
-    provedor: "anthropic",
-    provedorLabel: "Anthropic",
-    descricao: "Modelo mais poderoso da Anthropic via API direta. Máxima qualidade para petições complexas.",
-    suportaVisao: true,
-    suportaStructuredOutput: true,
-    custo: "alto",
-    recomendado: true,
-  },
-  {
-    id: "claude-sonnet-4-5",
-    label: "Claude Sonnet 4.5 (Direto) ⭐",
-    provedor: "anthropic",
-    provedorLabel: "Anthropic",
-    descricao: "Melhor equilíbrio qualidade/custo via API direta Anthropic. Recomendado para redação jurídica.",
-    suportaVisao: true,
-    suportaStructuredOutput: true,
-    custo: "medio",
-    recomendado: true,
-  },
-  {
-    id: "claude-haiku-4-5",
-    label: "Claude Haiku 4.5 (Direto)",
-    provedor: "anthropic",
-    provedorLabel: "Anthropic",
-    descricao: "Rápido e econômico via API direta. Ideal para triagem, sugestões e extração de fatos.",
-    suportaVisao: true,
-    suportaStructuredOutput: true,
-    custo: "baixo",
-    recomendado: false,
-  },
-  // ── Google Direto ─────────────────────────────────────────────────────
-  {
-    id: "gemini-2.5-pro-preview-05-06",
-    label: "Gemini 2.5 Pro (Direto)",
-    provedor: "google",
-    provedorLabel: "Google AI",
-    descricao: "Modelo mais avançado do Google via API direta. Raciocínio de alta qualidade e contexto longo.",
-    suportaVisao: true,
-    suportaStructuredOutput: true,
-    custo: "alto",
-    recomendado: true,
-  },
-  {
-    id: "gemini-2.0-flash",
-    label: "Gemini 2.0 Flash (Direto) ⭐",
-    provedor: "google",
-    provedorLabel: "Google AI",
-    descricao: "Muito rápido e econômico via API direta. Ideal para processar grandes volumes de documentos.",
-    suportaVisao: true,
-    suportaStructuredOutput: true,
-    custo: "baixo",
-    recomendado: true,
-  },
-  {
-    id: "gemini-1.5-flash",
-    label: "Gemini 1.5 Flash (Direto)",
-    provedor: "google",
-    provedorLabel: "Google AI",
-    descricao: "Geração anterior do Flash. Excelente custo-benefício para tarefas do dia a dia.",
-    suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "baixo",
     recomendado: false,
@@ -347,7 +515,7 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     label: "Claude Sonnet 4.5 (KiloCode)",
     provedor: "kilocode",
     provedorLabel: "KiloCode AI Gateway",
-    descricao: "Claude Sonnet via gateway KiloCode. Mesmo modelo com billing unificado.",
+    descricao: "Claude Sonnet via gateway KiloCode com billing unificado.",
     suportaVisao: true,
     suportaStructuredOutput: true,
     custo: "medio",
@@ -366,123 +534,130 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
   },
 ];
 
-/** Modelo padrão quando nenhum está configurado */
-const MODELO_PADRAO_OPENAI = "gpt-4o-mini";
-const MODELO_PADRAO_OPENROUTER = "anthropic/claude-3.5-sonnet";
-const MODELO_PADRAO_KILOCODE = "anthropic/claude-3.5-sonnet"; // KiloCode suporta os mesmos modelos
-const MODELO_PADRAO_ANTHROPIC = "claude-sonnet-4-5";
-const MODELO_PADRAO_GOOGLE = "gemini-2.0-flash";
+// ── Modelos padrão por provedor ───────────────────────────────────────────────
 
-export type ProvedorIA = "openai" | "openrouter" | "kilocode" | "anthropic" | "google";
+const MODELO_PADRAO: Record<ProvedorIA, string> = {
+  openai: "gpt-4o-mini",
+  openrouter: "anthropic/claude-sonnet-4-5",
+  kilocode: "anthropic/claude-sonnet-4-5",
+  anthropic: "claude-sonnet-4-5",
+  google: "gemini-2.0-flash",
+  groq: "llama-3.3-70b-versatile",
+  xai: "grok-3-mini",
+  mistral: "mistral-large-latest",
+  ollama: "llama3.3",
+};
+
+// ── Tipos e funções públicas ──────────────────────────────────────────────────
 
 /**
- * Retorna o provedor configurado baseado nas variáveis de ambiente.
- * Prioridade: AI_PROVIDER env > detecção automática por chaves disponíveis
- * Ordem de auto-detecção: kilocode > openrouter > openai
+ * Retorna o provedor configurado.
+ * Prioridade: AI_PROVIDER env > detecção automática por chaves disponíveis.
  */
 export function getProvedor(): ProvedorIA {
-  const envProvedor = process.env.AI_PROVIDER as ProvedorIA | undefined;
-  if (envProvedor === "openrouter") return "openrouter";
-  if (envProvedor === "kilocode") return "kilocode";
-  if (envProvedor === "anthropic") return "anthropic";
-  if (envProvedor === "google") return "google";
-  if (envProvedor === "openai") return "openai";
+  const env = process.env.AI_PROVIDER as ProvedorIA | undefined;
+  const provedores: ProvedorIA[] = ["openai", "openrouter", "kilocode", "anthropic", "google", "groq", "xai", "mistral", "ollama"];
+  if (env && provedores.includes(env)) return env;
 
-  // Auto-detectar pela chave disponível
+  // Auto-detecção pela chave disponível
   if (process.env.KILO_API_KEY) return "kilocode";
   if (process.env.OPENROUTER_API_KEY) return "openrouter";
   if (process.env.ANTHROPIC_API_KEY) return "anthropic";
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return "google";
+  if (process.env.GROQ_API_KEY) return "groq";
+  if (process.env.XAI_API_KEY) return "xai";
+  if (process.env.MISTRAL_API_KEY) return "mistral";
+  if (process.env.OLLAMA_BASE_URL) return "ollama";
   return "openai";
 }
 
 /**
  * Retorna o ID do modelo a ser usado.
- * Prioridade: AI_MODEL env > padrão do provedor
+ * Prioridade: AI_MODEL env > padrão do provedor.
  */
 export function getModeloId(): string {
   if (process.env.AI_MODEL) return process.env.AI_MODEL;
-  const provedor = getProvedor();
-  if (provedor === "openrouter") return MODELO_PADRAO_OPENROUTER;
-  if (provedor === "kilocode") return MODELO_PADRAO_KILOCODE;
-  if (provedor === "anthropic") return MODELO_PADRAO_ANTHROPIC;
-  if (provedor === "google") return MODELO_PADRAO_GOOGLE;
-  return MODELO_PADRAO_OPENAI;
+  return MODELO_PADRAO[getProvedor()];
 }
 
 /**
- * Cria e retorna a instância do cliente AI com o provedor configurado.
- * Suporta OpenAI direto, OpenRouter e KiloCode AI Gateway.
- */
-function criarClienteIA() {
-  const provedor = getProvedor();
-
-  if (provedor === "openrouter") {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada.");
-    return createOpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey,
-      headers: {
-        "HTTP-Referer": "https://jgg.adv.br",
-        "X-Title": "JGG Legal Platform",
-      },
-    });
-  }
-
-  if (provedor === "kilocode") {
-    const apiKey = process.env.KILO_API_KEY;
-    if (!apiKey) throw new Error("KILO_API_KEY não configurada.");
-    return createOpenAI({
-      // Gateway OpenAI-compatível do KiloCode
-      // Docs: https://kilo.ai/docs/api-gateway
-      baseURL: "https://api.kilo.ai/api/gateway",
-      apiKey,
-      headers: {
-        "HTTP-Referer": "https://jgg.adv.br",
-        "X-Title": "JGG Legal Platform",
-      },
-    });
-  }
-
-  // Default: OpenAI direto
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY não configurada.");
-  return createOpenAI({ apiKey });
-}
-
-/**
- * Retorna o modelo de linguagem (LLM) configurado, pronto para uso nos agentes.
- * Aceita QUALQUER ID de modelo válido — OpenAI ou qualquer modelo do OpenRouter
- * (incluindo os gratuitos como meta-llama/llama-3.1-8b-instruct:free).
+ * Cria e retorna a instância do LLM configurado, pronto para uso nos agentes.
  *
  * @param modeloOverride - ID explícito do modelo. Se não fornecido, usa AI_MODEL env ou padrão.
- * @example
- * getLLM()                                         // usa env AI_MODEL
- * getLLM("anthropic/claude-3.5-sonnet")             // Claude via OpenRouter
- * getLLM("meta-llama/llama-3.1-8b-instruct:free")  // Llama GRATUITO via OpenRouter
- * getLLM("google/gemini-2.0-flash-lite:free")      // Gemini Flash GRATUITO
  */
 export function getLLM(modeloOverride?: string): LanguageModel {
   const provedor = getProvedor();
   const modeloId = modeloOverride ?? getModeloId();
 
-  if (provedor === "anthropic") {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada.");
-    const anthropic = createAnthropic({ apiKey });
-    return anthropic(modeloId) as LanguageModel;
-  }
+  switch (provedor) {
+    case "openai": {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error("OPENAI_API_KEY não configurada.");
+      return createOpenAI({ apiKey })(modeloId) as LanguageModel;
+    }
 
-  if (provedor === "google") {
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada.");
-    const google = createGoogleGenerativeAI({ apiKey });
-    return google(modeloId) as LanguageModel;
-  }
+    case "anthropic": {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada.");
+      return createAnthropic({ apiKey })(modeloId) as LanguageModel;
+    }
 
-  const cliente = criarClienteIA();
-  return cliente(modeloId) as LanguageModel;
+    case "google": {
+      const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY não configurada.");
+      return createGoogleGenerativeAI({ apiKey })(modeloId) as LanguageModel;
+    }
+
+    case "groq": {
+      const apiKey = process.env.GROQ_API_KEY;
+      if (!apiKey) throw new Error("GROQ_API_KEY não configurada.");
+      return createGroq({ apiKey })(modeloId) as LanguageModel;
+    }
+
+    case "xai": {
+      const apiKey = process.env.XAI_API_KEY;
+      if (!apiKey) throw new Error("XAI_API_KEY não configurada.");
+      return createXai({ apiKey })(modeloId) as LanguageModel;
+    }
+
+    case "mistral": {
+      const apiKey = process.env.MISTRAL_API_KEY;
+      if (!apiKey) throw new Error("MISTRAL_API_KEY não configurada.");
+      return createMistral({ apiKey })(modeloId) as LanguageModel;
+    }
+
+    case "ollama": {
+      const baseURL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+      // ollama-ai-provider retorna LanguageModelV1 — cast via unknown para compatibilidade
+      return createOllama({ baseURL })(modeloId) as unknown as LanguageModel;
+    }
+
+    case "openrouter": {
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada.");
+      return createOpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey,
+        headers: {
+          "HTTP-Referer": "https://jgg.adv.br",
+          "X-Title": "JGG Legal Platform",
+        },
+      })(modeloId) as LanguageModel;
+    }
+
+    case "kilocode": {
+      const apiKey = process.env.KILO_API_KEY;
+      if (!apiKey) throw new Error("KILO_API_KEY não configurada.");
+      return createOpenAI({
+        baseURL: "https://api.kilo.ai/api/gateway",
+        apiKey,
+        headers: {
+          "HTTP-Referer": "https://jgg.adv.br",
+          "X-Title": "JGG Legal Platform",
+        },
+      })(modeloId) as LanguageModel;
+    }
+  }
 }
 
 /**
@@ -497,7 +672,7 @@ export function getEmbeddingModel() {
 }
 
 /**
- * Verifica se IA está disponível (alguma chave configurada)
+ * Verifica se alguma chave de IA está configurada.
  */
 export function isAIAvailable(): boolean {
   return Boolean(
@@ -505,7 +680,11 @@ export function isAIAvailable(): boolean {
     process.env.OPENROUTER_API_KEY ||
     process.env.KILO_API_KEY ||
     process.env.ANTHROPIC_API_KEY ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GROQ_API_KEY ||
+    process.env.XAI_API_KEY ||
+    process.env.MISTRAL_API_KEY ||
+    process.env.OLLAMA_BASE_URL
   );
 }
 
@@ -520,27 +699,32 @@ export function getConfigAtual(): {
 } {
   const provedor = getProvedor();
   const modeloId = getModeloId();
-  const provedorLabel: Record<ProvedorIA, string> = {
+  const LABEL_PROVEDOR: Record<ProvedorIA, string> = {
     openai: "OpenAI",
     openrouter: "OpenRouter",
     kilocode: "KiloCode AI Gateway",
     anthropic: "Anthropic",
     google: "Google AI",
+    groq: "Groq",
+    xai: "xAI",
+    mistral: "Mistral AI",
+    ollama: "Ollama (local)",
   };
   return {
     provedor,
     modeloId,
-    modeloInfo: MODELOS_CATALOGADOS.find((m) => m.id === modeloId) ?? {
-      id: modeloId,
-      label: modeloId,
-      provedor: provedor,
-      provedorLabel: provedorLabel[provedor],
-      descricao: "Modelo personalizado configurado via env AI_MODEL.",
-      suportaVisao: false,
-      suportaStructuredOutput: true,
-      custo: "desconhecido" as never,
-      recomendado: false,
-    },
+    modeloInfo: MODELOS_CATALOGADOS.find((m) => m.id === modeloId && m.provedor === provedor) ??
+      MODELOS_CATALOGADOS.find((m) => m.id === modeloId) ?? {
+        id: modeloId,
+        label: modeloId,
+        provedor,
+        provedorLabel: LABEL_PROVEDOR[provedor],
+        descricao: "Modelo personalizado configurado via env AI_MODEL.",
+        suportaVisao: false,
+        suportaStructuredOutput: true,
+        custo: "desconhecido" as never,
+        recomendado: false,
+      },
     disponivel: isAIAvailable(),
   };
 }
