@@ -30,8 +30,9 @@ OPENROUTER_API_KEY=sk-or-...
 npm run dev          # Dev server (localhost:3000)
 npm run build        # Build de produção
 npm test             # Vitest (unitários)
-npm run migrate      # Rodar migrations SQL
-npm run seed         # Popular banco com dados de teste
+npm run migrate      # Rodar migrations SQL (alias: npm run db:migrate)
+npm run seed         # Popular banco com dados de teste (alias: npm run db:seed)
+npm run db:setup     # migrate + seed em sequência (inicialização completa)
 npx tsc --noEmit     # Verificar tipos
 ```
 

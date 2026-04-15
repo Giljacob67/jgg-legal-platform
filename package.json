@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "migrate": "node scripts/run-migrations.mjs",
+    "seed": "node scripts/seed.mjs",
     "db:migrate": "node scripts/run-migrations.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:setup": "npm run db:migrate && npm run db:seed",
