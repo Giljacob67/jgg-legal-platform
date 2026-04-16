@@ -1,45 +1,79 @@
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+import type { ModuloPlataforma, PerfilUsuario } from "@/modules/administracao/domain/types";
+import { PERMISSOES_PADRAO, resolverPerfilUsuario } from "@/modules/administracao/domain/types";
 
 /**
- * Rotas públicas que não exigem autenticação.
- * Tudo mais dentro do grupo (hub) requer sessão válida.
+ * Mapeamento de prefixo de rota → ModuloPlataforma.
+ * A ordem importa: rotas mais específicas primeiro.
  */
-const PUBLIC_PATHS = [
-  "/login",
-  "/acesso-negado",
-  "/api/auth",       // NextAuth handlers
+const ROTA_PARA_MODULO: Array<[string, ModuloPlataforma]> = [
+  ["/administracao", "administracao"],
+  ["/bi", "bi"],
+  ["/gestao", "gestao"],
+  ["/peticoes", "peticoes"],
+  ["/casos", "casos"],
+  ["/documentos", "documentos"],
+  ["/biblioteca", "biblioteca_juridica"],
+  ["/contratos", "contratos"],
+  ["/jurisprudencia", "jurisprudencia"],
+  ["/clientes", "clientes"],
+  ["/dashboard", "dashboard"],
 ];
 
-export default auth((req: NextRequest & { auth: unknown }) => {
-  const { pathname } = req.nextUrl;
-
-  // Permitir rotas públicas sem verificação
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
+function resolverModulo(pathname: string): ModuloPlataforma | null {
+  for (const [prefixo, modulo] of ROTA_PARA_MODULO) {
+    if (pathname === prefixo || pathname.startsWith(`${prefixo}/`)) {
+      return modulo;
+    }
   }
+  return null;
+}
 
-  // Permitir arquivos estáticos e internos do Next.js
+function temAcesso(perfil: PerfilUsuario, modulo: ModuloPlataforma): boolean {
+  const nivel = PERMISSOES_PADRAO[perfil]?.[modulo];
+  return nivel !== "sem_acesso" && nivel !== undefined;
+}
+
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
+  const session = req.auth;
+
+  // Rotas públicas — nunca bloquear
   if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/sem-permissao") ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.includes(".")
+    pathname === "/favicon.ico"
   ) {
     return NextResponse.next();
   }
 
-  // Se não há sessão, redirecionar para login
-  if (!req.auth) {
+  // Usuário não autenticado → redirecionar para login
+  if (!session?.user) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Verificar RBAC para rotas do hub
+  const modulo = resolverModulo(pathname);
+  if (modulo) {
+    const perfil = resolverPerfilUsuario(session.user.role as string);
+    if (!temAcesso(perfil, modulo)) {
+      const semPermissaoUrl = new URL("/sem-permissao", req.url);
+      semPermissaoUrl.searchParams.set("modulo", modulo);
+      semPermissaoUrl.searchParams.set("de", pathname);
+      return NextResponse.redirect(semPermissaoUrl);
+    }
   }
 
   return NextResponse.next();
 });
 
 export const config = {
-  // Executar o middleware em todas as rotas exceto assets estáticos
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api/auth|_next/static|_next/image|favicon.ico).*)",
+  ],
 };
