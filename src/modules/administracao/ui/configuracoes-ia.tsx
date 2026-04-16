@@ -50,6 +50,12 @@ const GRUPOS_PROVEDORES: GrupoProvedor[] = [
     envVar: "OLLAMA_BASE_URL · OLLAMA_API_KEY (opcional, para Ollama Pro ou instâncias remotas)",
     obs: "Local: sem custo, nenhum dado sai da máquina. Remoto/Pro: configure OLLAMA_BASE_URL + OLLAMA_API_KEY.",
   },
+  {
+    label: "Endpoint customizado (OpenAI-compatible)",
+    provedores: ["custom"],
+    envVar: "CUSTOM_BASE_URL · CUSTOM_API_KEY (opcional)",
+    obs: "LM Studio, LocalAI, vLLM, Jan, Perplexity, Together AI ou qualquer serviço com API OpenAI-compatível.",
+  },
 ];
 
 const LABEL_PROVEDOR: Record<ProvedorIA, string> = {
@@ -62,6 +68,7 @@ const LABEL_PROVEDOR: Record<ProvedorIA, string> = {
   openrouter: "OpenRouter",
   kilocode: "KiloCode",
   ollama: "Ollama",
+  custom: "Custom",
 };
 
 const COR_PROVEDOR: Record<ProvedorIA, string> = {
@@ -74,6 +81,7 @@ const COR_PROVEDOR: Record<ProvedorIA, string> = {
   openrouter: "border-violet-400 bg-violet-50 text-violet-900 dark:bg-violet-950 dark:text-violet-200",
   kilocode: "border-indigo-400 bg-indigo-50 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200",
   ollama: "border-lime-500 bg-lime-50 text-lime-900 dark:bg-lime-950 dark:text-lime-200",
+  custom: "border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
 };
 
 export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: ConfiguracoesIAProps) {
@@ -153,6 +161,7 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
                       >
                         {LABEL_PROVEDOR[p]}
                         {p === "ollama" && <span className="ml-1.5 rounded bg-lime-200 px-1 text-[10px] font-semibold text-lime-800">local</span>}
+                        {p === "custom" && <span className="ml-1.5 rounded bg-amber-200 px-1 text-[10px] font-semibold text-amber-800">custom</span>}
                       </button>
                     ))}
                   </div>
@@ -174,7 +183,11 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
                 value={valores[config.chave] ?? ""}
                 onChange={(e) => setValores((prev) => ({ ...prev, [config.chave]: e.target.value }))}
                 className="w-full rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm font-mono outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
-                placeholder={provedorAtual === "ollama" ? "llama3.3" : "gpt-4o-mini"}
+                placeholder={
+                  provedorAtual === "ollama" ? "llama3.3" :
+                  provedorAtual === "custom" ? "nome-do-modelo-no-seu-servidor" :
+                  "gpt-4o-mini"
+                }
               />
 
               {modelosDisponiveis.length > 0 && (

@@ -31,7 +31,8 @@ export type ProvedorIA =
   | "groq"
   | "xai"
   | "mistral"
-  | "ollama";
+  | "ollama"
+  | "custom";
 
 export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
   // ── OpenAI ──────────────────────────────────────────────────────────
@@ -546,6 +547,7 @@ const MODELO_PADRAO: Record<ProvedorIA, string> = {
   xai: "grok-3-mini",
   mistral: "mistral-large-latest",
   ollama: "llama3.3",
+  custom: "",
 };
 
 // ── Tipos e funções públicas ──────────────────────────────────────────────────
@@ -556,10 +558,11 @@ const MODELO_PADRAO: Record<ProvedorIA, string> = {
  */
 export function getProvedor(): ProvedorIA {
   const env = process.env.AI_PROVIDER as ProvedorIA | undefined;
-  const provedores: ProvedorIA[] = ["openai", "openrouter", "kilocode", "anthropic", "google", "groq", "xai", "mistral", "ollama"];
+  const provedores: ProvedorIA[] = ["openai", "openrouter", "kilocode", "anthropic", "google", "groq", "xai", "mistral", "ollama", "custom"];
   if (env && provedores.includes(env)) return env;
 
   // Auto-detecção pela chave disponível
+  if (process.env.CUSTOM_BASE_URL) return "custom";
   if (process.env.KILO_API_KEY) return "kilocode";
   if (process.env.OPENROUTER_API_KEY) return "openrouter";
   if (process.env.ANTHROPIC_API_KEY) return "anthropic";
@@ -661,6 +664,14 @@ export function getLLM(modeloOverride?: string): LanguageModel {
         },
       })(modeloId) as LanguageModel;
     }
+
+    case "custom": {
+      const baseURL = process.env.CUSTOM_BASE_URL;
+      if (!baseURL) throw new Error("CUSTOM_BASE_URL não configurada.");
+      if (!modeloId) throw new Error("AI_MODEL não configurado para provedor custom.");
+      const apiKey = process.env.CUSTOM_API_KEY ?? "no-key";
+      return createOpenAI({ baseURL, apiKey })(modeloId) as LanguageModel;
+    }
   }
 }
 
@@ -689,7 +700,8 @@ export function isAIAvailable(): boolean {
     process.env.XAI_API_KEY ||
     process.env.MISTRAL_API_KEY ||
     process.env.OLLAMA_BASE_URL ||
-    process.env.OLLAMA_API_KEY
+    process.env.OLLAMA_API_KEY ||
+    process.env.CUSTOM_BASE_URL
   );
 }
 
@@ -714,6 +726,7 @@ export function getConfigAtual(): {
     xai: "xAI",
     mistral: "Mistral AI",
     ollama: "Ollama (local)",
+    custom: "Custom (OpenAI-compatible)",
   };
   return {
     provedor,
