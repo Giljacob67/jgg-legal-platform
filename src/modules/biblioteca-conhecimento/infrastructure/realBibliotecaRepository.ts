@@ -53,13 +53,14 @@ export class RealBibliotecaRepository {
     status?: StatusEmbedding;
   }): Promise<DocumentoBiblioteca[]> {
     const sql = getSqlClient();
+
+    // Fragmentos condicionais — evita parâmetro null sem tipo explícito no PostgreSQL
     const rows = await sql<BibliotecaRow[]>`
-      SELECT *
-      FROM biblioteca_documentos
-      WHERE
-        (${filtros?.tipo ?? null} IS NULL OR tipo = ${filtros?.tipo ?? null})
-        AND (${filtros?.fonte ?? null} IS NULL OR fonte = ${filtros?.fonte ?? null})
-        AND (${filtros?.status ?? null} IS NULL OR embedding_status = ${filtros?.status ?? null})
+      SELECT * FROM biblioteca_documentos
+      WHERE TRUE
+        ${filtros?.tipo    ? sql`AND tipo = ${filtros.tipo}`                     : sql``}
+        ${filtros?.fonte   ? sql`AND fonte = ${filtros.fonte}`                   : sql``}
+        ${filtros?.status  ? sql`AND embedding_status = ${filtros.status}`       : sql``}
       ORDER BY criado_em DESC
     `;
     return rows.map(mapRow);
