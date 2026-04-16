@@ -25,7 +25,7 @@ export const services = {
   authRepository: new MockAuthRepository(),
   modulesRepository: new MockModulesRepository(),
   casosRepository: mode === "real" ? new PostgresCasosRepository() : new MockCasosRepository(),
-  documentosRepository: new MockDocumentosRepository(), // gerenciado por provider.server.ts
+  documentosRepository: new MockDocumentosRepository(), // DEPRECADO — use getDocumentosInfra() de documentos/infrastructure/provider.server.ts
   peticoesRepository: mode === "real" ? new PostgresPeticoesRepository() : new MockPeticoesRepository(),
   dashboardRepository: mode === "real" ? new PostgresDashboardRepository() : new MockDashboardRepository(),
   clientesRepository: mode === "real" ? new PostgresClientesRepository() : new MockClientesRepository(),

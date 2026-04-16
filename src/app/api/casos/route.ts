@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { criarCaso } from "@/modules/casos/application/criarCaso";
 import type { NovoCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
@@ -22,6 +22,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("casos", "edicao");
+  if (rbac) return rbac;
 
   try {
     const body = (await request.json()) as NovoCasoPayload;

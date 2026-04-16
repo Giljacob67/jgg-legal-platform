@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { TipoDocumento } from "@/modules/documentos/domain/types";
 import { uploadDocumento } from "@/modules/documentos/application/uploadDocumento";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 const TAMANHO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
 
@@ -84,6 +84,9 @@ function obterStatusHttpPorErro(mensagem: string): number {
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("documentos", "edicao");
+  if (rbac) return rbac;
 
   try {
     const formData = await request.formData();

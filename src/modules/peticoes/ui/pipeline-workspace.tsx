@@ -39,34 +39,34 @@ function toStatus(
   etapa: EtapaPipelineInfo,
   snapshot: SnapshotPipelineEtapa | undefined,
   etapaAtual: EtapaPipeline,
-): { label: string; variant: "sucesso" | "alerta" | "neutro" | "implantacao" } {
+): { label: string; variant: "sucesso" | "alerta" | "neutro" | "implantacao" | "mock"; isMock: boolean } {
   if (snapshot) {
     if (snapshot.status === "concluido") {
-      return { label: "concluída", variant: "sucesso" };
+      return { label: "concluída", variant: "sucesso", isMock: false };
     }
 
     if (snapshot.status === "erro") {
-      return { label: "erro", variant: "alerta" };
+      return { label: "erro", variant: "alerta", isMock: false };
     }
 
     if (snapshot.status === "em_andamento") {
-      return { label: "em andamento", variant: "alerta" };
+      return { label: "em andamento", variant: "alerta", isMock: false };
     }
 
     if (snapshot.status === "mock_controlado") {
-      return { label: "mockado", variant: "implantacao" };
+      return { label: "simulado", variant: "mock", isMock: true };
     }
   }
 
   if (etapa.id === etapaAtual) {
-    return { label: "em andamento", variant: "alerta" };
+    return { label: "em andamento", variant: "alerta", isMock: false };
   }
 
   if (!etapa.priorizadaMvp) {
-    return { label: "mockado", variant: "implantacao" };
+    return { label: "simulado", variant: "mock", isMock: true };
   }
 
-  return { label: "pendente", variant: "neutro" };
+  return { label: "pendente", variant: "neutro", isMock: false };
 }
 
 export function PipelineWorkspace({
@@ -195,9 +195,11 @@ export function PipelineWorkspace({
                   <StatusBadge label={status.label} variant={status.variant} />
                 </div>
                 <p className="mt-2 text-xs text-[var(--color-muted)]">
-                  {etapa.priorizadaMvp
-                    ? "Etapa funcional nesta versão do MVP."
-                    : "Etapa visível e tipada para evolução posterior."}
+                  {status.isMock
+                    ? "Etapa simulada — IA será integrada futuramente."
+                    : etapa.priorizadaMvp
+                      ? "Etapa funcional nesta versão do MVP."
+                      : "Etapa visível e tipada para evolução posterior."}
                 </p>
                 {snapshot ? (
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
@@ -206,13 +208,23 @@ export function PipelineWorkspace({
                 ) : null}
                 {PIPELINE_PARA_ESTAGIO[etapa.id] !== undefined && (
                   <div className="mt-3 space-y-2">
-                    <button
-                      onClick={() => executarEstagio(PIPELINE_PARA_ESTAGIO[etapa.id]!)}
-                      disabled={streamingEstagio !== null}
-                      className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {streamingEstagio === PIPELINE_PARA_ESTAGIO[etapa.id] ? "Gerando..." : "Executar com IA"}
-                    </button>
+                    {status.isMock ? (
+                      <button
+                        disabled
+                        title="Etapa implementada futuramente — simulada nesta versão."
+                        className="w-full cursor-not-allowed rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-400"
+                      >
+                        Disponível em breve
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => executarEstagio(PIPELINE_PARA_ESTAGIO[etapa.id]!)}
+                        disabled={streamingEstagio !== null}
+                        className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {streamingEstagio === PIPELINE_PARA_ESTAGIO[etapa.id] ? "Gerando..." : "Executar com IA"}
+                      </button>
+                    )}
                     {streamErrors[PIPELINE_PARA_ESTAGIO[etapa.id]!] && (
                       <p className="text-xs text-red-600">
                         {streamErrors[PIPELINE_PARA_ESTAGIO[etapa.id]!]}

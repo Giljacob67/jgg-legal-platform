@@ -3,7 +3,7 @@ import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infra
 import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastructure/processamentoPipeline.server";
 import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
 import type { TipoDocumentoBC } from "@/modules/biblioteca-conhecimento/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 // Tamanho máximo: 20 MB
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -11,6 +11,9 @@ const MAX_BYTES = 20 * 1024 * 1024;
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("biblioteca_juridica", "edicao");
+  if (rbac) return rbac;
 
   try {
     const formData = await request.formData();

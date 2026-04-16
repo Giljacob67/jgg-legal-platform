@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listarClientes, criarCliente } from "@/modules/clientes/application";
 import type { NovoClientePayload, StatusCliente } from "@/modules/clientes/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
   const unauth = await requireAuth();
@@ -20,6 +20,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("clientes", "edicao");
+  if (rbac) return rbac;
 
   try {
     const body = (await request.json()) as NovoClientePayload;

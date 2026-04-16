@@ -3,6 +3,7 @@ import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getLLM } from "@/lib/ai/provider";
+import { withRetry } from "@/lib/ai/retry";
 import { buildAnaliseAdversaPrompt } from "@/lib/ai/prompts/analise-adversa";
 import { buildPesquisaApoioPrompt } from "@/lib/ai/prompts/pesquisa-de-apoio";
 import { buildAnaliseDocumentalClientePrompt } from "@/lib/ai/prompts/analise-documental-cliente";
@@ -24,6 +25,7 @@ interface ResultadoEstagio<T> {
   saida: T;
   status: "concluido" | "erro";
   erro?: string;
+  tentativas?: number;
 }
 
 /** Extrai matéria, tipo de peça e fatos dos snapshots existentes do pipeline */
@@ -48,11 +50,19 @@ function extrairDadosPipeline(
   };
 }
 
+/** Modelos fallback em caso de erro — na ordem de tentativa */
+const FALLBACK_MODELS = [
+  "anthropic/claude-sonnet-4-5",
+  "gpt-4o-mini",
+  "gpt-4o",
+];
+
 /**
  * Executa um estágio de IA usando generateObject (AI SDK v6) com validação Zod.
+ * Inclui retry com backoff exponencial e fallback automático entre modelos.
  */
 async function executarEstagioComIA<T>(params: {
-  model: Parameters<typeof generateObject>[0]["model"];
+  modelId: string;
   system: string;
   prompt: string;
   schema: z.ZodObject<Record<string, z.ZodTypeAny>>;
@@ -60,22 +70,45 @@ async function executarEstagioComIA<T>(params: {
   pedidoId: string;
   entradaRef: Record<string, unknown>;
 }): Promise<ResultadoEstagio<T>> {
-  try {
-    const { object } = await generateObject({
-      model: params.model,
-      system: params.system,
-      prompt: params.prompt,
-      schema: params.schema,
-      temperature: 0.3,
-      maxOutputTokens: 4000,
-    });
+  const result = await withRetry(
+    async () => {
+      const model = getLLM(params.modelId);
+      const { object } = await generateObject({
+        model,
+        system: params.system,
+        prompt: params.prompt,
+        schema: params.schema,
+        temperature: 0.3,
+        maxOutputTokens: 4000,
+      });
+      return object as T;
+    },
+    {
+      maxAttempts: 3,
+      baseDelayMs: 1000,
+      maxDelayMs: 30000,
+      fallbackModels: FALLBACK_MODELS,
+      onRetry: (attempt, err, delayMs) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[${params.estagio}] tentativa ${attempt} falhou para ${params.pedidoId} — retry em ${delayMs}ms: ${msg.slice(0, 120)}`,
+        );
+      },
+    },
+  );
 
-    return { saida: object as T, status: "concluido" };
-  } catch (err) {
-    const erro = err instanceof Error ? err.message : "Erro desconhecido";
-    console.error(`[${params.estagio}] falhou para ${params.pedidoId}:`, err);
-    return { saida: {} as T, status: "erro", erro };
+  if (result.ok) {
+    return { saida: result.data, status: "concluido", tentativas: result.attempts };
   }
+
+  const erro = result.lastError instanceof Error
+    ? result.lastError.message
+    : "Erro desconhecido";
+  console.error(
+    `[${params.estagio}] falhou definitivamente (${result.attempts} tentativas) para ${params.pedidoId}:`,
+    result.lastError,
+  );
+  return { saida: {} as T, status: "erro", erro, tentativas: result.attempts };
 }
 
 // ─── Estágios do Pipeline ─────────────────────────────────────────────────────
@@ -97,19 +130,10 @@ export async function executarEstagioAnaliseAdversa(
     materia as Parameters<typeof buildAnaliseAdversaPrompt>[2],
   );
 
-  let model: Parameters<typeof generateObject>[0]["model"];
-  try {
-    model = getLLM();
-  } catch {
-    return {
-      saida: {} as AnaliseAdversaOutput,
-      status: "erro",
-      erro: "AI não configurada — verifique OPENROUTER_API_KEY ou ANTHROPIC_API_KEY.",
-    };
-  }
+  const modelId = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5";
 
   return executarEstagioComIA<AnaliseAdversaOutput>({
-    model,
+    modelId,
     system,
     prompt,
     schema: AnaliseAdversaSchema,
@@ -147,19 +171,10 @@ export async function executarEstagioPesquisaApoio(
     chunks.map((c) => c.conteudo),
   );
 
-  let model: Parameters<typeof generateObject>[0]["model"];
-  try {
-    model = getLLM();
-  } catch {
-    return {
-      saida: {} as PesquisaApoioOutput,
-      status: "erro",
-      erro: "AI não configurada.",
-    };
-  }
+  const modelId = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5";
 
   return executarEstagioComIA<PesquisaApoioOutput>({
-    model,
+    modelId,
     system,
     prompt,
     schema: PesquisaApoioSchema,
@@ -192,19 +207,10 @@ export async function executarEstagioAnaliseDocumentalCliente(
     materia as Parameters<typeof buildAnaliseDocumentalClientePrompt>[3],
   );
 
-  let model: Parameters<typeof generateObject>[0]["model"];
-  try {
-    model = getLLM();
-  } catch {
-    return {
-      saida: {} as AnaliseDocumentalClienteOutput,
-      status: "erro",
-      erro: "AI não configurada.",
-    };
-  }
+  const modelId = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5";
 
   return executarEstagioComIA<AnaliseDocumentalClienteOutput>({
-    model,
+    modelId,
     system,
     prompt,
     schema: AnaliseDocumentalClienteSchema,

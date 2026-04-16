@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { vincularDocumento } from "@/modules/documentos/application/vincularDocumento";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 type VincularDocumentoRequestBody = {
   tipoEntidade: "caso" | "pedido_peca";
@@ -14,6 +14,9 @@ export async function POST(
 ) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("documentos", "edicao");
+  if (rbac) return rbac;
 
   try {
     const params = await context.params;

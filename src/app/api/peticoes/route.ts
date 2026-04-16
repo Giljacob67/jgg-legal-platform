@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { services } from "@/services/container";
 import { validarNovoPedidoPayload } from "@/modules/peticoes/domain/validarNovoPedidoPayload";
 import type { NovoPedidoPayload } from "@/modules/peticoes/domain/types";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
+
+  const rbac = await requireRBAC("peticoes", "edicao");
+  if (rbac) return rbac;
 
   try {
     const body = (await request.json()) as NovoPedidoPayload;
