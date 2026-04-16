@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { PrioridadePedido, TipoPeca, IntencaoProcessual } from "@/modules/peticoes/domain/types";
+import type { Caso } from "@/modules/casos/domain/types";
+import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import {
   INTENCOES_POR_DOCUMENTO,
   LABEL_INTENCAO,
@@ -20,19 +22,16 @@ import { formatarDataHora } from "@/lib/utils";
 
 type NovoPedidoFormProps = {
   tiposPeca: TipoPeca[];
-  casoIdPadrao: string;
-  poloRepresentado?: "ativo" | "passivo" | "indefinido";
-  clienteNome?: string;
+  casos: Caso[];
 };
 
-export function NovoPedidoForm({
-  tiposPeca,
-  casoIdPadrao,
-  poloRepresentado = "indefinido",
-  clienteNome,
-}: NovoPedidoFormProps) {
-  const [casoId, setCasoId] = useState(casoIdPadrao);
-  const [polo, setPolo] = useState<"ativo" | "passivo" | "indefinido">(poloRepresentado);
+export function NovoPedidoForm({ tiposPeca, casos }: NovoPedidoFormProps) {
+  const primeiroCaso = casos[0];
+  const [casoId, setCasoId] = useState(primeiroCaso?.id ?? "");
+  const casoSelecionado = casos.find((c) => c.id === casoId) ?? null;
+  const [polo, setPolo] = useState<"ativo" | "passivo" | "indefinido">(
+    casoSelecionado ? detectarPoloRepresentado(casoSelecionado) : "indefinido"
+  );
   const [titulo, setTitulo] = useState("");
   const [tipoPeca, setTipoPeca] = useState<TipoPeca>(tiposPeca[0]);
   const [prioridade, setPrioridade] = useState<PrioridadePedido>("média");
@@ -236,14 +235,21 @@ export function NovoPedidoForm({
               );
             })}
           </div>
-          {clienteNome && (
-            <p className="mt-1 text-xs text-[var(--color-muted)]">Cliente: {clienteNome}</p>
-          )}
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
-            <TextInput label="ID do caso" value={casoId} onChange={(e) => setCasoId(e.target.value)} required />
+            <SelectInput
+              label="Caso"
+              value={casoId}
+              options={casos.map((c) => ({ value: c.id, label: `${c.id} — ${c.titulo}` }))}
+              onChange={(e) => {
+                const id = e.target.value;
+                setCasoId(id);
+                const caso = casos.find((c) => c.id === id);
+                if (caso) setPolo(detectarPoloRepresentado(caso));
+              }}
+            />
             <TextInput
               label="Prazo final (opcional com triagem IA)"
               type="date"
@@ -251,6 +257,13 @@ export function NovoPedidoForm({
               onChange={(e) => setPrazoFinal(e.target.value)}
             />
           </div>
+          {casoSelecionado && (
+            <p className="text-xs text-[var(--color-muted)]">
+              Cliente: <span className="font-medium">{casoSelecionado.cliente}</span>
+              {" · "}{casoSelecionado.materia}
+              {" · "}<span className={casoSelecionado.status === "novo" ? "text-blue-600" : ""}>{casoSelecionado.status}</span>
+            </p>
+          )}
 
           <TextInput
             label="Título do pedido (opcional com triagem IA)"

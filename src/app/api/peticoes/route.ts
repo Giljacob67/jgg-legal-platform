@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as NovoPedidoPayload;
     validarNovoPedidoPayload(body);
-    const pedido = await services.peticoesRepository.simularCriacaoPedido(body);
+    const pedido = await services.peticoesRepository.criarPedidoDePeca(body);
     return NextResponse.json({ pedido }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

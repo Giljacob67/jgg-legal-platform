@@ -15,6 +15,8 @@ export interface PeticoesRepository {
   listarHistoricoPipeline(pedidoId: string): Promise<HistoricoPipeline[]>;
   obterMinutaPorId(minutaId: string): Promise<Minuta | undefined>;
   obterMinutaPorPedidoId(pedidoId: string): Promise<Minuta | undefined>;
+  criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
+  /** @deprecated Use criarPedidoDePeca */
   simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
   listarTiposPeca(): Promise<TipoPeca[]>;
 }
@@ -671,8 +673,8 @@ export class MockPeticoesRepository implements PeticoesRepository {
     return Promise.resolve(this.minutas.find((minuta) => minuta.pedidoId === pedidoId));
   }
 
-  async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
-    const novoId = `PED-MOCK-${Math.floor(Math.random() * 9000) + 1000}`;
+  async criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
+    const novoId = `PED-MOCK-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const novoPedido: PedidoDePeca = {
       id: novoId,
       casoId: payload.casoId,
@@ -687,6 +689,11 @@ export class MockPeticoesRepository implements PeticoesRepository {
     };
     this.pedidos = [...this.pedidos, novoPedido];
     return Promise.resolve(novoPedido);
+  }
+
+  /** @deprecated Use criarPedidoDePeca */
+  async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
+    return this.criarPedidoDePeca(payload);
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {

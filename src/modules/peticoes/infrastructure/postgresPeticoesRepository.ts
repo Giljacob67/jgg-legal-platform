@@ -122,10 +122,10 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
     return this.obterMinutaPorId(rows[0].id);
   }
 
-  async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
+  async criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
     const db = getDb();
-    const novoId = `PED-${Math.floor(Math.random() * 9000) + 1000}`;
-    
+    const novoId = `PED-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
     await db.insert(pedidosPeca).values({
       id: novoId,
       casoId: payload.casoId,
@@ -141,6 +141,11 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
     });
 
     return this.obterPedidoPorId(novoId) as Promise<PedidoDePeca>;
+  }
+
+  /** @deprecated Use criarPedidoDePeca */
+  async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
+    return this.criarPedidoDePeca(payload);
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {
