@@ -182,7 +182,7 @@ export function BuscadorJurisprudencia({ resultadosIniciais }: BuscadorJurisprud
       {/* Modo semântico explicação */}
       {modoSemantico && (
         <p className="text-xs text-violet-600 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
-          Busca semântica ativa — descreva o que você procura em linguagem natural. Ex: "impenhorabilidade de imóvel rural em execução fiscal"
+          Busca semântica ativa — descreva o que você procura em linguagem natural. Ex: &quot;impenhorabilidade de imóvel rural em execução fiscal&quot;
         </p>
       )}
 

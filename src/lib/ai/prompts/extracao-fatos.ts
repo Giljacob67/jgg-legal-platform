@@ -129,6 +129,16 @@ Sub-caso 4 — Renegociação forçada / revisão de contrato por onerosidade ex
 - Aplicação da Teoria da Imprevisão (art. 478, CC) ou Lesão (art. 157, CC)?
 - Novação: houve repactuação que incorporou os encargos anteriores ao novo contrato?
 
+Sub-caso 5 — Operação Mata-Mata (Rolagem de Crédito Rural):
+- Histórico da cadeia: mapear todos os contratos celebrados com o banco — datas, valores, tipo (CCB/CCR/CPR), finalidade declarada e banco credor
+- Prova de simulação: os recursos do novo crédito foram creditados na conta do produtor e imediatamente usados para quitar o contrato anterior? Há extrato bancário comprovando a liquidação no mesmo dia ou em até 48h?
+- Finalidade do crédito: qual era a finalidade declarada no contrato (custeio, investimento, comercialização)? Há nota fiscal de insumos, DAP, FUNRURAL ou outro documento que comprove que os recursos foram usados para produção?
+- Encargos da cadeia: identificar em cada contrato da cadeia: (a) taxa de juros contratada vs. limite CMN para crédito rural; (b) indexador utilizado (CDI? Taxa Referencial?); (c) frequência de capitalização de juros; (d) taxa de mora e multa moratória
+- Pedido de alongamento: o produtor já solicitou formalmente ao banco o alongamento/securitização da dívida? Há resposta do banco? Se negado, qual foi o fundamento da recusa e qual a data do ato coator?
+- Bens penhorados: quais bens foram penhorados? Há CPR ou CCR anterior vinculando aquele produto ou propriedade a outro credor com preferência? A propriedade é pequena propriedade rural familiar (até 4 módulos fiscais)?
+- Valor exequível vs. saldo revisado: qual é o valor cobrado na execução e qual seria o saldo correto após expurgo dos encargos ilegais da cadeia inteira?
+- Recursos controlados: o banco opera com recursos controlados do MCR (BNDES, Banco do Brasil, Banco do Nordeste, etc.)? Há cláusula contratual identificando a fonte dos recursos?
+
 Identificar o sub-caso principal e responder às perguntas correspondentes:`;
 
     case "empresarial":

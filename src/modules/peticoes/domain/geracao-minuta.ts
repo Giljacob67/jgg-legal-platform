@@ -7,7 +7,16 @@ export type BlocoMinutaId =
   | "sintese_fatica"
   | "fundamentos"
   | "pedidos"
-  | "fechamento";
+  | "fechamento"
+  // Blocos especializados — Operação Mata-Mata e templates customizados
+  | "qualificacao_partes"
+  | "tempestividade_garantia"
+  | "sintese_fatica_operacao"
+  | "nulidade_simulacao"
+  | "revisao_cadeia"
+  | "alongamento"
+  | "excesso_encargos"
+  | "impenhorabilidade";
 
 export type TipoPecaCanonica =
   | "peticao_inicial"

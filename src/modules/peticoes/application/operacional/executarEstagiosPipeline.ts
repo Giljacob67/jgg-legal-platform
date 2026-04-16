@@ -159,7 +159,7 @@ export async function executarEstagioPesquisaApoio(
     : JSON.stringify(extracaoFatos).slice(0, 500);
 
   const query = `${materia} ${tipoPeca} ${fatosTexto}`;
-  let chunks = await buscarChunksRelevantes(query, 8).catch(() => []);
+  const chunks = await buscarChunksRelevantes(query, 8).catch(() => []);
 
   if (chunks.length === 0) {
     console.warn("[PesquisaApoio] Vector store não retornou chunks — continuando sem apoio.");

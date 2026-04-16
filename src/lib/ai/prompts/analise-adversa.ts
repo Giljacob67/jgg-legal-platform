@@ -100,7 +100,17 @@ Sub-caso — Renegociação / revisão por onerosidade:
 - Banco pode alegar ausência de evento superveniente imprevisível (variação de mercado é risco do negócio)
 - Contestação da Teoria da Imprevisão: apenas eventos extraordinários e totalmente imprevisíveis justificam revisão (art. 478, CC)
 - Alegação de que houve concordância expressa com as condições contratuais (pacta sunt servanda)
-- Prescrição quinquenal (art. 206, §5º, I, CC) para cobrança de dívidas líquidas — verificar data do vencimento`;
+- Prescrição quinquenal (art. 206, §5º, I, CC) para cobrança de dívidas líquidas — verificar data do vencimento
+
+Sub-caso — Operação Mata-Mata (defesa do banco contra nossas teses):
+CONTRARIEDADE PRINCIPAL — O banco vai tentar dissociar a operação nova da operação antiga para tratar cada contrato isoladamente e afastar a tese de simulação. Antecipar e refutar cada argumento:
+- Alegação de autonomia dos contratos: banco vai sustentar que cada CCB/CCR é negócio jurídico autônomo e que a quitação de dívida anterior é mero destino dado livremente pelo mutuário aos recursos — refutar com prova de que o crédito nunca saiu efetivamente para o produtor (liquidação no mesmo dia)
+- Negação da simulação: banco vai invocar boa-fé, escritura pública ou contrato particular assinado, e alegar que o produtor tinha ciência e concordou com os termos — refutar com a distinção entre vontade formal e ausência de disponibilidade real dos recursos
+- Ataque à Súmula 286/STJ: banco pode alegar que a confissão de dívida inserida na renegociação tem efeito novativo e impede a discussão dos contratos-base — refutar com os arts. 360-367 do CC (requisitos da novação) e com a própria literalidade da Súmula 286/STJ
+- Defesa dos encargos: banco vai apresentar planilha própria de evolução do débito alegando que todas as taxas foram pactuadas expressamente — confrontar com os limites do CMN para crédito rural e com a proibição do CDI (Súmula 176/STJ)
+- Contestação do alongamento: banco vai alegar que não opera com recursos controlados do MCR ou que o produtor não preenchia os requisitos da Lei 9.138/95 — verificar cláusula contratual de fonte de recursos e documentação do produtor
+- Impenhorabilidade: banco vai contestar área/módulos fiscais e exploração direta familiar para afastar impenhorabilidade da pequena propriedade — levantar CCIR, CAR, DAP, FUNRURAL e comprovante de residência da família
+- Prescrição: banco pode alegar que o produtor não questionou os encargos por anos e que o prazo prescricional quinquenal (art. 206, §5º, I, CC) já teria corrido — responder que em embargos à execução, a nulidade do título (matéria de ordem pública) é imprescritível`;
 
     case "empresarial":
       return `RISCOS ADVERSARIAIS ESPECÍFICOS — DIREITO EMPRESARIAL:

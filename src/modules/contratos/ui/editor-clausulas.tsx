@@ -258,7 +258,7 @@ export function EditorClausulas({ contratoId, clausulasIniciais, conteudoInicial
 
         {clausulas.length === 0 && (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
-            Nenhuma cláusula. Clique em "Nova cláusula" ou use "Gerar com IA".
+            Nenhuma cláusula. Clique em &quot;Nova cláusula&quot; ou use &quot;Gerar com IA&quot;.
           </div>
         )}
       </div>

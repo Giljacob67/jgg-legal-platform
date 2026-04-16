@@ -7,8 +7,9 @@ export function ThemeToggle() {
   const [isDark, setIsDark] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Lê o estado real do DOM após hidratação
-    setIsDark(document.documentElement.classList.contains("dark"));
+    // Lê o estado real do DOM após hidratação (padrão correto para evitar hydration mismatch)
+    const dark = document.documentElement.classList.contains("dark");
+    queueMicrotask(() => setIsDark(dark));
   }, []);
 
   function toggle() {

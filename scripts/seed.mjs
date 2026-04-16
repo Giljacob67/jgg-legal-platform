@@ -159,6 +159,16 @@ async function main() {
         prazoFinal: new Date("2026-04-25"),
         resumo: "Processo de recuperação judicial de empresa com dívidas de R$ 38 milhões. Passivo concentrado em três credores principais. Plano de 36 meses.",
       },
+      {
+        id: "CAS-2026-009",
+        titulo: "Embargos à Execução — Operação Mata-Mata em Crédito Rural",
+        cliente: "Fazenda Três Irmãos Agropecuária Ltda.",
+        materia: "Bancário / Agrário",
+        tribunal: "TJMT",
+        status: "em análise",
+        prazoFinal: new Date("2026-05-15"),
+        resumo: "Produtor rural executado por CCB de R$ 2.800.000,00 que decorreu de operação mata-mata: o banco concedeu novo crédito para quitar CCR anterior do mesmo cliente sem disponibilização real dos recursos. Cadeia de três renegociações com incorporação de CDI e mora acima de 1% a.a. Defesa: nulidade do título por simulação (art. 167 CC), revisão da cadeia (Súmula 286/STJ), impenhorabilidade da sede rural familiar.",
+      },
     ];
 
     for (const caso of CASOS) {
@@ -277,6 +287,56 @@ async function main() {
         teseBase: "A execução deve ser limitada ao valor efetivamente exigível, com abatimento de parcelas indevidas.",
         status: "ativo",
       },
+      // ── Operação Mata-Mata ──────────────────────────────────────────
+      {
+        id: "tese-mm-001-v1",
+        codigo: "TES-MM-001",
+        titulo: "Nulidade da Operação Mata-Mata — Simulação e Desvio de Finalidade do Crédito Rural",
+        teseBase: "A concessão de novo crédito rural (CCB ou CCR) para liquidar débito pretérito do mesmo produtor, sem disponibilização real dos recursos, configura negócio jurídico simulado (art. 167 do CC) com desvio de finalidade (art. 49 do DL 167/67). O título é nulo de pleno direito.",
+        status: "ativo",
+      },
+      {
+        id: "tese-mm-002-v1",
+        codigo: "TES-MM-002",
+        titulo: "Revisão da Cadeia de Crédito Rural — Súmula 286/STJ",
+        teseBase: "Pela Súmula 286/STJ, a renegociação ou confissão de dívida não impede a discussão sobre ilegalidades dos contratos anteriores. A cadeia de operações mata-mata pode ser integralmente revisada, com expurgo de encargos ilegais incorporados nas renegociações.",
+        status: "ativo",
+      },
+      {
+        id: "tese-mm-003-v1",
+        codigo: "TES-MM-003",
+        titulo: "Direito ao Alongamento/Securitização — Súmula 298/STJ e MCR",
+        teseBase: "A Súmula 298/STJ garante o alongamento de dívida rural mesmo sem concordância do credor. O banco que opera com recursos controlados do MCR está vinculado às regras de prorrogação obrigatória da Lei 9.138/95. A recusa ilegal ao alongamento justifica Mandado de Segurança.",
+        status: "ativo",
+      },
+      {
+        id: "tese-mm-004-v1",
+        codigo: "TES-MM-004",
+        titulo: "Limitação de Juros em Crédito Rural — DL 167/67 e Decreto 22.626/33",
+        teseBase: "Operações de crédito rural reguladas pelo DL 167/67 estão sujeitas a limites de encargos fixados pelo CMN. Taxas acima do MCR e capitalização não autorizada configuram encargos abusivos, sujeitos a revisão e expurgo.",
+        status: "ativo",
+      },
+      {
+        id: "tese-mm-005-v1",
+        codigo: "TES-MM-005",
+        titulo: "Nulidade de Indexação por CDI em Crédito Rural — Súmula 176/STJ",
+        teseBase: "A Súmula 176/STJ declara nula a cláusula que sujeita o devedor à taxa CDI (ANBID/CETIP). Em crédito rural, a indexação ao CDI é duplamente nula: pela Súmula 176/STJ e pelo DL 167/67, impondo-se substituição por índice oficial.",
+        status: "ativo",
+      },
+      {
+        id: "tese-mm-006-v1",
+        codigo: "TES-MM-006",
+        titulo: "Mora Limitada a 1% a.a. em Crédito Rural — Art. 5º do DL 167/67",
+        teseBase: "O art. 5º do DL 167/67 limita os juros de mora em crédito rural a 1% ao ano. Qualquer encargo moratório superior — incluindo comissão de permanência, multa cumulada com juros ou capitalização de mora — é nulo de pleno direito.",
+        status: "ativo",
+      },
+      {
+        id: "tese-mm-007-v1",
+        codigo: "TES-MM-007",
+        titulo: "Impenhorabilidade do Produto Rural Vinculado a CPR/CCR",
+        teseBase: "O produto rural objeto de CPR ou dado em penhor cedular em CCR é impenhorável por credor sem preferência sobre aquele bem. Em operações mata-mata, o produto destinado ao crédito legítimo não pode ser penhorado pelo crédito simulado.",
+        status: "ativo",
+      },
     ];
 
     for (const tese of TESES) {
@@ -310,6 +370,8 @@ async function main() {
       { casoId: "CAS-2026-007", nome: "Movimento Via Campesina (representados)", papel: "réu" },
       { casoId: "CAS-2026-008", nome: "Metalúrgica Dinâmica S.A.", papel: "autor" },
       { casoId: "CAS-2026-008", nome: "Banco Meridional S.A.", papel: "terceiro" },
+      { casoId: "CAS-2026-009", nome: "Fazenda Três Irmãos Agropecuária Ltda.", papel: "autor" },
+      { casoId: "CAS-2026-009", nome: "Banco AgriFinance S.A.", papel: "réu" },
     ];
 
     for (const parte of PARTES) {
