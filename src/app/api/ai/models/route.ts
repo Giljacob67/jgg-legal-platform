@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/api-auth";
+import { requireRBAC } from "@/lib/api-auth";
 
 interface OpenRouterModel {
   id: string;
@@ -31,7 +31,7 @@ interface OpenRouterModelsResponse {
  */
 export async function GET() {
   // Catálogo de modelos: administrador e sócios
-  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  const forbidden = await requireRBAC("administracao", "leitura");
   if (forbidden) return forbidden;
 
   const openrouterKey = process.env.OPENROUTER_API_KEY;

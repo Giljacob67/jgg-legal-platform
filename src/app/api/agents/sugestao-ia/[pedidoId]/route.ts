@@ -2,19 +2,19 @@ import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
-import { getSessionPerfil } from "@/lib/api-auth";
+import { requireAuth } from "@/lib/api-auth";
+import { auth } from "@/lib/auth";
 import { verificarRateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ pedidoId: string }> }
 ) {
-  const sessionPerfil = await getSessionPerfil();
-  if (!sessionPerfil) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+  const session = (await auth())!;
 
-  const rl = verificarRateLimit(sessionPerfil.userId, "agents-ia", 20);
+  const rl = verificarRateLimit(session.user.id, "agents-ia", 20);
   if (!rl.permitido) {
     const resetMin = Math.ceil(rl.resetEmMs / 60000);
     return NextResponse.json(

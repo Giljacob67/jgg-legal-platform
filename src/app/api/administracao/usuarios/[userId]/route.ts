@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { atualizarPerfilUsuario, ativarDesativarUsuario } from "@/modules/administracao/application";
 import type { PerfilUsuario } from "@/modules/administracao/domain/types";
-import { requireRole } from "@/lib/api-auth";
+import { requireRBAC } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ userId: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  const forbidden = await requireRBAC("administracao", "edicao");
   if (forbidden) return forbidden;
 
   const { userId } = await params;

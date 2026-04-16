@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireRole, getSessionPerfil } from "@/lib/api-auth";
+import { requireRBAC } from "@/lib/api-auth";
+import { auth } from "@/lib/auth";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 
@@ -9,18 +10,15 @@ const AprovacaoPayloadSchema = z.object({
   observacoes: z.string().optional(),
 });
 
-// Somente coordenadores, sócios e administradores podem aprovar minutas
-const PERFIS_APROVACAO = ["coordenador_juridico", "socio_direcao", "administrador_sistema"] as const;
-
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ pedidoId: string }> },
 ) {
-  const forbidden = await requireRole([...PERFIS_APROVACAO]);
+  const forbidden = await requireRBAC("peticoes", "edicao");
   if (forbidden) return forbidden;
 
-  const sessionPerfil = await getSessionPerfil();
-  if (!sessionPerfil) {
+  const session = await auth();
+  if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -52,13 +50,13 @@ export async function POST(
   const snapshot = await infra.pipelineSnapshotRepository.salvarNovaVersao({
     pedidoId,
     etapa: "aprovacao",
-    entradaRef: { origem: "aprovacao_humana", aprovadoPor: sessionPerfil.userId },
+    entradaRef: { origem: "aprovacao_humana", aprovadoPor: session.user.id },
     saidaEstruturada: {
       resultado,
       observacoes: observacoes ?? null,
       data_aprovacao: new Date().toISOString(),
-      aprovado_por: sessionPerfil.userId,
-      perfil_aprovador: sessionPerfil.perfil,
+      aprovado_por: session.user.id,
+      perfil_aprovador: session.user.role,
     },
     status: resultado === "aprovado" ? "concluido" : resultado === "rejeitado" ? "erro" : "em_andamento",
     tentativa: 1,

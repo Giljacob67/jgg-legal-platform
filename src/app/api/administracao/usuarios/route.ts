@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { listarUsuarios, convidarUsuario } from "@/modules/administracao/application";
 import type { ConviteUsuario } from "@/modules/administracao/domain/types";
-import { requireRole } from "@/lib/api-auth";
+import { requireRBAC } from "@/lib/api-auth";
 import { enviarEmailConvite } from "@/lib/email/convite";
 
-// Apenas administrador e sócio podem gerenciar usuários
-const ROLES_GESTAO_USUARIOS = ["administrador_sistema", "socio_direcao"] as const;
-
 export async function GET() {
-  const forbidden = await requireRole([...ROLES_GESTAO_USUARIOS]);
+  const forbidden = await requireRBAC("administracao", "edicao");
   if (forbidden) return forbidden;
 
   const usuarios = await listarUsuarios();
@@ -16,7 +13,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const forbidden = await requireRole([...ROLES_GESTAO_USUARIOS]);
+  const forbidden = await requireRBAC("administracao", "edicao");
   if (forbidden) return forbidden;
 
   try {

@@ -4,14 +4,14 @@ import {
   getConfigAtual,
   isAIAvailable,
 } from "@/lib/ai/provider";
-import { requireRole } from "@/lib/api-auth";
+import { requireRBAC } from "@/lib/api-auth";
 
 /**
  * GET /api/ai/config
  * Retorna configuração atual do provedor IA e catálogo de modelos disponíveis.
  */
 export async function GET() {
-  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  const forbidden = await requireRBAC("administracao", "leitura");
   if (forbidden) return forbidden;
 
   const configAtual = getConfigAtual();

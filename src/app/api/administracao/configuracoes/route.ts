@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { obterConfiguracoes, atualizarConfiguracao } from "@/modules/administracao/application";
-import { requireRole } from "@/lib/api-auth";
+import { requireRBAC } from "@/lib/api-auth";
 
 export async function GET() {
   // Leitura de configurações: administrador e sócios
-  const forbidden = await requireRole(["administrador_sistema", "socio_direcao"]);
+  const forbidden = await requireRBAC("administracao", "leitura");
   if (forbidden) return forbidden;
 
   try {
@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   // Alteração de configurações: apenas administrador do sistema
-  const forbidden = await requireRole(["administrador_sistema"]);
+  const forbidden = await requireRBAC("administracao", "total");
   if (forbidden) return forbidden;
 
   try {

@@ -5,7 +5,8 @@ import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
-import { getSessionPerfil } from "@/lib/api-auth";
+import { requireAuth } from "@/lib/api-auth";
+import { auth } from "@/lib/auth";
 import { verificarRateLimit } from "@/lib/rate-limit";
 
 const TriagemSchema = z.object({
@@ -76,12 +77,11 @@ Por segurança, analise AMBAS as perspectivas e sinalize que o advogado deve con
 }
 
 export async function POST(request: Request) {
-  const sessionPerfil = await getSessionPerfil();
-  if (!sessionPerfil) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+  const session = (await auth())!;
 
-  const rl = verificarRateLimit(sessionPerfil.userId, "agents-ia", 20);
+  const rl = verificarRateLimit(session.user.id, "agents-ia", 20);
   if (!rl.permitido) {
     const resetMin = Math.ceil(rl.resetEmMs / 60000);
     return NextResponse.json(
