@@ -77,6 +77,12 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
       <Card title="Ações rápidas">
         <div className="flex flex-wrap gap-2">
           <Link
+            href={`/casos/${caso.id}/editar`}
+            className="rounded-xl bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[var(--color-accent-strong)]"
+          >
+            Editar caso
+          </Link>
+          <Link
             href="/peticoes/novo"
             className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-alt)]"
           >

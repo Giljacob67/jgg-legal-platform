@@ -1,4 +1,4 @@
-import type { Caso } from "@/modules/casos/domain/types";
+import type { Caso, StatusCaso } from "@/modules/casos/domain/types";
 
 export type NovoCasoPayload = {
   titulo: string;
@@ -10,10 +10,23 @@ export type NovoCasoPayload = {
   partes?: Array<{ nome: string; papel: "autor" | "réu" | "terceiro" }>;
 };
 
+export type AtualizarCasoPayload = {
+  titulo?: string;
+  cliente?: string;
+  materia?: string;
+  tribunal?: string;
+  prazoFinal?: string;
+  resumo?: string;
+  status?: StatusCaso;
+  partes?: Array<{ nome: string; papel: "autor" | "réu" | "terceiro" }>;
+};
+
 export interface CasosRepository {
   listarCasos(): Promise<Caso[]>;
   obterCasoPorId(casoId: string): Promise<Caso | undefined>;
   criarCaso(payload: NovoCasoPayload): Promise<Caso>;
+  atualizarCaso(casoId: string, payload: AtualizarCasoPayload): Promise<Caso>;
+  excluirCaso(casoId: string): Promise<void>;
 }
 
 export class MockCasosRepository implements CasosRepository {
@@ -412,5 +425,30 @@ export class MockCasosRepository implements CasosRepository {
     };
     this.casos.push(novo);
     return Promise.resolve(novo);
+  }
+
+  async atualizarCaso(casoId: string, payload: AtualizarCasoPayload): Promise<Caso> {
+    const index = this.casos.findIndex((c) => c.id === casoId);
+    if (index === -1) throw new Error(`Caso ${casoId} não encontrado.`);
+    const existing = this.casos[index];
+    const atualizado: Caso = {
+      ...existing,
+      titulo: payload.titulo ?? existing.titulo,
+      cliente: payload.cliente ?? existing.cliente,
+      materia: payload.materia ?? existing.materia,
+      tribunal: payload.tribunal ?? existing.tribunal,
+      prazoFinal: payload.prazoFinal ?? existing.prazoFinal,
+      resumo: payload.resumo ?? existing.resumo,
+      status: payload.status ?? existing.status,
+      partes: payload.partes ?? existing.partes,
+    };
+    this.casos[index] = atualizado;
+    return Promise.resolve(atualizado);
+  }
+
+  async excluirCaso(casoId: string): Promise<void> {
+    const index = this.casos.findIndex((c) => c.id === casoId);
+    if (index === -1) throw new Error(`Caso ${casoId} não encontrado.`);
+    this.casos.splice(index, 1);
   }
 }

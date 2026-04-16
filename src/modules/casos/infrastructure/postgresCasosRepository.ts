@@ -2,7 +2,7 @@ import { getDb, getSqlClient } from "@/lib/database/client";
 import { casos, partes, eventosCaso } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { Caso, StatusCaso, Parte, EventoCaso } from "@/modules/casos/domain/types";
-import type { CasosRepository, NovoCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { CasosRepository, NovoCasoPayload, AtualizarCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
 
 type DocVinculoRow = { documento_juridico_id: string };
 
@@ -118,5 +118,49 @@ export class PostgresCasosRepository implements CasosRepository {
     const caso = await this.obterCasoPorId(novoCasoId);
     if (!caso) throw new Error("Erro ao recuperar caso recém-criado.");
     return caso;
+  }
+
+  async atualizarCaso(casoId: string, payload: AtualizarCasoPayload): Promise<Caso> {
+    const db = getDb();
+
+    const existing = await db.select().from(casos).where(eq(casos.id, casoId));
+    if (existing.length === 0) throw new Error(`Caso ${casoId} não encontrado.`);
+
+    await db
+      .update(casos)
+      .set({
+        ...(payload.titulo !== undefined && { titulo: payload.titulo }),
+        ...(payload.cliente !== undefined && { cliente: payload.cliente }),
+        ...(payload.materia !== undefined && { materia: payload.materia }),
+        ...(payload.tribunal !== undefined && { tribunal: payload.tribunal }),
+        ...(payload.prazoFinal !== undefined && { prazoFinal: payload.prazoFinal ? new Date(payload.prazoFinal) : null }),
+        ...(payload.resumo !== undefined && { resumo: payload.resumo }),
+        ...(payload.status !== undefined && { status: payload.status }),
+      })
+      .where(eq(casos.id, casoId));
+
+    if (payload.partes !== undefined) {
+      await db.delete(partes).where(eq(partes.casoId, casoId));
+      if (payload.partes.length > 0) {
+        await db.insert(partes).values(
+          payload.partes.map((p) => ({
+            casoId,
+            nome: p.nome,
+            papel: p.papel,
+          })),
+        );
+      }
+    }
+
+    const caso = await this.obterCasoPorId(casoId);
+    if (!caso) throw new Error("Erro ao recuperar caso após atualização.");
+    return caso;
+  }
+
+  async excluirCaso(casoId: string): Promise<void> {
+    const db = getDb();
+    const existing = await db.select({ id: casos.id }).from(casos).where(eq(casos.id, casoId));
+    if (existing.length === 0) throw new Error(`Caso ${casoId} não encontrado.`);
+    await db.delete(casos).where(eq(casos.id, casoId));
   }
 }

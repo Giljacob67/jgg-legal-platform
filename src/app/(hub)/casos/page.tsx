@@ -76,9 +76,14 @@ export default async function CasosPage() {
               key: "acao",
               title: "Ação",
               render: (caso) => (
-                <Link href={`/casos/${caso.id}`} className="font-semibold text-[var(--color-accent)]">
-                  Abrir detalhe
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/casos/${caso.id}`} className="font-semibold text-[var(--color-accent)]">
+                    Abrir
+                  </Link>
+                  <Link href={`/casos/${caso.id}/editar`} className="text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)]">
+                    Editar
+                  </Link>
+                </div>
               ),
             },
           ]}
