@@ -1,6 +1,7 @@
 import type {
   Contrato,
   NovoContratoPayload,
+  AtualizarContratoPayload,
   StatusContrato,
 } from "../domain/types";
 import { CLAUSULAS_PADRAO } from "./templatesClausulas";
@@ -170,5 +171,34 @@ export class MockContratosRepository {
       atualizadoEm: agora,
     };
     return contratosStore[idx];
+  }
+
+  async atualizarContrato(id: string, payload: AtualizarContratoPayload): Promise<Contrato> {
+    const idx = contratosStore.findIndex((c) => c.id === id);
+    if (idx === -1) throw new Error(`Contrato ${id} não encontrado.`);
+    const agora = new Date().toISOString();
+    const existing = contratosStore[idx];
+    contratosStore[idx] = {
+      ...existing,
+      ...(payload.titulo !== undefined && { titulo: payload.titulo }),
+      ...(payload.tipo !== undefined && { tipo: payload.tipo }),
+      ...(payload.objeto !== undefined && { objeto: payload.objeto }),
+      ...(payload.partes !== undefined && { partes: payload.partes }),
+      ...(payload.casoId !== undefined && { casoId: payload.casoId ?? undefined }),
+      ...(payload.clienteId !== undefined && { clienteId: payload.clienteId ?? undefined }),
+      ...(payload.valorReais !== undefined && { valorReais: payload.valorReais ?? undefined }),
+      ...(payload.vigenciaInicio !== undefined && { vigenciaInicio: payload.vigenciaInicio ?? undefined }),
+      ...(payload.vigenciaFim !== undefined && { vigenciaFim: payload.vigenciaFim ?? undefined }),
+      ...(payload.status !== undefined && { status: payload.status }),
+      ...(payload.responsavelId !== undefined && { responsavelId: payload.responsavelId ?? undefined }),
+      atualizadoEm: agora,
+    };
+    return contratosStore[idx];
+  }
+
+  async excluirContrato(id: string): Promise<void> {
+    const idx = contratosStore.findIndex((c) => c.id === id);
+    if (idx === -1) throw new Error(`Contrato ${id} não encontrado.`);
+    contratosStore.splice(idx, 1);
   }
 }

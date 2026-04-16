@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { AgenteRiscoContrato } from "@/modules/contratos/ui/agente-risco-contrato";
 import { EditorClausulas } from "@/modules/contratos/ui/editor-clausulas";
+import { AcoesContrato } from "@/modules/contratos/ui/acoes-contrato";
 import { obterContratoPorId } from "@/modules/contratos/application";
 import {
   LABEL_TIPO_CONTRATO,
@@ -36,9 +37,12 @@ export default async function ContratoDetalhe({ params }: Params) {
           </div>
           <PageHeader title={contrato.titulo} description={contrato.objeto} />
         </div>
-        <Link href="/contratos" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)]">
-          ← Voltar
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/contratos" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)]">
+            ← Voltar
+          </Link>
+          <AcoesContrato contratoId={contrato.id} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr,340px]">

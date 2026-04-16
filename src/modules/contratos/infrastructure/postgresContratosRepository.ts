@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type {
   Contrato,
   NovoContratoPayload,
+  AtualizarContratoPayload,
   StatusContrato,
   ParteContrato,
   Clausula,
@@ -146,5 +147,34 @@ export class PostgresContratosRepository implements ContratosRepository {
       .where(eq(contratosTable.id, id));
 
     return (await this.obterPorId(id))!;
+  }
+
+  async atualizarContrato(id: string, payload: AtualizarContratoPayload): Promise<Contrato> {
+    const db = getDb();
+    const existing = await this.obterPorId(id);
+    if (!existing) throw new Error(`Contrato ${id} não encontrado.`);
+
+    const updates: Record<string, unknown> = { atualizadoEm: new Date() };
+    if (payload.titulo !== undefined) updates.titulo = payload.titulo;
+    if (payload.tipo !== undefined) updates.tipo = payload.tipo;
+    if (payload.objeto !== undefined) updates.objeto = payload.objeto;
+    if (payload.partes !== undefined) updates.partesJson = payload.partes;
+    if (payload.casoId !== undefined) updates.casoId = payload.casoId ?? null;
+    if (payload.clienteId !== undefined) updates.clienteId = payload.clienteId ?? null;
+    if (payload.valorReais !== undefined) updates.valorReais = payload.valorReais ?? null;
+    if (payload.vigenciaInicio !== undefined) updates.vigenciaInicio = payload.vigenciaInicio ?? null;
+    if (payload.vigenciaFim !== undefined) updates.vigenciaFim = payload.vigenciaFim ?? null;
+    if (payload.status !== undefined) updates.status = payload.status;
+    if (payload.responsavelId !== undefined) updates.responsavelId = payload.responsavelId ?? null;
+
+    await db.update(contratosTable).set(updates).where(eq(contratosTable.id, id));
+    return (await this.obterPorId(id))!;
+  }
+
+  async excluirContrato(id: string): Promise<void> {
+    const db = getDb();
+    const existing = await this.obterPorId(id);
+    if (!existing) throw new Error(`Contrato ${id} não encontrado.`);
+    await db.delete(contratosTable).where(eq(contratosTable.id, id));
   }
 }

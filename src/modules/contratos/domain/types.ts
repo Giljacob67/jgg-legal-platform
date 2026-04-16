@@ -156,3 +156,19 @@ export interface NovoContratoPayload {
   vigenciaInicio?: string;
   vigenciaFim?: string;
 }
+
+// ─── Payload para atualização ────────────────────────────────
+
+export interface AtualizarContratoPayload {
+  titulo?: string;
+  tipo?: TipoContrato;
+  objeto?: string;
+  partes?: ParteContrato[];
+  casoId?: string | null;
+  clienteId?: string | null;
+  valorReais?: number | null;
+  vigenciaInicio?: string | null;
+  vigenciaFim?: string | null;
+  status?: StatusContrato;
+  responsavelId?: string | null;
+}

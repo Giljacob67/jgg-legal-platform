@@ -59,6 +59,19 @@ export function EditorClausulas({ contratoId, clausulasIniciais, conteudoInicial
     });
   }
 
+  function moverClausula(id: string, direcao: "cima" | "baixo") {
+    setClausulas((prev) => {
+      const idx = prev.findIndex((c) => c.id === id);
+      if (idx < 0) return prev;
+      if (direcao === "cima" && idx === 0) return prev;
+      if (direcao === "baixo" && idx === prev.length - 1) return prev;
+      const nova = [...prev];
+      const trocar = direcao === "cima" ? idx - 1 : idx + 1;
+      [nova[idx], nova[trocar]] = [nova[trocar], nova[idx]];
+      return nova.map((c, i) => ({ ...c, numero: i + 1 }));
+    });
+  }
+
   function adicionarClausula() {
     const novoNumero = clausulas.length + 1;
     const nova: ClausulaEditada = {
@@ -222,6 +235,22 @@ export function EditorClausulas({ contratoId, clausulasIniciais, conteudoInicial
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => moverClausula(c.id, "cima")}
+                  disabled={c.numero === 1}
+                  className="rounded px-1.5 py-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)] transition-colors disabled:opacity-30"
+                  title="Mover para cima"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => moverClausula(c.id, "baixo")}
+                  disabled={c.numero === clausulas.length}
+                  className="rounded px-1.5 py-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)] transition-colors disabled:opacity-30"
+                  title="Mover para baixo"
+                >
+                  ↓
+                </button>
                 <button
                   onClick={() => toggleEditar(c.id)}
                   className="rounded px-2 py-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface-alt)] transition-colors"

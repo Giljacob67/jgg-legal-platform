@@ -7,8 +7,10 @@ import {
   salvarAnaliseRisco,
   atualizarStatusContrato,
   atualizarConteudoEClausulas,
+  atualizarContrato,
+  excluirContrato,
 } from "@/modules/contratos/application";
-import type { StatusContrato, Clausula } from "@/modules/contratos/domain/types";
+import type { StatusContrato, Clausula, AtualizarContratoPayload } from "@/modules/contratos/domain/types";
 import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClausulas";
 import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
@@ -26,7 +28,7 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ contrato });
 }
 
-// ─── PATCH: atualizar status ou cláusulas ────────────────────
+// ─── PATCH: atualizar contrato (campos gerais, status ou cláusulas) ──
 
 export async function PATCH(request: Request, { params }: Params) {
   const unauth = await requireAuth();
@@ -37,17 +39,40 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const { contratoId } = await params;
   try {
-    const body = (await request.json()) as {
-      status?: StatusContrato;
-      clausulas?: Clausula[];
-      conteudoAtual?: string;
-    };
+    const body = await request.json();
 
-    if (body.status) {
-      const contrato = await atualizarStatusContrato(contratoId, body.status);
+    // ── Atualização de campos gerais (AtualizarContratoPayload) ──
+    const camposGerais: (keyof AtualizarContratoPayload)[] = [
+      "titulo", "tipo", "objeto", "partes", "casoId", "clienteId",
+      "valorReais", "vigenciaInicio", "vigenciaFim", "status", "responsavelId",
+    ];
+    const temCampoGeral = camposGerais.some((k) => body[k] !== undefined || body[k] === null);
+
+    if (temCampoGeral) {
+      const payload: AtualizarContratoPayload = {};
+      if (body.titulo !== undefined) payload.titulo = body.titulo;
+      if (body.tipo !== undefined) payload.tipo = body.tipo;
+      if (body.objeto !== undefined) payload.objeto = body.objeto;
+      if (body.partes !== undefined) payload.partes = body.partes;
+      if (body.casoId !== undefined) payload.casoId = body.casoId ?? null;
+      if (body.clienteId !== undefined) payload.clienteId = body.clienteId ?? null;
+      if (body.valorReais !== undefined) payload.valorReais = body.valorReais ?? null;
+      if (body.vigenciaInicio !== undefined) payload.vigenciaInicio = body.vigenciaInicio ?? null;
+      if (body.vigenciaFim !== undefined) payload.vigenciaFim = body.vigenciaFim ?? null;
+      if (body.status !== undefined) payload.status = body.status;
+      if (body.responsavelId !== undefined) payload.responsavelId = body.responsavelId ?? null;
+
+      const contrato = await atualizarContrato(contratoId, payload);
       return NextResponse.json({ contrato });
     }
 
+    // ── Atualização de status (legado, compatibilidade) ──
+    if (body.status) {
+      const contrato = await atualizarStatusContrato(contratoId, body.status as StatusContrato);
+      return NextResponse.json({ contrato });
+    }
+
+    // ── Atualização de cláusulas/conteúdo ──
     if (body.clausulas !== undefined || body.conteudoAtual !== undefined) {
       const current = await obterContratoPorId(contratoId);
       if (!current) return NextResponse.json({ error: "Contrato não encontrado." }, { status: 404 });
@@ -62,6 +87,24 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Nenhum campo editável fornecido." }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro." }, { status: 500 });
+  }
+}
+
+// ─── DELETE: excluir contrato ──────────────────────────────────
+
+export async function DELETE(_req: Request, { params }: Params) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
+
+  const rbac = await requireRBAC("contratos", "total");
+  if (rbac) return rbac;
+
+  const { contratoId } = await params;
+  try {
+    await excluirContrato(contratoId);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Erro ao excluir." }, { status: 500 });
   }
 }
 
