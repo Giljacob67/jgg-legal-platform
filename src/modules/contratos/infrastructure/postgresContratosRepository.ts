@@ -115,4 +115,36 @@ export class PostgresContratosRepository implements ContratosRepository {
       })
       .where(eq(contratosTable.id, id));
   }
+
+  async atualizarConteudoEClausulas(
+    id: string,
+    clausulas: Clausula[],
+    conteudoAtual: string,
+  ): Promise<Contrato> {
+    const db = getDb();
+    const current = await this.obterPorId(id);
+    if (!current) throw new Error(`Contrato ${id} não encontrado.`);
+
+    const versaoAtual = current.versoes.length;
+    const novaVersao: VersaoContrato = {
+      id: `v${versaoAtual + 1}`,
+      numero: versaoAtual + 1,
+      autorNome: "Usuário",
+      resumoMudancas: "Edição manual de cláusulas",
+      conteudo: current.conteudoAtual,
+      criadoEm: new Date().toISOString(),
+    };
+
+    await db
+      .update(contratosTable)
+      .set({
+        clausulasJson: clausulas as unknown[],
+        conteudoAtual,
+        versoesJson: [...current.versoes, novaVersao] as unknown[],
+        atualizadoEm: new Date(),
+      })
+      .where(eq(contratosTable.id, id));
+
+    return (await this.obterPorId(id))!;
+  }
 }

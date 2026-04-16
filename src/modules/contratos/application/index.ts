@@ -15,3 +15,9 @@ export const atualizarStatusContrato = (id: string, status: StatusContrato) =>
 
 export const salvarAnaliseRisco = (id: string, analise: Contrato["analiseRisco"]) =>
   services.contratosRepository.salvarAnaliseRisco(id, analise);
+
+export const atualizarConteudoEClausulas = (
+  id: string,
+  clausulas: import("@/modules/contratos/domain/types").Clausula[],
+  conteudoAtual: string,
+) => services.contratosRepository.atualizarConteudoEClausulas(id, clausulas, conteudoAtual);

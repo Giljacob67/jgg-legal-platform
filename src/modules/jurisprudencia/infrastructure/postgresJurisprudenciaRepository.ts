@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/database/client";
+import { getDb, getSqlClient } from "@/lib/database/client";
 import { jurisprudencia as jurisprudenciaTable } from "@/lib/database/schema";
 import { eq, ilike, or } from "drizzle-orm";
 import type { Jurisprudencia, TipoDecisao } from "@/modules/jurisprudencia/domain/types";
@@ -92,8 +92,61 @@ export class PostgresJurisprudenciaRepository implements JurisprudenciaRepositor
       fundamentosLegaisJson: dados.fundamentosLegais,
       urlOrigem: dados.urlOrigem ?? null,
       relevancia: dados.relevancia,
+      embeddingStatus: "pendente",
     });
 
     return (await this.obterPorId(id))!;
+  }
+
+  async salvarEmbedding(id: string, embedding: number[]): Promise<void> {
+    const sql = getSqlClient();
+    // Usa sql raw pois Drizzle não suporta o tipo vector nativamente no update
+    await sql`
+      UPDATE jurisprudencia
+      SET embedding = ${JSON.stringify(embedding)}::vector,
+          embedding_status = 'indexado'
+      WHERE id = ${id}
+    `;
+  }
+
+  async listarPendentesIndexacao(limite = 50): Promise<Jurisprudencia[]> {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(jurisprudenciaTable)
+      .where(eq(jurisprudenciaTable.embeddingStatus, "pendente"))
+      .limit(limite);
+    return rows.map(mapRow);
+  }
+
+  async buscaSemantica(embedding: number[], limite = 10): Promise<Jurisprudencia[]> {
+    const sql = getSqlClient();
+    type Row = typeof jurisprudenciaTable.$inferSelect;
+    const rows = await sql<Row[]>`
+      SELECT id, titulo, ementa, ementa_resumida, tribunal, relator,
+             data_julgamento, tipo, materias_json, tese,
+             fundamentos_legais_json, url_origem, relevancia,
+             embedding_status, criado_em
+      FROM jurisprudencia
+      WHERE embedding IS NOT NULL
+      ORDER BY embedding <=> ${JSON.stringify(embedding)}::vector
+      LIMIT ${limite}
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      titulo: row.titulo,
+      ementa: row.ementa,
+      ementaResumida: row.ementaResumida ?? undefined,
+      tribunal: row.tribunal,
+      relator: row.relator ?? undefined,
+      dataJulgamento: row.dataJulgamento ?? undefined,
+      tipo: row.tipo as TipoDecisao,
+      materias: (row.materiasJson as string[]) ?? [],
+      tese: row.tese ?? undefined,
+      fundamentosLegais: (row.fundamentosLegaisJson as string[]) ?? [],
+      urlOrigem: row.urlOrigem ?? undefined,
+      relevancia: row.relevancia,
+      criadoEm: row.criadoEm.toISOString(),
+    }));
   }
 }

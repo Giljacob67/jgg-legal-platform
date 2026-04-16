@@ -493,6 +493,8 @@ export const jurisprudencia = pgTable("jurisprudencia", {
   fundamentosLegaisJson: jsonb("fundamentos_legais_json").notNull().default([]),
   urlOrigem: varchar("url_origem", { length: 500 }),
   relevancia: integer("relevancia").notNull().default(3),
+  embeddingStatus: varchar("embedding_status", { length: 20 }).notNull().default("pendente"),
+  embedding: vector("embedding"),
   criadoEm: timestamp("criado_em").defaultNow().notNull(),
 });
 

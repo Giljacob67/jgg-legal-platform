@@ -12,3 +12,12 @@ export const obterJurisprudenciaPorId = (id: string) =>
 
 export const criarJurisprudencia = (dados: Omit<Jurisprudencia, "id" | "criadoEm">) =>
   services.jurisprudenciaRepository.criar(dados);
+
+export const salvarEmbeddingJurisprudencia = (id: string, embedding: number[]) =>
+  services.jurisprudenciaRepository.salvarEmbedding(id, embedding);
+
+export const listarPendentesIndexacao = (limite?: number) =>
+  services.jurisprudenciaRepository.listarPendentesIndexacao(limite);
+
+export const buscaSemanticaJurisprudencia = (embedding: number[], limite?: number) =>
+  services.jurisprudenciaRepository.buscaSemantica(embedding, limite);

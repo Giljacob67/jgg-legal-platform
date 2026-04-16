@@ -194,6 +194,7 @@ const JD_MOCK: Jurisprudencia[] = [
 ];
 
 const jdStore: Jurisprudencia[] = [...JD_MOCK];
+const _embeddingsStore = new Map<string, number[]>();
 
 export class MockJurisprudenciaRepository {
   async listar(filtros?: { tribunal?: string; tipo?: TipoDecisao; materia?: string }): Promise<Jurisprudencia[]> {
@@ -228,5 +229,20 @@ export class MockJurisprudenciaRepository {
     const nova: Jurisprudencia = { id, ...dados, criadoEm: new Date().toISOString() };
     jdStore.push(nova);
     return nova;
+  }
+
+  async salvarEmbedding(id: string, embedding: number[]): Promise<void> {
+    _embeddingsStore.set(id, embedding);
+  }
+
+  async listarPendentesIndexacao(limite = 50): Promise<Jurisprudencia[]> {
+    const indexados = new Set(_embeddingsStore.keys());
+    return jdStore.filter((j) => !indexados.has(j.id)).slice(0, limite);
+  }
+
+  async buscaSemantica(embedding: number[], limite = 10): Promise<Jurisprudencia[]> {
+    // Sem embedding real no mock: retorna os de maior relevância como fallback
+    void embedding;
+    return [...jdStore].sort((a, b) => b.relevancia - a.relevancia).slice(0, limite);
   }
 }

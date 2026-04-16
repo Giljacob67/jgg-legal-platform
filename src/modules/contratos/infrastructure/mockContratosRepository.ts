@@ -144,4 +144,31 @@ export class MockContratosRepository {
       contratosStore[idx] = { ...contratosStore[idx], analiseRisco: analise, atualizadoEm: new Date().toISOString() };
     }
   }
+
+  async atualizarConteudoEClausulas(
+    id: string,
+    clausulas: import("../domain/types").Clausula[],
+    conteudoAtual: string,
+  ): Promise<Contrato> {
+    const idx = contratosStore.findIndex((c) => c.id === id);
+    if (idx === -1) throw new Error(`Contrato ${id} não encontrado.`);
+    const agora = new Date().toISOString();
+    const versaoAtual = contratosStore[idx].versoes.length;
+    const novaVersao: import("../domain/types").VersaoContrato = {
+      id: `v${versaoAtual + 1}`,
+      numero: versaoAtual + 1,
+      autorNome: "Usuário",
+      resumoMudancas: "Edição manual de cláusulas",
+      conteudo: contratosStore[idx].conteudoAtual,
+      criadoEm: agora,
+    };
+    contratosStore[idx] = {
+      ...contratosStore[idx],
+      clausulas,
+      conteudoAtual,
+      versoes: [...contratosStore[idx].versoes, novaVersao],
+      atualizadoEm: agora,
+    };
+    return contratosStore[idx];
+  }
 }

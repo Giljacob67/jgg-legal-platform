@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
-import { obterContratoPorId, salvarAnaliseRisco, atualizarStatusContrato } from "@/modules/contratos/application";
-import type { StatusContrato } from "@/modules/contratos/domain/types";
+import {
+  obterContratoPorId,
+  salvarAnaliseRisco,
+  atualizarStatusContrato,
+  atualizarConteudoEClausulas,
+} from "@/modules/contratos/application";
+import type { StatusContrato, Clausula } from "@/modules/contratos/domain/types";
 import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClausulas";
 import { requireAuth } from "@/lib/api-auth";
 
@@ -21,7 +26,7 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ contrato });
 }
 
-// ─── PATCH: atualizar status ──────────────────────────────────
+// ─── PATCH: atualizar status ou cláusulas ────────────────────
 
 export async function PATCH(request: Request, { params }: Params) {
   const unauth = await requireAuth();
@@ -29,10 +34,29 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const { contratoId } = await params;
   try {
-    const body = (await request.json()) as { status?: StatusContrato };
-    if (!body.status) return NextResponse.json({ error: "Campo 'status' obrigatório." }, { status: 400 });
-    const contrato = await atualizarStatusContrato(contratoId, body.status);
-    return NextResponse.json({ contrato });
+    const body = (await request.json()) as {
+      status?: StatusContrato;
+      clausulas?: Clausula[];
+      conteudoAtual?: string;
+    };
+
+    if (body.status) {
+      const contrato = await atualizarStatusContrato(contratoId, body.status);
+      return NextResponse.json({ contrato });
+    }
+
+    if (body.clausulas !== undefined || body.conteudoAtual !== undefined) {
+      const current = await obterContratoPorId(contratoId);
+      if (!current) return NextResponse.json({ error: "Contrato não encontrado." }, { status: 404 });
+      const contrato = await atualizarConteudoEClausulas(
+        contratoId,
+        body.clausulas ?? current.clausulas,
+        body.conteudoAtual ?? current.conteudoAtual,
+      );
+      return NextResponse.json({ contrato });
+    }
+
+    return NextResponse.json({ error: "Nenhum campo editável fornecido." }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro." }, { status: 500 });
   }
@@ -60,8 +84,63 @@ export async function POST(request: Request, { params }: Params) {
   const { contratoId } = await params;
   const body = (await request.json()) as { acao?: string };
 
-  if (body.acao !== "analisar-risco") {
-    return NextResponse.json({ error: "Ação desconhecida. Use { acao: 'analisar-risco' }." }, { status: 400 });
+  if (body.acao !== "analisar-risco" && body.acao !== "gerar-minuta") {
+    return NextResponse.json({ error: "Ação desconhecida. Use { acao: 'analisar-risco' } ou { acao: 'gerar-minuta' }." }, { status: 400 });
+  }
+
+  // ── Gerar minuta com IA ─────────────────────────────────────
+  if (body.acao === "gerar-minuta") {
+    const contrato = await obterContratoPorId(contratoId);
+    if (!contrato) return NextResponse.json({ error: "Contrato não encontrado." }, { status: 404 });
+
+    if (!isAIAvailable()) {
+      const templateClausulas = (CLAUSULAS_PADRAO[contrato.tipo] ?? CLAUSULAS_PADRAO["outro"]).map((c, i) => ({
+        id: `cl-gen-${i + 1}`,
+        numero: i + 1,
+        titulo: c.titulo,
+        conteudo: c.conteudo,
+        tipo: c.tipo,
+      }));
+      const conteudoMock = `${contrato.titulo.toUpperCase()}\n\n${templateClausulas.map((c) => `${c.numero}. ${c.titulo.toUpperCase()}\n\n${c.conteudo}`).join("\n\n")}`;
+      const updated = await atualizarConteudoEClausulas(contratoId, templateClausulas, conteudoMock);
+      return NextResponse.json({ contrato: updated, aviso: "Minuta mock — configure chave de IA para geração real." });
+    }
+
+    const MinutaSchema = z.object({
+      clausulas: z.array(z.object({
+        id: z.string(),
+        numero: z.number(),
+        titulo: z.string(),
+        conteudo: z.string(),
+        tipo: z.enum(["essencial", "negociavel", "opcional", "proibida"]),
+      })),
+      conteudoAtual: z.string(),
+    });
+
+    const partesStr = contrato.partes.map((p) => `${p.papel}: ${p.nome}${p.cpfCnpj ? ` (${p.cpfCnpj})` : ""}${p.qualificacao ? `, ${p.qualificacao}` : ""}`).join("; ");
+
+    const prompt = `Você é um advogado especialista em direito contratual brasileiro. Redija uma minuta completa de ${contrato.titulo}.
+
+TIPO: ${contrato.tipo}
+OBJETO: ${contrato.objeto}
+PARTES: ${partesStr}
+${contrato.valorReais ? `VALOR: R$ ${(contrato.valorReais / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+${contrato.vigenciaInicio ? `VIGÊNCIA: ${contrato.vigenciaInicio}${contrato.vigenciaFim ? ` a ${contrato.vigenciaFim}` : ""}` : ""}
+
+Gere:
+1. Um array de cláusulas estruturadas (id único, numero sequencial, titulo, conteudo completo em português jurídico, tipo entre essencial/negociavel/opcional/proibida)
+2. O conteudoAtual com todo o texto corrido do contrato em formato formal brasileiro
+
+Use linguagem jurídica formal. Inclua todas as cláusulas essenciais para o tipo de contrato. O conteudo de cada cláusula deve ter no mínimo 2 parágrafos completos.`;
+
+    try {
+      const { object } = await generateObject({ model: getLLM(), schema: MinutaSchema, prompt });
+      const updated = await atualizarConteudoEClausulas(contratoId, object.clausulas, object.conteudoAtual);
+      return NextResponse.json({ contrato: updated });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar minuta com IA.";
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
   }
 
   const contrato = await obterContratoPorId(contratoId);

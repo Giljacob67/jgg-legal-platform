@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { AgenteRiscoContrato } from "@/modules/contratos/ui/agente-risco-contrato";
+import { EditorClausulas } from "@/modules/contratos/ui/editor-clausulas";
 import { obterContratoPorId } from "@/modules/contratos/application";
 import {
   LABEL_TIPO_CONTRATO,
@@ -83,28 +84,13 @@ export default async function ContratoDetalhe({ params }: Params) {
             </div>
           </Card>
 
-          {/* Cláusulas */}
-          <Card title={`Cláusulas (${contrato.clausulas.length})`} subtitle="Estrutura contratual gerada automaticamente com base no tipo.">
-            <div className="space-y-4">
-              {contrato.clausulas.map((c) => (
-                <div key={c.id} className="rounded-xl border border-[var(--color-border)] p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-semibold text-sm text-[var(--color-ink)]">
-                      {c.numero}. {c.titulo}
-                    </p>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                      c.tipo === "essencial" ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : c.tipo === "negociavel" ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : c.tipo === "opcional" ? "bg-gray-100 text-gray-500 border-gray-200"
-                      : "bg-rose-50 text-rose-700 border-rose-200"
-                    }`}>
-                      {c.tipo}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--color-muted)] leading-relaxed">{c.conteudo}</p>
-                </div>
-              ))}
-            </div>
+          {/* Editor de cláusulas */}
+          <Card title={`Cláusulas (${contrato.clausulas.length})`} subtitle="Edite inline, adicione ou remova cláusulas. Use IA para gerar uma minuta completa.">
+            <EditorClausulas
+              contratoId={contrato.id}
+              clausulasIniciais={contrato.clausulas}
+              conteudoInicial={contrato.conteudoAtual}
+            />
           </Card>
         </div>
 
