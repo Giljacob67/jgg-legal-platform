@@ -93,19 +93,23 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
+      previewOnly,
       casoId,
       descricaoProblema,
       prazoInformadoCliente,
       documentosAnexados,
       textoDocumentoAdverso,
       intencaoExplicita,
+      intencaoCustom,
     } = body as {
+      previewOnly?: boolean;
       casoId: string;
       descricaoProblema: string;
       prazoInformadoCliente?: string;
       documentosAnexados?: string[];
       textoDocumentoAdverso?: string;
       intencaoExplicita?: IntencaoProcessual;
+      intencaoCustom?: string;
     };
 
     if (!casoId || !descricaoProblema) {
@@ -130,6 +134,10 @@ export async function POST(request: Request) {
     const intencaoContexto = intencaoExplicita
       ? `\n## Intenção Explícita do Advogado\nO advogado JÁ INDICOU que quer: "${intencaoExplicita}". Respeite essa intenção.`
       : `\n## Intenção a Detectar\nO advogado NÃO informou a intenção. Detecte a partir do documento e do contexto.`;
+
+    const intencaoLivreContexto = intencaoCustom?.trim()
+      ? `\n## Observação Livre do Advogado\nO advogado acrescentou a seguinte orientação complementar: "${intencaoCustom.trim()}".`
+      : "";
 
     const textoAdversoContexto = textoDocumentoAdverso
       ? `\n## Texto do Documento Adverso (OCR)\n${textoDocumentoAdverso.slice(0, 3000)}...`
@@ -161,6 +169,7 @@ ${prazoInformadoCliente ?? "Não informado"}
 ${documentosAnexados?.join(", ") ?? "Nenhum documento anexado"}
 ${textoAdversoContexto}
 ${intencaoContexto}
+${intencaoLivreContexto}
 
 ## Equipe Disponível
 ${equipeStr}
@@ -180,24 +189,35 @@ ${equipeStr}
       const intencaoMock: IntencaoProcessual = intencaoExplicita ??
         (poloDetectado === "passivo" ? "redigir_contestacao" : "analisar_documento_adverso");
 
+      const triagem = {
+        poloDetectado,
+        justificativaPolo: `Cliente "${caso.cliente}" identificado como ${poloDetectado === "ativo" ? "autor" : poloDetectado === "passivo" ? "réu" : "polo não identificado"} nas partes do caso.`,
+        tipoPecaClassificado: poloDetectado === "passivo" ? "Contestação" : "Petição inicial",
+        intencaoDetectada: intencaoMock,
+        prioridade: "alta" as PrioridadePedido,
+        prazoSugerido: prazoDefault,
+        responsavelSugerido: EQUIPE_JGG[0].nome,
+        resumoJustificativa: `Caso ${caso.materia} representando o polo ${poloDetectado}. Configure OPENAI_API_KEY para análise real.`,
+        alertas: ["Configurar OPENAI_API_KEY para triagem real com IA", "Confirmar polo processual manualmente"],
+        pontosVulneraveisAdverso: [],
+        etapaInicial: "classificacao",
+      };
+
+      if (previewOnly) {
+        return NextResponse.json({
+          casoId,
+          modo: "mock",
+          polo: poloDetectado,
+          triagem,
+        });
+      }
+
       return NextResponse.json({
         casoId,
         modo: "mock",
         aviso: "OPENAI_API_KEY não configurada — resultado simulado.",
         polo: poloDetectado,
-        triagem: {
-          poloDetectado,
-          justificativaPolo: `Cliente "${caso.cliente}" identificado como ${poloDetectado === "ativo" ? "autor" : poloDetectado === "passivo" ? "réu" : "polo não identificado"} nas partes do caso.`,
-          tipoPecaClassificado: poloDetectado === "passivo" ? "Contestação" : "Petição inicial",
-          intencaoDetectada: intencaoMock,
-          prioridade: "alta" as PrioridadePedido,
-          prazoSugerido: prazoDefault,
-          responsavelSugerido: EQUIPE_JGG[0].nome,
-          resumoJustificativa: `Caso ${caso.materia} representando o polo ${poloDetectado}. Configure OPENAI_API_KEY para análise real.`,
-          alertas: ["Configurar OPENAI_API_KEY para triagem real com IA", "Confirmar polo processual manualmente"],
-          pontosVulneraveisAdverso: [],
-          etapaInicial: "classificacao",
-        },
+        triagem,
       });
     }
 
@@ -206,6 +226,15 @@ ${equipeStr}
       schema: TriagemSchema,
       prompt,
     });
+
+    if (previewOnly) {
+      return NextResponse.json({
+        casoId,
+        modo: "ai",
+        polo: triagem.poloDetectado,
+        triagem,
+      });
+    }
 
     const novoPedido = await services.peticoesRepository.simularCriacaoPedido({
       casoId,

@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
+
+const TipoPecaEnum = z.enum(
+  TODOS_TIPOS_PECA as [typeof TODOS_TIPOS_PECA[number], ...typeof TODOS_TIPOS_PECA[number][]],
+  { message: "Selecione um tipo de peça válido." },
+);
 
 // ─── Petições ───────────────────────────────────────────────
 
@@ -11,26 +17,7 @@ export const NovoPedidoPayloadSchema = z.object({
     .string()
     .trim()
     .min(1, "Informe um título para o pedido."),
-  tipoPeca: z.enum([
-    "Petição inicial",
-    "Contestação",
-    "Réplica",
-    "Embargos à execução",
-    "Impugnação",
-    "Recurso",
-    "Manifestação",
-    "Apelação cível",
-    "Recurso especial cível",
-    "Agravo de instrumento",
-    "Agravo interno",
-    "Embargos de declaração",
-    "Mandado de segurança",
-    "Habeas corpus",
-    "Reconvenção",
-    "Exceção de pré-executividade",
-    "Pedido de tutela de urgência",
-    "Contrarrazões",
-  ], { message: "Selecione um tipo de peça válido." }),
+  tipoPeca: TipoPecaEnum,
   prioridade: z.enum(["baixa", "média", "alta"], {
     message: "Selecione uma prioridade válida.",
   }),
@@ -39,6 +26,9 @@ export const NovoPedidoPayloadSchema = z.object({
     .trim()
     .min(1, "Informe um prazo final.")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "O prazo deve estar no formato AAAA-MM-DD."),
+  intencaoProcessual: z.string().trim().optional(),
+  intencaoCustom: z.string().trim().optional(),
+  documentoOrigemId: z.string().trim().optional(),
 });
 
 export type NovoPedidoPayloadInput = z.infer<typeof NovoPedidoPayloadSchema>;

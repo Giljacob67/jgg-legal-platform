@@ -13,7 +13,7 @@ export default async function NovoPedidoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Novo Pedido de Peça"
-        description="Defina o objetivo processual para que o agente saiba o que fazer com o documento."
+        description="Abra um pedido com fluxo guiado, validação progressiva e confirmação humana antes da criação final."
       />
       <NovoPedidoForm tiposPeca={tiposPeca} casos={casos} />
     </div>
