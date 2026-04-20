@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useMemo, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
@@ -14,7 +14,11 @@ import { PainelInteligenciaJuridicaView } from "@/modules/peticoes/inteligencia-
 import { EditorToolbar } from "@/modules/peticoes/ui/editor-toolbar";
 import { VersionDiff } from "@/modules/peticoes/ui/version-diff";
 import { Card } from "@/components/ui/card";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { SelectInput } from "@/components/ui/select-input";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { TextareaInput } from "@/components/ui/textarea-input";
+import { SparkIcon } from "@/components/ui/icons";
 import { formatarDataHora } from "@/lib/utils";
 
 type EditorMinutaProps = {
@@ -38,7 +42,9 @@ export function EditorMinuta({
   inteligenciaJuridica = null,
   pedidoId,
 }: EditorMinutaProps) {
-  const [versaoComparadaId, setVersaoComparadaId] = useState(minuta.versoes[minuta.versoes.length - 1]?.id ?? "");
+  const [versaoComparadaId, setVersaoComparadaId] = useState(
+    minuta.versoes[minuta.versoes.length - 1]?.id ?? "",
+  );
   const [mensagemSalvar, setMensagemSalvar] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [selecaoTexto, setSelecaoTexto] = useState("");
@@ -50,7 +56,9 @@ export function EditorMinuta({
   const fatosRelevantes = toArray<string>(contextoJuridico?.fatosRelevantes);
   const cronologia = toArray<{ data: string; descricao: string; documentoId?: string }>(contextoJuridico?.cronologia);
   const pontosControvertidos = toArray<string>(contextoJuridico?.pontosControvertidos);
-  const referenciasDocumentais = toArray<{ documentoId: string; titulo: string }>(contextoJuridico?.referenciasDocumentais);
+  const referenciasDocumentais = toArray<{ documentoId: string; titulo: string }>(
+    contextoJuridico?.referenciasDocumentais,
+  );
 
   const editor = useEditor({
     extensions: [
@@ -73,16 +81,15 @@ export function EditorMinuta({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm max-w-none min-h-[420px] w-full p-4 text-[var(--color-ink)] outline-none focus:outline-none",
+          "prose prose-sm max-w-none min-h-[460px] w-full p-5 text-[var(--color-ink)] outline-none focus:outline-none",
       },
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to } = editor.state.selection;
-      if (from !== to) {
-        const texto = editor.state.doc.textBetween(from, to, " ");
-        if (texto.trim().length > 10) {
-          setSelecaoTexto(texto.trim());
-        }
+      if (from === to) return;
+      const texto = editor.state.doc.textBetween(from, to, " ");
+      if (texto.trim().length > 10) {
+        setSelecaoTexto(texto.trim());
       }
     },
   });
@@ -99,18 +106,21 @@ export function EditorMinuta({
     const conteudo = editor?.getHTML() ?? minuta.conteudoAtual;
     setSalvando(true);
     setMensagemSalvar("Salvando...");
+
     try {
       const res = await fetch(`/api/peticoes/minutas/${minuta.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conteudo }),
       });
+
       if (!res.ok) {
         const json = (await res.json()) as { error?: string };
         setMensagemSalvar(`Erro ao salvar: ${json.error ?? "tente novamente."}`);
-      } else {
-        setMensagemSalvar(`Rascunho salvo às ${new Date().toLocaleTimeString("pt-BR")}.`);
+        return;
       }
+
+      setMensagemSalvar(`Rascunho salvo às ${new Date().toLocaleTimeString("pt-BR")}.`);
     } catch {
       setMensagemSalvar("Erro de conexão ao salvar.");
     } finally {
@@ -131,7 +141,7 @@ export function EditorMinuta({
       });
 
       if (!res.body) {
-        const json = await res.json();
+        const json = (await res.json()) as { sugestao?: string };
         setSugestaoIA(json.sugestao ?? "Sem resposta.");
         return;
       }
@@ -146,7 +156,7 @@ export function EditorMinuta({
         texto += decoder.decode(value, { stream: true });
         setSugestaoIA(texto);
       }
-    } catch (e) {
+    } catch {
       setSugestaoIA("Erro ao conectar com a IA.");
     } finally {
       setLoadingIA(false);
@@ -162,96 +172,131 @@ export function EditorMinuta({
     setInstrucaoIA("");
   }
 
+  const proximosPassos = [
+    contextoJuridico ? "Conferir coerência entre estratégia consolidada e pedidos finais da minuta." : "Consolidar contexto jurídico antes da revisão final da peça.",
+    referenciasDocumentais.length > 0
+      ? "Validar se todas as referências documentais citadas estão corretas e atualizadas."
+      : "Anexar ou vincular documentos-chave para fortalecer fundamentação e provas.",
+    "Executar comparação com versão anterior antes de submeter para aprovação.",
+  ];
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.6fr,1fr]">
-      <Card title={minuta.titulo} subtitle="Editor de minuta com formatação rica, geração estruturada por contexto, template e matéria.">
+    <div className="grid gap-6 xl:grid-cols-[1.55fr,1fr]">
+      <Card
+        title={minuta.titulo}
+        subtitle="Edição jurídica assistida com contexto estruturado, versionamento e trilha de geração."
+        eyebrow="Redação"
+      >
+        <div className="mb-3 flex flex-wrap gap-2">
+          <StatusBadge label={`minuta ${minuta.id}`} variant="neutro" />
+          <StatusBadge
+            label={`contexto v${versaoContextoAtual ?? contextoJuridico?.versaoContexto ?? "n/d"}`}
+            variant={contextoJuridico ? "sucesso" : "alerta"}
+          />
+          <StatusBadge label={`${minuta.versoes.length} versões`} variant="implantacao" />
+          <StatusBadge label={`${referenciasDocumentais.length} referências`} variant="neutro" />
+        </div>
+
         <EditorToolbar editor={editor} />
         <div className="rounded-b-xl border border-t-0 border-[var(--color-border)] bg-[var(--color-card)]">
           <EditorContent editor={editor} />
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
+            type="button"
             onClick={salvarRascunho}
             disabled={salvando}
-            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-[var(--color-accent-strong)]"
+            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {salvando ? "Salvando..." : "Salvar rascunho"}
           </button>
 
-          {selecaoTexto && pedidoId && (
+          {selecaoTexto && pedidoId ? (
             <button
+              type="button"
               onClick={() => setPainelIAAberto(true)}
-              className="flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-info-border)] bg-[var(--color-info-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-info-ink)]"
             >
-              ✨ Sugestão IA
+              <SparkIcon size={14} />
+              Abrir sugestão assistida
             </button>
-          )}
+          ) : null}
 
           {mensagemSalvar ? <p className="text-xs text-[var(--color-muted)]">{mensagemSalvar}</p> : null}
         </div>
 
-        {/* Painel de Sugestão IA */}
-        {painelIAAberto && (
-          <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-violet-800">✨ Assistente IA — Sugestão de Reescrita</p>
+        {painelIAAberto ? (
+          <div className="mt-4 space-y-3 rounded-[1.2rem] border border-[var(--color-info-border)] bg-[var(--color-info-bg)] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[var(--color-info-ink)]">Sugestão assistida por IA</p>
               <button
+                type="button"
                 onClick={() => setPainelIAAberto(false)}
-                className="text-xs text-violet-500 hover:text-violet-800"
+                className="text-xs font-semibold text-[var(--color-info-ink)]"
               >
                 Fechar
               </button>
             </div>
 
-            <div className="rounded-lg bg-[var(--color-card)] border border-violet-100 p-3">
-              <p className="text-xs font-medium text-violet-600 mb-1">Trecho selecionado:</p>
-              <p className="text-sm text-[var(--color-ink)] italic line-clamp-3">&ldquo;{selecaoTexto}&rdquo;</p>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                Trecho selecionado
+              </p>
+              <p className="mt-2 text-sm text-[var(--color-muted)]">{selecaoTexto}</p>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-violet-700">O que você quer melhorar?</label>
-              <textarea
-                className="mt-1 w-full rounded-lg border border-violet-200 bg-[var(--color-card)] p-3 text-sm text-[var(--color-ink)] outline-none focus:ring-2 focus:ring-violet-300"
-                rows={2}
-                placeholder='Ex: "Reformule de forma mais técnica e objetiva" ou "Adicione a referência ao art. 5º da CF"'
-                value={instrucaoIA}
-                onChange={(e) => setInstrucaoIA(e.target.value)}
-              />
-            </div>
+            <TextareaInput
+              label="Instrução para a IA"
+              value={instrucaoIA}
+              onChange={(event) => setInstrucaoIA(event.target.value)}
+              rows={2}
+              placeholder="Ex.: Reescreva em tom mais técnico, com maior objetividade e reforço dos fundamentos."
+              helperText="Descreva claramente o ajuste desejado para o trecho selecionado."
+            />
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
+                type="button"
                 onClick={solicitarSugestaoIA}
                 disabled={loadingIA || !instrucaoIA}
-                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:bg-violet-700"
+                className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {loadingIA ? "Consultando IA..." : "Reescrever"}
+                {loadingIA ? "Consultando IA..." : "Gerar sugestão"}
               </button>
-              {sugestaoIA && (
+              {sugestaoIA ? (
                 <button
+                  type="button"
                   onClick={aplicarSugestaoNoEditor}
-                  className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
                 >
-                  ✅ Aplicar no editor
+                  Aplicar no editor
                 </button>
-              )}
+              ) : null}
             </div>
 
-            {sugestaoIA && (
-              <div className="rounded-lg bg-[var(--color-card)] border border-green-200 p-3">
-                <p className="text-xs font-medium text-green-700 mb-1">Sugestão da IA:</p>
-                <p className="text-sm text-[var(--color-ink)] whitespace-pre-wrap">{sugestaoIA}</p>
+            {sugestaoIA ? (
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                  Sugestão retornada
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--color-muted)]">{sugestaoIA}</p>
               </div>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </Card>
 
       <div className="space-y-6">
-        <Card title="Contexto jurídico estruturado" subtitle="Base consolidada por snapshots versionados do pipeline.">
+        <Card
+          title="Painel operacional da minuta"
+          subtitle="Contexto acionável para revisão técnica e consistência da peça."
+          eyebrow="Contexto"
+        >
           {!contextoJuridico ? (
-            <p className="text-sm text-[var(--color-muted)]">Contexto não disponível para esta minuta.</p>
+            <InlineAlert title="Contexto indisponível" variant="warning">
+              O contexto jurídico ainda não foi consolidado para esta minuta.
+            </InlineAlert>
           ) : (
             <div className="space-y-3 text-sm text-[var(--color-ink)]">
               <p className="text-xs text-[var(--color-muted)]">
@@ -265,24 +310,23 @@ export function EditorMinuta({
                 <strong>Fatos relevantes:</strong> {fatosRelevantes.length}
               </p>
               <p>
-                <strong>Cronologia:</strong> {cronologia.length} eventos
+                <strong>Cronologia:</strong> {cronologia.length} evento(s)
               </p>
               <p>
                 <strong>Pontos controvertidos:</strong> {pontosControvertidos.length}
               </p>
               <p>
-                <strong>Referências documentais:</strong> {referenciasDocumentais.length}
+                <strong>Referências:</strong> {referenciasDocumentais.length}
               </p>
-              {referenciasDocumentais.length > 0 ? (
-                <div className="rounded-xl border border-[var(--color-border)] p-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-                    Referências principais
+
+              {fatosRelevantes.length > 0 ? (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                    Fatos prioritários
                   </p>
                   <ul className="mt-2 space-y-1 text-xs text-[var(--color-muted)]">
-                    {referenciasDocumentais.slice(0, 5).map((referencia) => (
-                      <li key={`${referencia.documentoId}-${referencia.titulo}`}>
-                        {referencia.documentoId} • {referencia.titulo}
-                      </li>
+                    {fatosRelevantes.slice(0, 4).map((fato) => (
+                      <li key={fato}>{fato}</li>
                     ))}
                   </ul>
                 </div>
@@ -291,7 +335,7 @@ export function EditorMinuta({
           )}
         </Card>
 
-        <Card title="Rastro da geração" subtitle="Rastreabilidade de template, contexto e referências utilizadas.">
+        <Card title="Rastro de geração" subtitle="Origem técnica da versão atual para auditoria e rastreabilidade." eyebrow="Rastro">
           {!rastroGeracaoAtual ? (
             <p className="text-sm text-[var(--color-muted)]">Geração estruturada indisponível para esta minuta.</p>
           ) : (
@@ -300,41 +344,46 @@ export function EditorMinuta({
                 <strong>Template:</strong> {rastroGeracaoAtual.templateNome} (v{rastroGeracaoAtual.templateVersao})
               </p>
               <p>
-                <strong>Tipo de peça canônico:</strong> {rastroGeracaoAtual.tipoPecaCanonica}
+                <strong>Tipo canônico:</strong> {rastroGeracaoAtual.tipoPecaCanonica}
               </p>
               <p>
                 <strong>Matéria canônica:</strong> {rastroGeracaoAtual.materiaCanonica}
               </p>
               <p>
-                <strong>Versão do contexto:</strong> v{rastroGeracaoAtual.contextoVersao ?? "n/d"}
+                <strong>Contexto origem:</strong> v{rastroGeracaoAtual.contextoVersao ?? "n/d"}
               </p>
               <p>
-                <strong>Referências documentais:</strong> {rastroGeracaoAtual.referenciasDocumentais.length}
+                <strong>Referências usadas:</strong> {rastroGeracaoAtual.referenciasDocumentais.length}
               </p>
             </div>
           )}
         </Card>
 
+        <Card title="Próximos passos da revisão" subtitle="Checklist operacional antes de avançar para aprovação." eyebrow="Revisão">
+          <div className="space-y-2">
+            {proximosPassos.map((passo) => (
+              <p key={passo} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-2 text-sm text-[var(--color-muted)]">
+                {passo}
+              </p>
+            ))}
+          </div>
+        </Card>
+
         <PainelInteligenciaJuridicaView inteligenciaJuridica={inteligenciaJuridica} />
 
-        <Card title="Comparação entre versões" subtitle="Diff visual com destaque de adições e remoções.">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-[var(--color-ink)]">Versão de referência</span>
-            <select
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2"
-              value={versaoComparadaId}
-              onChange={(event) => setVersaoComparadaId(event.target.value)}
-            >
-              {minuta.versoes.map((versao) => (
-                <option key={versao.id} value={versao.id}>
-                  Versão {versao.numero} - {formatarDataHora(versao.criadoEm)}
-                </option>
-              ))}
-            </select>
-          </label>
+        <Card title="Comparação entre versões" subtitle="Diferença textual entre versão selecionada e conteúdo atual." eyebrow="Versionamento">
+          <SelectInput
+            label="Versão de referência"
+            value={versaoComparadaId}
+            onChange={(event) => setVersaoComparadaId(event.target.value)}
+            options={minuta.versoes.map((versao) => ({
+              value: versao.id,
+              label: `Versão ${versao.numero} • ${formatarDataHora(versao.criadoEm)}`,
+            }))}
+          />
 
           {versaoComparada ? (
-            <div className="mt-3">
+            <div className="mt-2">
               <VersionDiff
                 oldText={versaoComparada.conteudo}
                 newText={conteudoAtualTexto}
@@ -343,35 +392,30 @@ export function EditorMinuta({
               />
             </div>
           ) : (
-            <p className="mt-2 text-sm text-[var(--color-muted)]">
-              Selecione uma versão para comparar.
-            </p>
+            <p className="text-sm text-[var(--color-muted)]">Selecione uma versão para comparar.</p>
           )}
         </Card>
 
-        <Card title="Histórico de versões" subtitle="Rastreabilidade de alterações do documento.">
+        <Card title="Histórico de versões" subtitle="Rastro completo de alterações do documento." eyebrow="Auditoria">
           <div className="space-y-3">
             {minuta.versoes
               .slice()
               .reverse()
               .map((versao) => (
-                <article key={versao.id} className="rounded-xl border border-[var(--color-border)] p-3">
+                <article key={versao.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold text-[var(--color-ink)]">Versão {versao.numero}</p>
+                    <p className="text-sm font-semibold text-[var(--color-ink)]">Versão {versao.numero}</p>
                     <StatusBadge label="registrada" variant="sucesso" />
                   </div>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
                     {versao.autor} • {formatarDataHora(versao.criadoEm)}
                   </p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    Contexto de origem: v{versao.contextoVersaoOrigem ?? versaoContextoAtual ?? "n/d"}
+                    Contexto origem: v{versao.contextoVersaoOrigem ?? versaoContextoAtual ?? "n/d"}
                   </p>
                   <p className="text-xs text-[var(--color-muted)]">
                     Template: {versao.templateNomeOrigem ?? "n/d"}{" "}
                     {versao.templateVersaoOrigem ? `(v${versao.templateVersaoOrigem})` : ""}
-                  </p>
-                  <p className="text-xs text-[var(--color-muted)]">
-                    Referências: {versao.referenciasDocumentaisOrigem?.length ?? 0}
                   </p>
                   <p className="mt-2 text-sm text-[var(--color-muted)]">{versao.resumoMudancas}</p>
                 </article>

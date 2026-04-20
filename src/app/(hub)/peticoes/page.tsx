@@ -1,17 +1,10 @@
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/button-link";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { LibraryIcon, ScaleIcon } from "@/components/ui/icons";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
-import type { StatusPedido } from "@/modules/peticoes/domain/types";
-import { formatarData } from "@/lib/utils";
-
-const VARIANT_STATUS_PEDIDO: Record<StatusPedido, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
-  "em triagem": "neutro",
-  "em produção": "implantacao",
-  "em revisão": "alerta",
-  "aprovado": "sucesso",
-};
+import { PedidosOperacionaisList } from "@/modules/peticoes/ui/pedidos-operacionais-list";
 
 export default async function PeticoesPage() {
   const pedidos = await listarPedidosDePeca();
@@ -21,53 +14,32 @@ export default async function PeticoesPage() {
       <PageHeader
         title="Petições"
         description="Centro de produção jurídica com pipeline, auditoria e editor de minuta."
+        meta={<StatusBadge label={`${pedidos.length} pedidos ativos`} variant="ativo" />}
+        actions={
+          <>
+            <ButtonLink href="/peticoes/novo" label="Novo pedido de peça" icon={<ScaleIcon size={16} />} />
+            <ButtonLink
+              href="/peticoes/base-juridica"
+              label="Base jurídica viva"
+              icon={<LibraryIcon size={16} />}
+              variant="secundario"
+            />
+          </>
+        }
       />
 
-      <Card title="Fluxo de produção jurídica">
+      <Card
+        title="Fluxo de produção jurídica"
+        subtitle="A fila operacional agora centraliza busca, priorização de prazo e roteamento por responsável."
+        eyebrow="Workbench"
+      >
         <p className="text-sm text-[var(--color-muted)]">
-          O módulo Petições organiza o trabalho por etapas especializadas para que o redator final não seja o primeiro
-          leitor do caso.
+          Use os filtros para distribuir carga de trabalho, atacar urgências e reduzir tempo de ciclo entre triagem,
+          produção, revisão e aprovação.
         </p>
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Link
-            href="/peticoes/novo"
-            className="rounded-xl bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white"
-          >
-            Novo pedido de peça
-          </Link>
-          <Link
-            href="/peticoes/base-juridica"
-            className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-semibold hover:bg-[var(--color-surface-alt)]"
-          >
-            Base jurídica viva
-          </Link>
-        </div>
       </Card>
 
-      <Card title="Pedidos ativos" subtitle="Itens com andamento atual no pipeline.">
-        <div className="grid gap-3 md:grid-cols-2">
-          {pedidos.map((pedido) => (
-            <article key={pedido.id} className="rounded-xl border border-[var(--color-border)] p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-[var(--color-ink)]">{pedido.id}</p>
-                <StatusBadge label={pedido.status} variant={VARIANT_STATUS_PEDIDO[pedido.status] ?? "neutro"} />
-              </div>
-              <p className="mt-1 text-sm text-[var(--color-muted)]">{pedido.titulo}</p>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">
-                Prazo: {formatarData(pedido.prazoFinal)} • Responsável: {pedido.responsavel}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Link href={`/peticoes/pedidos/${pedido.id}`} className="text-sm font-semibold text-[var(--color-accent)]">
-                  Detalhe
-                </Link>
-                <Link href={`/peticoes/pipeline/${pedido.id}`} className="text-sm font-semibold text-[var(--color-accent)]">
-                  Pipeline
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
-      </Card>
+      <PedidosOperacionaisList pedidos={pedidos} />
     </div>
   );
 }

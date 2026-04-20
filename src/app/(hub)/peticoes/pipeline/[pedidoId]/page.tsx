@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
+import { ButtonLink } from "@/components/ui/button-link";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FileIcon } from "@/components/ui/icons";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
+import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { PipelineWorkspace } from "@/modules/peticoes/ui/pipeline-workspace";
 import { auth } from "@/lib/auth";
@@ -13,9 +17,10 @@ type PipelinePedidoPageProps = {
 export default async function PipelinePedidoPage({ params }: PipelinePedidoPageProps) {
   const { pedidoId } = await params;
 
-  const [pedido, session] = await Promise.all([
+  const [pedido, session, minuta] = await Promise.all([
     obterPedidoDePeca(pedidoId),
     auth(),
+    obterMinutaPorPedidoId(pedidoId),
   ]);
 
   if (!pedido) {
@@ -31,6 +36,22 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
       <PageHeader
         title="Pipeline da Peça"
         description={`${pedido.id} • ${pedido.titulo}`}
+        meta={
+          <>
+            <StatusBadge label={pedido.status} variant={pedido.status === "aprovado" ? "sucesso" : "implantacao"} />
+            <StatusBadge label={`etapa ${etapaAtual.replaceAll("_", " ")}`} variant="neutro" />
+          </>
+        }
+        actions={
+          minuta ? (
+            <ButtonLink
+              href={`/peticoes/minutas/${minuta.id}/editor`}
+              label="Abrir editor"
+              icon={<FileIcon size={16} />}
+              variant="secundario"
+            />
+          ) : undefined
+        }
       />
       <PipelineWorkspace
         pedidoId={pedido.id}
