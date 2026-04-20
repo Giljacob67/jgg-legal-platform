@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { ButtonLink } from "@/components/ui/button-link";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { FolderIcon, PlusIcon } from "@/components/ui/icons";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
 import type { Caso, StatusCaso } from "@/modules/casos/domain/types";
 import { formatarData } from "@/lib/utils";
@@ -16,15 +18,6 @@ const VARIANT_STATUS_CASO: Record<StatusCaso, "ativo" | "implantacao" | "planeja
   "protocolado": "sucesso",
 };
 
-const NovoCasoButton = (
-  <Link
-    href="/casos/novo"
-    className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-accent-strong)]"
-  >
-    + Novo caso
-  </Link>
-);
-
 export default async function CasosPage() {
   const casos = await listarCasos();
 
@@ -33,11 +26,17 @@ export default async function CasosPage() {
       <PageHeader
         title="Casos"
         description="Lista central de casos com prazo, matéria e rastreio de evolução jurídica."
-        actions={NovoCasoButton}
+        meta={<StatusBadge label={`${casos.length} casos cadastrados`} variant="ativo" />}
+        actions={<ButtonLink href="/casos/novo" label="Novo caso" icon={<PlusIcon size={16} />} />}
       />
 
       {casos.length === 0 ? (
-        <EmptyState title="Nenhum caso encontrado" message="Cadastre um novo caso para iniciar o fluxo de produção." />
+        <EmptyState
+          title="Nenhum caso encontrado"
+          message="Cadastre um novo caso para iniciar o fluxo de produção."
+          icon={<FolderIcon size={24} />}
+          action={<ButtonLink href="/casos/novo" label="Cadastrar primeiro caso" icon={<PlusIcon size={16} />} />}
+        />
       ) : (
         <DataTable<Caso>
           rows={casos}

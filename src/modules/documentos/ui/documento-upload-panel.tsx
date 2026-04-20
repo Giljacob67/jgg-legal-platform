@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload as uploadBlobClient } from "@vercel/blob/client";
 import { Card } from "@/components/ui/card";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { SelectInput } from "@/components/ui/select-input";
+import { TextInput } from "@/components/ui/text-input";
 import type { TipoDocumento } from "@/modules/documentos/domain/types";
 
 type VinculoInput = {
@@ -180,85 +183,67 @@ export function DocumentoUploadPanel({
   }
 
   return (
-    <Card title={titulo} subtitle={descricao}>
+    <Card title={titulo} subtitle={descricao} eyebrow="Entrada documental">
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-[var(--color-ink)]">Título jurídico</span>
-            <input
-              value={tituloDocumento}
-              onChange={(event) => setTituloDocumento(event.target.value)}
-              className="rounded-xl border border-[var(--color-border)] px-3 py-2"
-              placeholder="Ex.: Contrato social atualizado"
-              required
-            />
-          </label>
+          <TextInput
+            label="Título jurídico"
+            value={tituloDocumento}
+            onChange={(event) => setTituloDocumento(event.target.value)}
+            placeholder="Ex.: Contrato social atualizado"
+            helperText="Use um título objetivo para facilitar busca, triagem e reaproveitamento."
+            requiredMark
+            required
+          />
 
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-[var(--color-ink)]">Tipo de documento</span>
-            <select
-              value={tipoDocumento}
-              onChange={(event) => setTipoDocumento(event.target.value as TipoDocumento)}
-              className="rounded-xl border border-[var(--color-border)] px-3 py-2"
-            >
-              {tiposDocumento.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectInput
+            label="Tipo de documento"
+            value={tipoDocumento}
+            onChange={(event) => setTipoDocumento(event.target.value as TipoDocumento)}
+            options={tiposDocumento.map((tipo) => ({ value: tipo, label: tipo }))}
+            helperText="Essa classificação orienta indexação, leitura e vínculo com o pedido."
+          />
         </div>
 
         {mostrarSeletores ? (
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-[var(--color-ink)]">Caso vinculado</span>
-              <select
-                value={casoSelecionado}
-                onChange={(event) => {
-                  setCasoSelecionado(event.target.value);
-                  setPedidoSelecionado("");
-                }}
-                className="rounded-xl border border-[var(--color-border)] px-3 py-2"
-              >
-                <option value="">Selecione um caso</option>
-                {casos.map((caso) => (
-                  <option key={caso.id} value={caso.id}>
-                    {caso.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectInput
+              label="Caso vinculado"
+              value={casoSelecionado}
+              onChange={(event) => {
+                setCasoSelecionado(event.target.value);
+                setPedidoSelecionado("");
+              }}
+              options={[
+                { value: "", label: "Selecione um caso" },
+                ...casos.map((caso) => ({ value: caso.id, label: caso.label })),
+              ]}
+              helperText="O caso principal garante contexto e rastreabilidade do documento."
+            />
 
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-[var(--color-ink)]">Pedido de peça (opcional)</span>
-              <select
-                value={pedidoSelecionado}
-                onChange={(event) => setPedidoSelecionado(event.target.value)}
-                className="rounded-xl border border-[var(--color-border)] px-3 py-2"
-              >
-                <option value="">Sem vínculo com pedido</option>
-                {pedidosFiltrados.map((pedido) => (
-                  <option key={pedido.id} value={pedido.id}>
-                    {pedido.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectInput
+              label="Pedido de peça"
+              value={pedidoSelecionado}
+              onChange={(event) => setPedidoSelecionado(event.target.value)}
+              options={[
+                { value: "", label: "Sem vínculo com pedido" },
+                ...pedidosFiltrados.map((pedido) => ({ value: pedido.id, label: pedido.label })),
+              ]}
+              helperText="Opcional. Use quando o documento já tiver destinação operacional clara."
+            />
           </div>
         ) : null}
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-[var(--color-ink)]">Arquivo</span>
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="text-sm font-semibold text-[var(--color-ink)]">Arquivo</span>
           <input
             type="file"
             accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={(event) => setArquivo(event.target.files?.[0] ?? null)}
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-strong)] px-4 py-3 text-sm text-[var(--color-ink)]"
             required
           />
-          <span className="text-xs text-[var(--color-muted)]">
+          <span className="text-xs leading-5 text-[var(--color-muted)]">
             {modoUpload === "api"
               ? "Limite atual de upload via API: 4 MB por arquivo."
               : "Upload direto para Blob privado (suporta arquivos maiores)."}
@@ -268,13 +253,13 @@ export function DocumentoUploadPanel({
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-2xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
         >
           {loading ? "Enviando..." : "Enviar documento"}
         </button>
 
-        {mensagem ? <p className="text-sm font-medium text-emerald-700">{mensagem}</p> : null}
-        {erro ? <p className="text-sm font-medium text-rose-700">{erro}</p> : null}
+        {mensagem ? <InlineAlert title="Upload concluído" variant="success">{mensagem}</InlineAlert> : null}
+        {erro ? <InlineAlert title="Falha no upload" variant="warning">{erro}</InlineAlert> : null}
       </form>
     </Card>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MoonIcon, SunIcon } from "@/components/ui/icons";
 
 export function ThemeToggle() {
   // Começa como null para não renderizar nada até o cliente saber o tema real
@@ -30,7 +31,7 @@ export function ThemeToggle() {
   // Não renderiza nada no servidor (evita hydration mismatch no ícone)
   if (isDark === null) {
     return (
-      <div className="h-9 w-9 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]" />
+      <div className="h-10 w-10 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]" />
     );
   }
 
@@ -39,9 +40,9 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       title={isDark ? "Mudar para modo claro" : "Mudar para modo escuro"}
-      className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-base transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+      className="grid h-10 w-10 place-items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
     >
-      {isDark ? "☀️" : "🌙"}
+      {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
     </button>
   );
 }

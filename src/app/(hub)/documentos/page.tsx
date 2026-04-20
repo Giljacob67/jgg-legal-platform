@@ -3,6 +3,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ArchiveIcon } from "@/components/ui/icons";
 import { listarDocumentos } from "@/modules/documentos/application/listarDocumentos";
 import type { DocumentoListItem, StatusDocumento, StatusProcessamentoDocumental } from "@/modules/documentos/domain/types";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
@@ -50,6 +51,12 @@ export default async function DocumentosPage() {
       <PageHeader
         title="Documentos"
         description="Upload, leitura e rastreio documental para suportar a produção das peças."
+        meta={
+          <>
+            <StatusBadge label={`${documentos.length} documentos`} variant="neutro" />
+            <StatusBadge label={dataMode === "real" ? "modo real" : "modo mock"} variant={dataMode === "real" ? "ativo" : "mock"} />
+          </>
+        }
       />
       <DocumentoUploadPanel
         casos={opcoesCasos}
@@ -58,7 +65,11 @@ export default async function DocumentosPage() {
       />
 
       {documentos.length === 0 ? (
-        <EmptyState title="Sem documentos" message="Faça upload de documentos para iniciar a triagem." />
+        <EmptyState
+          title="Sem documentos"
+          message="Faça upload de documentos para iniciar a triagem."
+          icon={<ArchiveIcon size={24} />}
+        />
       ) : (
         <DataTable<DocumentoListItem>
           rows={documentos}

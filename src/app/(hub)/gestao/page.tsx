@@ -1,5 +1,8 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ChartIcon, ChevronRightIcon, FileIcon, FolderIcon, SearchIcon, UsersIcon } from "@/components/ui/icons";
 import { obterKpis, listarAlcadas, listarAlertas } from "@/modules/gestao/application";
 import { COR_URGENCIA } from "@/modules/gestao/domain/types";
 import Link from "next/link";
@@ -8,54 +11,59 @@ export default async function GestaoPage() {
   const [kpis, alcadas, alertas] = await Promise.all([obterKpis(), listarAlcadas(), listarAlertas()]);
 
   const kpiCards = [
-    { label: "Casos abertos", valor: kpis.casosAbertos, total: kpis.totalCasos, emoji: "⚖️" },
-    { label: "Pedidos em produção", valor: kpis.pedidosEmProducao, total: kpis.totalPedidos, emoji: "📝" },
-    { label: "Contratos vigentes", valor: kpis.contratosVigentes, total: kpis.totalContratos, emoji: "📄" },
-    { label: "Clientes ativos", valor: kpis.clientesAtivos, total: kpis.totalClientes, emoji: "👥" },
-    { label: "Documentos pendentes OCR", valor: kpis.documentosPendentesOCR, total: kpis.totalDocumentos, emoji: "🔍" },
-    { label: "Pedidos concluídos", valor: kpis.pedidosConcluidos, total: kpis.totalPedidos, emoji: "✅" },
+    { label: "Casos abertos", valor: kpis.casosAbertos, total: kpis.totalCasos, icon: FolderIcon },
+    { label: "Pedidos em produção", valor: kpis.pedidosEmProducao, total: kpis.totalPedidos, icon: ChartIcon },
+    { label: "Contratos vigentes", valor: kpis.contratosVigentes, total: kpis.totalContratos, icon: FileIcon },
+    { label: "Clientes ativos", valor: kpis.clientesAtivos, total: kpis.totalClientes, icon: UsersIcon },
+    { label: "Documentos pendentes OCR", valor: kpis.documentosPendentesOCR, total: kpis.totalDocumentos, icon: SearchIcon },
+    { label: "Pedidos concluídos", valor: kpis.pedidosConcluidos, total: kpis.totalPedidos, icon: ChartIcon },
   ];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Gestão" description="Indicadores operacionais, alçadas da equipe e alertas de produtividade." />
+      <PageHeader
+        title="Gestão"
+        description="Indicadores operacionais, alçadas da equipe e alertas de produtividade."
+        meta={<StatusBadge label={`${alertas.length} alertas ativos`} variant={alertas.length > 0 ? "alerta" : "sucesso"} />}
+      />
 
-      {/* Alertas */}
       {alertas.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-[var(--color-ink)]">🔔 Alertas ativos ({alertas.length})</p>
+          <p className="text-sm font-semibold text-[var(--color-ink)]">Alertas ativos ({alertas.length})</p>
           {alertas.map((a) => (
-            <div key={a.id} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${COR_URGENCIA[a.urgencia]}`}>
-              <span className="text-lg">{a.urgencia === "critica" ? "🚨" : a.urgencia === "alta" ? "⚠️" : a.urgencia === "media" ? "🔔" : "ℹ️"}</span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{a.titulo}</p>
-                <p className="text-xs opacity-80">{a.descricao}</p>
-              </div>
-              {a.prazo && (
-                <span className="ml-auto text-xs font-mono opacity-70 whitespace-nowrap">
-                  {new Date(a.prazo).toLocaleDateString("pt-BR")}
+            <InlineAlert
+              key={a.id}
+              title={a.titulo}
+              variant={a.urgencia === "baixa" ? "info" : "warning"}
+              className={COR_URGENCIA[a.urgencia]}
+            >
+              {a.descricao}
+              {a.prazo ? (
+                <span className="mt-2 block text-xs font-medium">
+                  Prazo: {new Date(a.prazo).toLocaleDateString("pt-BR")}
                 </span>
-              )}
-            </div>
+              ) : null}
+            </InlineAlert>
           ))}
         </div>
       )}
 
-      {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-3">
         {kpiCards.map((k) => (
-          <div key={k.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+          <div key={k.label} className="rounded-[1.45rem] border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card)]">
             <div className="flex items-center gap-2">
-              <span className="text-xl">{k.emoji}</span>
-              <p className="text-xs font-semibold text-[var(--color-muted)]">{k.label}</p>
+              <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-accent)]">
+                <k.icon size={18} />
+              </span>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-strong)]">{k.label}</p>
             </div>
             <div className="mt-2 flex items-end gap-1">
-              <p className="text-2xl font-bold text-[var(--color-ink)]">{k.valor}</p>
-              <p className="text-sm text-[var(--color-muted)] mb-0.5">/ {k.total}</p>
+              <p className="font-serif text-4xl text-[var(--color-ink)]">{k.valor}</p>
+              <p className="mb-1 text-sm text-[var(--color-muted)]">/ {k.total}</p>
             </div>
-            <div className="mt-2 h-1.5 w-full rounded-full bg-[var(--color-surface-alt)]">
+            <div className="mt-3 h-2 w-full rounded-full bg-[var(--color-surface-alt)]">
               <div
-                className="h-1.5 rounded-full bg-[var(--color-accent)]"
+                className="h-2 rounded-full bg-[var(--color-accent)]"
                 style={{ width: k.total > 0 ? `${Math.round((k.valor / k.total) * 100)}%` : "0%" }}
               />
             </div>
@@ -63,8 +71,7 @@ export default async function GestaoPage() {
         ))}
       </div>
 
-      {/* Alçada por advogado */}
-      <Card title="Alçada da equipe" subtitle="Distribuição de trabalho ativo por advogado.">
+      <Card title="Alçada da equipe" subtitle="Distribuição de trabalho ativo por advogado." eyebrow="Capacidade">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -100,15 +107,18 @@ export default async function GestaoPage() {
         </div>
       </Card>
 
-      {/* Links rápidos */}
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { href: "/casos", label: "Ver todos os casos", emoji: "⚖️" },
-          { href: "/peticoes", label: "Ver petições em produção", emoji: "📝" },
-          { href: "/contratos", label: "Ver contratos vigentes", emoji: "📄" },
+          { href: "/casos", label: "Ver todos os casos", icon: FolderIcon },
+          { href: "/peticoes", label: "Ver petições em produção", icon: ChartIcon },
+          { href: "/contratos", label: "Ver contratos vigentes", icon: FileIcon },
         ].map((l) => (
-          <Link key={l.href} href={l.href} className="group flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-sm font-medium text-[var(--color-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
-            <span>{l.emoji}</span>{l.label}<span className="ml-auto">→</span>
+          <Link key={l.href} href={l.href} className="group flex items-center gap-3 rounded-[1.35rem] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-4 text-sm font-medium text-[var(--color-muted)] shadow-[var(--shadow-card)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-accent)]">
+              <l.icon size={18} />
+            </span>
+            {l.label}
+            <ChevronRightIcon size={16} className="ml-auto" />
           </Link>
         ))}
       </div>
