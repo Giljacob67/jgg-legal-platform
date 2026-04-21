@@ -1,11 +1,12 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRBAC } from "@/lib/api-auth";
 import { isAIAvailable, getLLM } from "@/lib/ai/provider";
 import { streamText } from "ai";
 import { retryStreamText } from "@/lib/ai/retry";
 import { verificarRateLimit } from "@/lib/rate-limit";
+import { getRequestId, jsonError, logApiError, logApiInfo } from "@/lib/api-response";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import {
@@ -75,46 +76,53 @@ async function buildPromptParaEstagio(
 }
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ pedidoId: string; estagio: string }> },
 ) {
+  const requestId = getRequestId(req);
+
   const forbidden = await requireRBAC("peticoes", "edicao");
   if (forbidden) return forbidden;
 
   const session = await auth();
   if (!session) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    return jsonError(requestId, "Não autorizado", 401);
   }
 
   const rl = verificarRateLimit(session.user.id, "pipeline-ia", 30);
   if (!rl.permitido) {
     const resetMin = Math.ceil(rl.resetEmMs / 60000);
-    return NextResponse.json(
-      { error: `Limite de execuções de IA atingido. Tente novamente em ${resetMin} minuto(s).` },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetEmMs / 1000)) } },
+    return jsonError(
+      requestId,
+      `Limite de execuções de IA atingido. Tente novamente em ${resetMin} minuto(s).`,
+      429,
+      { retryAfterSec: Math.ceil(rl.resetEmMs / 1000) },
     );
   }
 
   if (!isAIAvailable()) {
-    return NextResponse.json(
-      { error: "IA não configurada. Defina OPENROUTER_API_KEY." },
-      { status: 503 },
-    );
+    return jsonError(requestId, "IA não configurada. Defina OPENROUTER_API_KEY.", 503);
   }
 
   const { pedidoId, estagio } = await params;
 
   if (!ESTAGIOS_VALIDOS.includes(estagio as EstagioExecutavel)) {
-    return NextResponse.json(
-      { error: `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}` },
-      { status: 400 },
+    return jsonError(
+      requestId,
+      `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}`,
+      400,
     );
   }
 
-  const pedido = await obterPedidoDePeca(pedidoId);
-  if (!pedido) {
-    return NextResponse.json({ error: `Pedido ${pedidoId} não encontrado.` }, { status: 404 });
+  if (!(await obterPedidoDePeca(pedidoId))) {
+    return jsonError(requestId, `Pedido ${pedidoId} não encontrado.`, 404);
   }
+
+  logApiInfo("api/pipeline/executar", requestId, "execucao iniciada", {
+    pedidoId,
+    estagio,
+    usuarioId: session.user.id,
+  });
 
   const infra = getPeticoesOperacionalInfra();
   let modelId = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5";
@@ -213,10 +221,12 @@ export async function POST(
         "Content-Type": "text/plain; charset=utf-8",
         "X-Accel-Buffering": "no",
         "Cache-Control": "no-cache",
+        "X-Request-Id": requestId,
       },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro interno";
+    logApiError("api/pipeline/executar", requestId, err, { pedidoId, estagio });
     await infra.pipelineSnapshotRepository.salvarNovaVersao({
       pedidoId,
       etapa: etapaPipeline,
@@ -226,6 +236,6 @@ export async function POST(
       mensagemErro: msg,
       tentativa: tentativaFinal,
     });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return jsonError(requestId, msg, 500);
   }
 }

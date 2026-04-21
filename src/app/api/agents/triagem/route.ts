@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
@@ -8,6 +7,13 @@ import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/p
 import { requireAuth } from "@/lib/api-auth";
 import { auth } from "@/lib/auth";
 import { verificarRateLimit } from "@/lib/rate-limit";
+import {
+  getRequestId,
+  jsonError,
+  jsonWithRequestId,
+  logApiError,
+  logApiInfo,
+} from "@/lib/api-response";
 
 const TriagemSchema = z.object({
   poloDetectado: z.enum(["ativo", "passivo", "indefinido"]).describe(
@@ -77,6 +83,8 @@ Por segurança, analise AMBAS as perspectivas e sinalize que o advogado deve con
 }
 
 export async function POST(request: Request) {
+  const requestId = getRequestId(request);
+
   const unauth = await requireAuth();
   if (unauth) return unauth;
   const session = (await auth())!;
@@ -84,7 +92,8 @@ export async function POST(request: Request) {
   const rl = verificarRateLimit(session.user.id, "agents-ia", 20);
   if (!rl.permitido) {
     const resetMin = Math.ceil(rl.resetEmMs / 60000);
-    return NextResponse.json(
+    return jsonWithRequestId(
+      requestId,
       { error: `Limite de chamadas de IA atingido. Tente novamente em ${resetMin} minuto(s).` },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetEmMs / 1000)) } },
     );
@@ -113,16 +122,19 @@ export async function POST(request: Request) {
     };
 
     if (!casoId || !descricaoProblema) {
-      return NextResponse.json(
-        { error: "casoId e descricaoProblema são obrigatórios." },
-        { status: 400 }
-      );
+      return jsonError(requestId, "casoId e descricaoProblema são obrigatórios.", 400);
     }
 
     const caso = await services.casosRepository.obterCasoPorId(casoId);
     if (!caso) {
-      return NextResponse.json({ error: `Caso ${casoId} não encontrado.` }, { status: 404 });
+      return jsonError(requestId, `Caso ${casoId} não encontrado.`, 404);
     }
+
+    logApiInfo("api/agents/triagem", requestId, "triagem iniciada", {
+      casoId,
+      usuarioId: session.user.id,
+      previewOnly: Boolean(previewOnly),
+    });
 
     const poloDetectado = detectarPoloRepresentado(caso);
     const contextoPolo = construirContextoPolo(poloDetectado);
@@ -204,7 +216,7 @@ ${equipeStr}
       };
 
       if (previewOnly) {
-        return NextResponse.json({
+        return jsonWithRequestId(requestId, {
           casoId,
           modo: "mock",
           polo: poloDetectado,
@@ -212,7 +224,7 @@ ${equipeStr}
         });
       }
 
-      return NextResponse.json({
+      return jsonWithRequestId(requestId, {
         casoId,
         modo: "mock",
         aviso: "OPENAI_API_KEY não configurada — resultado simulado.",
@@ -228,7 +240,7 @@ ${equipeStr}
     });
 
     if (previewOnly) {
-      return NextResponse.json({
+      return jsonWithRequestId(requestId, {
         casoId,
         modo: "ai",
         polo: triagem.poloDetectado,
@@ -245,7 +257,7 @@ ${equipeStr}
       intencaoProcessual: triagem.intencaoDetectada,
     });
 
-    return NextResponse.json({
+    return jsonWithRequestId(requestId, {
       casoId,
       modo: "ai",
       pedidoCriado: novoPedido.id,
@@ -254,10 +266,11 @@ ${equipeStr}
     });
 
   } catch (error) {
-    console.error("[Agente Triagem] Erro:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro interno no agente de triagem." },
-      { status: 500 }
+    logApiError("api/agents/triagem", requestId, error);
+    return jsonError(
+      requestId,
+      error instanceof Error ? error.message : "Erro interno no agente de triagem.",
+      500,
     );
   }
 }

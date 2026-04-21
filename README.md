@@ -64,6 +64,7 @@ Use `.env.example` como referência para `.env.local`.
 - [Roadmap](docs/05-roadmap.md)
 - [Arquitetura](docs/arquitetura.md)
 - [Qualidade e Débitos Técnicos](docs/06-qualidade-e-debitos.md)
+- [Plano de Estruturação Profissional](docs/07-plano-estruturacao-profissional.md)
 
 ## CI
-Workflow em `.github/workflows/ci.yml` executa checks de lint, tipagem e build.
+Workflow em `.github/workflows/ci.yml` executa checks de lint, tipagem, testes unitários e build.

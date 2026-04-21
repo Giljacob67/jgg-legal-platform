@@ -9,6 +9,12 @@ Registrar o estado atual de qualidade técnica, inconsistências observadas e pr
 - `npm run test`
 - `npm run build`
 
+## Atualizações executadas neste ciclo
+1. Padronização de respostas de APIs críticas com `requestId`, logs estruturados e erro consistente.
+2. Controle de concorrência no salvamento de minutas com versão conhecida (`ultimaVersaoConhecida`).
+3. Inclusão de testes do wizard de novo pedido para reduzir regressão do fluxo de intake.
+4. CI atualizada para exigir também `npm run test` antes do build.
+
 ## Revisão de consistência de nomenclatura
 
 ### Padrão adotado
