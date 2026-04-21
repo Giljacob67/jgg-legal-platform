@@ -11,6 +11,7 @@ import {
 } from "@/lib/api-response";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
+import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
 
 const AprovacaoPayloadSchema = z.object({
   resultado: z.enum(["aprovado", "rejeitado", "revisao_pendente"]),
@@ -36,6 +37,13 @@ export async function POST(
   const pedido = await obterPedidoDePeca(pedidoId);
   if (!pedido) {
     return jsonError(requestId, "Pedido não encontrado.", 404);
+  }
+  if (!responsavelObrigatorioAtendido(pedido.responsavel)) {
+    return jsonError(
+      requestId,
+      "Responsável obrigatório pendente. Defina o responsável do pedido antes de aprovar o pipeline.",
+      422,
+    );
   }
 
   let body: unknown;

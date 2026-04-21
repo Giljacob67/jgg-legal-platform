@@ -26,6 +26,7 @@ export const NovoPedidoPayloadSchema = z.object({
     .trim()
     .min(1, "Informe um prazo final.")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "O prazo deve estar no formato AAAA-MM-DD."),
+  responsavel: z.string().trim().min(1, "Informe um responsável válido.").optional(),
   intencaoProcessual: z.string().trim().optional(),
   intencaoCustom: z.string().trim().optional(),
   documentoOrigemId: z.string().trim().optional(),

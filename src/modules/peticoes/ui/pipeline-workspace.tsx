@@ -9,6 +9,11 @@ import type {
   SnapshotPipelineEtapa,
 } from "@/modules/peticoes/domain/types";
 import { MAPA_ESTAGIO_PIPELINE, type EstagioExecutavel } from "@/modules/peticoes/domain/types";
+import {
+  avaliarSlaDaEtapa,
+  calcularDiasRestantesPrazo,
+  responsavelObrigatorioAtendido,
+} from "@/modules/peticoes/application/governanca-pedido";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -21,6 +26,9 @@ type PipelineWorkspaceProps = {
   historico: HistoricoPipeline[];
   snapshots: SnapshotPipelineEtapa[];
   contextoAtual: ContextoJuridicoPedido | null;
+  responsavel: string;
+  prazoFinal: string;
+  pedidoCriadoEm: string;
   perfilUsuario?: string;
 };
 
@@ -73,6 +81,9 @@ export function PipelineWorkspace({
   historico,
   snapshots,
   contextoAtual,
+  responsavel,
+  prazoFinal,
+  pedidoCriadoEm,
   perfilUsuario,
 }: PipelineWorkspaceProps) {
   const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
@@ -83,6 +94,7 @@ export function PipelineWorkspace({
   const [aprovacaoMensagem, setAprovacaoMensagem] = useState<string | null>(null);
 
   const podeAprovar = perfilUsuario ? PERFIS_QUE_APROVAM.includes(perfilUsuario) : false;
+  const responsavelDefinido = responsavelObrigatorioAtendido(responsavel);
 
   const executarEstagio = useCallback(
     async (estagio: EstagioExecutavel) => {
@@ -212,9 +224,24 @@ export function PipelineWorkspace({
     if (!podeAprovar) {
       itens.push("Aprovação final depende de perfil com alçada de coordenação/sócio.");
     }
+    if (!responsavelDefinido) {
+      itens.push("Responsável obrigatório pendente. Defina o titular do pedido para executar e aprovar etapas.");
+    }
 
     return itens;
-  }, [contextoAtual, podeAprovar, snapshotsMap]);
+  }, [contextoAtual, podeAprovar, responsavelDefinido, snapshotsMap]);
+
+  const slaEtapaAtual = useMemo(
+    () =>
+      avaliarSlaDaEtapa({
+        etapa: etapaInicial,
+        pedidoCriadoEm,
+        snapshots,
+      }),
+    [etapaInicial, pedidoCriadoEm, snapshots],
+  );
+
+  const diasRestantes = useMemo(() => calcularDiasRestantesPrazo(prazoFinal), [prazoFinal]);
 
   const historicoOrdenado = useMemo(
     () => historico.slice().sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()),
@@ -294,11 +321,13 @@ export function PipelineWorkspace({
                       <button
                         type="button"
                         onClick={() => executarEstagio(estagioExecutavel)}
-                        disabled={streamingEstagio !== null || status.isMock}
+                        disabled={streamingEstagio !== null || status.isMock || !responsavelDefinido}
                         className="rounded-xl bg-[var(--color-accent)] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {status.isMock
                           ? "Etapa simulada"
+                          : !responsavelDefinido
+                            ? "Defina o responsável para executar"
                           : streamingEstagio === estagioExecutavel
                             ? "Executando IA..."
                             : "Executar com IA"}
@@ -349,6 +378,21 @@ export function PipelineWorkspace({
           <div className="space-y-2 text-sm text-[var(--color-ink)]">
             <p>
               <strong>Etapa atual:</strong> {etapaInicial.replaceAll("_", " ")}
+            </p>
+            <p>
+              <strong>Responsável:</strong> {responsavel || "não definido"}
+            </p>
+            <p>
+              <strong>Prazo final:</strong>{" "}
+              {diasRestantes < 0 ? `vencido há ${Math.abs(diasRestantes)} dia(s)` : `${diasRestantes} dia(s) restantes`}
+            </p>
+            <p>
+              <strong>SLA da etapa:</strong> {slaEtapaAtual.diasConsumidos}/{slaEtapaAtual.diasSla} dia(s) •{" "}
+              {slaEtapaAtual.status === "estourado"
+                ? "estourado"
+                : slaEtapaAtual.status === "atencao"
+                  ? "em atenção"
+                  : "dentro do limite"}
             </p>
             <p>
               <strong>Próxima etapa sugerida:</strong> {resumoPipeline.proximaEtapa}
@@ -408,6 +452,10 @@ export function PipelineWorkspace({
         >
           {!podeAprovar ? (
             <p className="text-sm text-[var(--color-muted)]">Seu perfil não possui alçada para aprovação final.</p>
+          ) : !responsavelDefinido ? (
+            <InlineAlert title="Aprovação bloqueada" variant="warning">
+              Defina o responsável do pedido antes de registrar aprovação.
+            </InlineAlert>
           ) : (
             <div className="space-y-4">
               <div>

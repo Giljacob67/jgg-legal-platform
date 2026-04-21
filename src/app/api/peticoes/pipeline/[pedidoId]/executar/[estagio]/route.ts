@@ -24,6 +24,7 @@ import { buscarChunksRelevantes } from "@/modules/biblioteca-juridica/infrastruc
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import type { EstagioExecutavel } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
 import type { EtapaPipeline } from "@/modules/peticoes/domain/types";
+import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
 
 export const maxDuration = 300;
 
@@ -114,14 +115,23 @@ export async function POST(
     );
   }
 
-  if (!(await obterPedidoDePeca(pedidoId))) {
+  const pedido = await obterPedidoDePeca(pedidoId);
+  if (!pedido) {
     return jsonError(requestId, `Pedido ${pedidoId} não encontrado.`, 404);
+  }
+  if (!responsavelObrigatorioAtendido(pedido.responsavel)) {
+    return jsonError(
+      requestId,
+      "Responsável obrigatório pendente. Defina o responsável do pedido antes de executar o pipeline.",
+      422,
+    );
   }
 
   logApiInfo("api/pipeline/executar", requestId, "execucao iniciada", {
     pedidoId,
     estagio,
     usuarioId: session.user.id,
+    responsavel: pedido.responsavel,
   });
 
   const infra = getPeticoesOperacionalInfra();

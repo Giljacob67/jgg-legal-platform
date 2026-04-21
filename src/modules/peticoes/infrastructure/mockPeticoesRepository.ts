@@ -671,7 +671,7 @@ export class MockPeticoesRepository implements PeticoesRepository {
       prioridade: payload.prioridade,
       status: "em triagem",
       etapaAtual: "classificacao",
-      responsavel: "Distribuição automática",
+      responsavel: payload.responsavel?.trim() || "Distribuição automática",
       prazoFinal: payload.prazoFinal,
       criadoEm: new Date().toISOString(),
     };
@@ -682,6 +682,21 @@ export class MockPeticoesRepository implements PeticoesRepository {
   /** @deprecated Use criarPedidoDePeca */
   async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
     return this.criarPedidoDePeca(payload);
+  }
+
+  async atualizarResponsavel(pedidoId: string, responsavel: string): Promise<PedidoDePeca | undefined> {
+    const indice = this.pedidos.findIndex((pedido) => pedido.id === pedidoId);
+    if (indice < 0) {
+      return undefined;
+    }
+
+    const pedidoAtual = this.pedidos[indice];
+    const atualizado: PedidoDePeca = {
+      ...pedidoAtual,
+      responsavel: responsavel.trim(),
+    };
+    this.pedidos = this.pedidos.map((pedido, index) => (index === indice ? atualizado : pedido));
+    return atualizado;
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {

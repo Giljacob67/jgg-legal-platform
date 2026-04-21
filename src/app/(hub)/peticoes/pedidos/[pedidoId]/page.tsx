@@ -8,9 +8,16 @@ import { FileIcon, ScaleIcon } from "@/components/ui/icons";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
+import {
+  avaliarSlaDaEtapa,
+  calcularDiasRestantesPrazo,
+  gerarAlertasGovernancaPedido,
+  responsavelObrigatorioAtendido,
+} from "@/modules/peticoes/application/governanca-pedido";
 import { listarDocumentosPorPedido } from "@/modules/documentos/application/listarDocumentosPorPedido";
 import { listarDocumentosPorCaso } from "@/modules/documentos/application/listarDocumentosPorCaso";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
+import { AtribuirResponsavelCard } from "@/modules/peticoes/ui/atribuir-responsavel-card";
 import { getDataMode } from "@/lib/data-mode";
 import { formatarData, formatarDataHora } from "@/lib/utils";
 import type { EtapaPipeline, SnapshotPipelineEtapa, StatusPedido } from "@/modules/peticoes/domain/types";
@@ -69,14 +76,6 @@ const PROXIMOS_PASSOS_POR_ETAPA: Record<EtapaPipeline, string[]> = {
   ],
 };
 
-function calcularDiasRestantes(dataIso: string): number {
-  const hoje = new Date();
-  const hojeBase = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  const prazo = new Date(`${dataIso}T00:00:00`);
-  const prazoBase = new Date(prazo.getFullYear(), prazo.getMonth(), prazo.getDate());
-  return Math.ceil((prazoBase.getTime() - hojeBase.getTime()) / 86400000);
-}
-
 function consolidarUltimoSnapshotPorEtapa(snapshots: SnapshotPipelineEtapa[]) {
   const mapa = new Map<EtapaPipeline, SnapshotPipelineEtapa>();
   for (const snapshot of snapshots) {
@@ -112,30 +111,29 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
     (snapshot) => snapshot.status === "concluido",
   ).length;
   const percentualConclusao = totalEtapas > 0 ? Math.round((etapasConcluidas / totalEtapas) * 100) : 0;
-  const diasRestantes = calcularDiasRestantes(pedido.prazoFinal);
+  const diasRestantes = calcularDiasRestantesPrazo(pedido.prazoFinal);
   const etapaAtual = pipelineOperacional?.etapaAtual ?? pedido.etapaAtual;
+  const slaEtapaAtual = avaliarSlaDaEtapa({
+    etapa: etapaAtual,
+    pedidoCriadoEm: pedido.criadoEm,
+    snapshots,
+  });
+  const responsavelDefinido = responsavelObrigatorioAtendido(pedido.responsavel);
 
   const pendencias: Array<{ titulo: string; descricao: string; severidade: "alta" | "media" | "baixa" }> = [];
+  const alertasGovernanca = gerarAlertasGovernancaPedido({
+    prazoFinal: pedido.prazoFinal,
+    etapaAtual,
+    pedidoCriadoEm: pedido.criadoEm,
+    responsavel: pedido.responsavel,
+    snapshots,
+  });
 
-  if (diasRestantes < 0) {
+  for (const alerta of alertasGovernanca) {
     pendencias.push({
-      titulo: "Prazo vencido",
-      descricao: `Prazo final expirado em ${formatarData(pedido.prazoFinal)}. Priorize decisão imediata do responsável.`,
-      severidade: "alta",
-    });
-  } else if (diasRestantes <= 2) {
-    pendencias.push({
-      titulo: "Prazo crítico",
-      descricao: `Faltam ${diasRestantes} dia(s) para o prazo final (${formatarData(pedido.prazoFinal)}).`,
-      severidade: "alta",
-    });
-  }
-
-  if (pedido.responsavel === "Distribuição automática") {
-    pendencias.push({
-      titulo: "Responsável não definido",
-      descricao: "O pedido ainda não foi assumido por um advogado responsável.",
-      severidade: "alta",
+      titulo: alerta.titulo,
+      descricao: alerta.descricao,
+      severidade: alerta.severidade,
     });
   }
 
@@ -215,7 +213,11 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         </Card>
         <Card title="Responsável" eyebrow="Alocação">
           <p className="font-serif text-3xl text-[var(--color-ink)]">{pedido.responsavel || "Não definido"}</p>
-          <p className="text-xs text-[var(--color-muted)]">Titular da condução do pedido nesta etapa.</p>
+          <p className="text-xs text-[var(--color-muted)]">
+            {responsavelDefinido
+              ? "Titular da condução do pedido nesta etapa."
+              : "Definição pendente. Execução e aprovação ficam bloqueadas até atribuição."}
+          </p>
         </Card>
         <Card title="Prazo final" eyebrow="SLA">
           <p className="font-serif text-3xl text-[var(--color-ink)]">{formatarData(pedido.prazoFinal)}</p>
@@ -223,6 +225,14 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
             {diasRestantes < 0
               ? `Vencido há ${Math.abs(diasRestantes)} dia(s).`
               : `${diasRestantes} dia(s) restante(s) para o prazo.`}
+          </p>
+          <p className="mt-2 text-xs text-[var(--color-muted)]">
+            SLA da etapa atual: {slaEtapaAtual.diasConsumidos}/{slaEtapaAtual.diasSla} dia(s) •{" "}
+            {slaEtapaAtual.status === "estourado"
+              ? "estourado"
+              : slaEtapaAtual.status === "atencao"
+                ? "em atenção"
+                : "dentro do limite"}
           </p>
         </Card>
       </section>
@@ -281,6 +291,10 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
           )}
         </Card>
       </section>
+
+      {!responsavelDefinido ? (
+        <AtribuirResponsavelCard pedidoId={pedido.id} responsavelAtual={pedido.responsavel} />
+      ) : null}
 
       <Card title="Timeline do pedido" subtitle="Histórico cronológico de eventos operacionais e técnicos." eyebrow="Rastro">
         {historico.length === 0 ? (

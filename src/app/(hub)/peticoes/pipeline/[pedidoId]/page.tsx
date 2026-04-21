@@ -7,8 +7,10 @@ import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDeP
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { PipelineWorkspace } from "@/modules/peticoes/ui/pipeline-workspace";
+import { AtribuirResponsavelCard } from "@/modules/peticoes/ui/atribuir-responsavel-card";
 import { auth } from "@/lib/auth";
 import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
+import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
 
 type PipelinePedidoPageProps = {
   params: Promise<{ pedidoId: string }>;
@@ -30,6 +32,7 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
   const { etapas, historico, snapshots, etapaAtual, contextoAtual } = await obterPipelineDoPedido(pedido.id);
 
   const perfilUsuario = resolverPerfilUsuario(session?.user?.role as string | undefined);
+  const responsavelDefinido = responsavelObrigatorioAtendido(pedido.responsavel);
 
   return (
     <div className="space-y-6">
@@ -53,6 +56,9 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
           ) : undefined
         }
       />
+      {!responsavelDefinido ? (
+        <AtribuirResponsavelCard pedidoId={pedido.id} responsavelAtual={pedido.responsavel} />
+      ) : null}
       <PipelineWorkspace
         pedidoId={pedido.id}
         etapas={etapas}
@@ -60,6 +66,9 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
         historico={historico}
         snapshots={snapshots}
         contextoAtual={contextoAtual}
+        responsavel={pedido.responsavel}
+        prazoFinal={pedido.prazoFinal}
+        pedidoCriadoEm={pedido.criadoEm}
         perfilUsuario={perfilUsuario}
       />
     </div>

@@ -352,10 +352,14 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
 
     try {
       const payload = construirPayloadCriacao(draftAtual);
+      const payloadComGovernanca = {
+        ...payload,
+        responsavel: sugestaoTriagem?.responsavelSugerido?.trim() || undefined,
+      };
       const response = await fetch("/api/peticoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payloadComGovernanca),
       });
 
       const data = (await response.json()) as {

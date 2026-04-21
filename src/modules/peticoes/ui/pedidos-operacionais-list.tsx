@@ -9,6 +9,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { TextInput } from "@/components/ui/text-input";
 import { SearchIcon } from "@/components/ui/icons";
 import type { PedidoDePeca, PrioridadePedido, StatusPedido } from "@/modules/peticoes/domain/types";
+import {
+  avaliarSlaDaEtapa,
+  calcularDiasRestantesPrazo,
+  responsavelObrigatorioAtendido,
+} from "@/modules/peticoes/application/governanca-pedido";
 import { formatarData } from "@/lib/utils";
 
 type PedidosOperacionaisListProps = {
@@ -16,6 +21,7 @@ type PedidosOperacionaisListProps = {
 };
 
 type FiltroPrazo = "todos" | "vencidos" | "hoje" | "3_dias" | "7_dias";
+type FiltroSla = "todos" | "ok" | "atencao" | "estourado";
 
 const STATUS_VARIANT: Record<StatusPedido, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
   "em triagem": "neutro",
@@ -29,15 +35,6 @@ const PRIORIDADE_VARIANT: Record<PrioridadePedido, "ativo" | "implantacao" | "pl
   "média": "implantacao",
   baixa: "neutro",
 };
-
-function calcularDiasRestantes(dataIso: string): number {
-  const hoje = new Date();
-  const hojeBase = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  const prazo = new Date(`${dataIso}T00:00:00`);
-  const prazoBase = new Date(prazo.getFullYear(), prazo.getMonth(), prazo.getDate());
-  const diffMs = prazoBase.getTime() - hojeBase.getTime();
-  return Math.ceil(diffMs / 86400000);
-}
 
 function classificarPrazo(
   diasRestantes: number,
@@ -63,6 +60,7 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
   const [prioridade, setPrioridade] = useState<PrioridadePedido | "todos">("todos");
   const [responsavel, setResponsavel] = useState<string>("todos");
   const [filtroPrazo, setFiltroPrazo] = useState<FiltroPrazo>("todos");
+  const [filtroSla, setFiltroSla] = useState<FiltroSla>("todos");
 
   const responsaveis = useMemo(
     () => Array.from(new Set(pedidos.map((pedido) => pedido.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
@@ -73,11 +71,16 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
     const termo = busca.trim().toLowerCase();
 
     return pedidos.filter((pedido) => {
-      const diasRestantes = calcularDiasRestantes(pedido.prazoFinal);
+      const diasRestantes = calcularDiasRestantesPrazo(pedido.prazoFinal);
+      const sla = avaliarSlaDaEtapa({
+        etapa: pedido.etapaAtual,
+        pedidoCriadoEm: pedido.criadoEm,
+      });
 
       if (status !== "todos" && pedido.status !== status) return false;
       if (prioridade !== "todos" && pedido.prioridade !== prioridade) return false;
       if (responsavel !== "todos" && pedido.responsavel !== responsavel) return false;
+      if (filtroSla !== "todos" && sla.status !== filtroSla) return false;
 
       if (filtroPrazo === "vencidos" && diasRestantes >= 0) return false;
       if (filtroPrazo === "hoje" && diasRestantes !== 0) return false;
@@ -100,16 +103,19 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
 
       return camposBusca.includes(termo);
     });
-  }, [busca, filtroPrazo, pedidos, prioridade, responsavel, status]);
+  }, [busca, filtroPrazo, filtroSla, pedidos, prioridade, responsavel, status]);
 
   const totais = useMemo(() => {
     const vencendoEm3Dias = pedidos.filter((pedido) => {
-      const dias = calcularDiasRestantes(pedido.prazoFinal);
+      const dias = calcularDiasRestantesPrazo(pedido.prazoFinal);
       return dias >= 0 && dias <= 3;
     }).length;
 
-    const vencidos = pedidos.filter((pedido) => calcularDiasRestantes(pedido.prazoFinal) < 0).length;
-    const aguardandoDistribuicao = pedidos.filter((pedido) => pedido.responsavel === "Distribuição automática").length;
+    const vencidos = pedidos.filter((pedido) => calcularDiasRestantesPrazo(pedido.prazoFinal) < 0).length;
+    const semResponsavel = pedidos.filter((pedido) => !responsavelObrigatorioAtendido(pedido.responsavel)).length;
+    const slaEstourado = pedidos.filter((pedido) =>
+      avaliarSlaDaEtapa({ etapa: pedido.etapaAtual, pedidoCriadoEm: pedido.criadoEm }).status === "estourado",
+    ).length;
 
     return {
       total: pedidos.length,
@@ -117,13 +123,14 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
       revisao: pedidos.filter((pedido) => pedido.status === "em revisão").length,
       vencendoEm3Dias,
       vencidos,
-      aguardandoDistribuicao,
+      semResponsavel,
+      slaEstourado,
     };
   }, [pedidos]);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
         <Card className="xl:col-span-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-strong)]">Total</p>
           <p className="font-serif text-4xl text-[var(--color-ink)]">{totais.total}</p>
@@ -145,8 +152,12 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
           <p className="font-serif text-4xl text-[var(--color-ink)]">{totais.vencidos}</p>
         </Card>
         <Card className="xl:col-span-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-strong)]">SLA estourado</p>
+          <p className="font-serif text-4xl text-[var(--color-ink)]">{totais.slaEstourado}</p>
+        </Card>
+        <Card className="xl:col-span-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-strong)]">Sem responsável</p>
-          <p className="font-serif text-4xl text-[var(--color-ink)]">{totais.aguardandoDistribuicao}</p>
+          <p className="font-serif text-4xl text-[var(--color-ink)]">{totais.semResponsavel}</p>
         </Card>
       </div>
 
@@ -207,6 +218,18 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
               ...responsaveis.map((item) => ({ value: item, label: item })),
             ]}
           />
+
+          <SelectInput
+            label="SLA da etapa"
+            value={filtroSla}
+            onChange={(event) => setFiltroSla(event.target.value as FiltroSla)}
+            options={[
+              { value: "todos", label: "Todos" },
+              { value: "ok", label: "Dentro do SLA" },
+              { value: "atencao", label: "Em atenção" },
+              { value: "estourado", label: "Estourado" },
+            ]}
+          />
         </div>
       </Card>
 
@@ -223,8 +246,16 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {pedidosFiltrados.map((pedido) => {
-              const diasRestantes = calcularDiasRestantes(pedido.prazoFinal);
+              const diasRestantes = calcularDiasRestantesPrazo(pedido.prazoFinal);
               const prazo = classificarPrazo(diasRestantes);
+              const sla = avaliarSlaDaEtapa({ etapa: pedido.etapaAtual, pedidoCriadoEm: pedido.criadoEm });
+              const responsavelDefinido = responsavelObrigatorioAtendido(pedido.responsavel);
+              const badgeSla =
+                sla.status === "estourado"
+                  ? { label: "SLA estourado", variant: "alerta" as const }
+                  : sla.status === "atencao"
+                    ? { label: "SLA em atenção", variant: "implantacao" as const }
+                    : { label: "SLA dentro", variant: "sucesso" as const };
 
               return (
                 <article
@@ -259,6 +290,14 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
 
                   <div className="mt-3">
                     <StatusBadge label={prazo.label} variant={prazo.variant} />
+                    <div className="mt-2">
+                      <StatusBadge label={`${badgeSla.label} • ${sla.diasConsumidos}/${sla.diasSla} dias`} variant={badgeSla.variant} />
+                    </div>
+                    {!responsavelDefinido ? (
+                      <p className="mt-2 text-xs font-semibold text-rose-700">
+                        Responsável obrigatório pendente: execução e aprovação ficam bloqueadas.
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3">

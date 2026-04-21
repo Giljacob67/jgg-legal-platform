@@ -516,6 +516,7 @@ export interface NovoPedidoPayload {
   tipoPeca: TipoPeca;
   prioridade: PrioridadePedido;
   prazoFinal: string;
+  responsavel?: string;
   /** Objetivo processual explícito: o que o agente deve fazer com este pedido */
   intencaoProcessual?: IntencaoProcessual;
   /** Descrição livre quando intencaoProcessual === 'outro' */

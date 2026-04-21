@@ -16,5 +16,6 @@ export interface PeticoesRepository {
   obterMinutaPorPedidoId(pedidoId: string): Promise<Minuta | undefined>;
   criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
   simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
+  atualizarResponsavel(pedidoId: string, responsavel: string): Promise<PedidoDePeca | undefined>;
   listarTiposPeca(): Promise<TipoPeca[]>;
 }

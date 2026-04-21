@@ -134,7 +134,7 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
       prioridade: payload.prioridade,
       status: "em triagem",
       etapaAtual: "classificacao",
-      responsavel: "Distribuição automática",
+      responsavel: payload.responsavel?.trim() || "Distribuição automática",
       prazoFinal: new Date(payload.prazoFinal),
       intencaoProcessual: payload.intencaoProcessual ?? null,
       documentoOrigemId: payload.documentoOrigemId ?? null,
@@ -146,6 +146,18 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
   /** @deprecated Use criarPedidoDePeca */
   async simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca> {
     return this.criarPedidoDePeca(payload);
+  }
+
+  async atualizarResponsavel(pedidoId: string, responsavel: string): Promise<PedidoDePeca | undefined> {
+    const db = getDb();
+    await db
+      .update(pedidosPeca)
+      .set({
+        responsavel: responsavel.trim(),
+      })
+      .where(eq(pedidosPeca.id, pedidoId));
+
+    return this.obterPedidoPorId(pedidoId);
   }
 
   async listarTiposPeca(): Promise<TipoPeca[]> {
