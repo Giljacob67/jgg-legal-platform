@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
-import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastructure/processamentoPipeline.server";
-import { isDriveConfigurado, listarArquivosDrive, baixarArquivoDrive } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
-import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
-import type { ResultadoSyncDrive } from "@/modules/biblioteca-conhecimento/domain/types";
+import { getBibliotecaRepository } from "@/modules/biblioteca-juridica/infrastructure/provider.server";
+import { processarDocumento } from "@/modules/biblioteca-juridica/infrastructure/processamentoPipeline.server";
+import { isDriveConfigurado, listarArquivosDrive, baixarArquivoDrive } from "@/modules/biblioteca-juridica/infrastructure/driveClient.server";
+import { inferirTipoPorPasta } from "@/modules/biblioteca-juridica/domain/types";
+import type { ResultadoSyncDrive } from "@/modules/biblioteca-juridica/domain/types";
 import { requireAuth } from "@/lib/api-auth";
 
 // Armazena status da última sync em memória

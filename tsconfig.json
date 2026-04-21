@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/modules/biblioteca-juridica/*": ["./src/modules/biblioteca-conhecimento/*"]
     }
   },
   "include": [

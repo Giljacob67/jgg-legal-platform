@@ -23,7 +23,7 @@ Registrar o estado atual de qualidade técnica, inconsistências observadas e pr
 - Mapeamentos explícitos quando houver formatos diferentes entre domínio e rota.
 
 ### Inconsistências remanescentes (não bloqueantes)
-1. `biblioteca-juridica` (rota/módulo de hub) versus `biblioteca-conhecimento` (pasta de módulo).
+1. Namespace canônico de importação consolidado em `biblioteca-juridica`; pasta física ainda permanece como `biblioteca-conhecimento` por compatibilidade.
 2. Presença de nomenclatura legada no container global (`documentosRepository` marcado como depreciado).
 3. Mistura de termos “infra”, “infrastructure”, “repository” e “provider” em alguns domínios sem padronização completa.
 4. Tipos de payload em alguns casos ainda referenciam implementações mock de infraestrutura em vez de contratos dedicados de domínio/aplicação.

@@ -10,7 +10,7 @@ import {
   atualizarContrato,
   excluirContrato,
 } from "@/modules/contratos/application";
-import type { StatusContrato, Clausula, AtualizarContratoPayload } from "@/modules/contratos/domain/types";
+import type { StatusContrato, AtualizarContratoPayload } from "@/modules/contratos/domain/types";
 import { CLAUSULAS_PADRAO } from "@/modules/contratos/infrastructure/templatesClausulas";
 import { requireAuth, requireRBAC } from "@/lib/api-auth";
 

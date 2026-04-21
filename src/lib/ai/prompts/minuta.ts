@@ -2,7 +2,7 @@ import { SYSTEM_PROMPT_BASE } from "./base";
 import { criarTemplatesJuridicosPadrao, criarChecklistsJuridicosPadrao } from "@/modules/peticoes/base-juridica-viva/infrastructure/defaultCatalog";
 import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 import type { ContextoJuridicoPedido } from "@/modules/peticoes/domain/types";
-import type { ChunkRelevante } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
+import type { ChunkRelevante } from "@/modules/biblioteca-juridica/infrastructure/vectorStore";
 
 export function buildMinutaPrompt(
   contexto: ContextoJuridicoPedido,

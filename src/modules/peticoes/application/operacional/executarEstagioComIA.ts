@@ -61,7 +61,7 @@ export async function executarEstagioComIA(
   let model;
   try {
     model = getLLM();
-  } catch (err) {
+  } catch {
     throw new Error(
       `AI não configurada. Verifique OPENAI_API_KEY, OPENROUTER_API_KEY ou ANTHROPIC_API_KEY.`,
     );

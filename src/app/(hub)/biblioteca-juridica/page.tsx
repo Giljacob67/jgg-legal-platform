@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/ui/page-header";
-import { BibliotecaConhecimento } from "@/modules/biblioteca-conhecimento/ui/biblioteca-conhecimento";
-import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
-import { isDriveConfigurado } from "@/modules/biblioteca-conhecimento/infrastructure/driveClient.server";
+import { BibliotecaConhecimento } from "@/modules/biblioteca-juridica/ui/biblioteca-conhecimento";
+import { getBibliotecaRepository } from "@/modules/biblioteca-juridica/infrastructure/provider.server";
+import { isDriveConfigurado } from "@/modules/biblioteca-juridica/infrastructure/driveClient.server";
 
 export default async function BibliotecaJuridicaPage() {
   const repo = getBibliotecaRepository();

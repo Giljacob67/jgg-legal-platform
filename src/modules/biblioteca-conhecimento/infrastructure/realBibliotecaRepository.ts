@@ -6,7 +6,7 @@ import type {
   FonteDocumentoBC,
   StatusEmbedding,
   TipoDocumentoBC,
-} from "@/modules/biblioteca-conhecimento/domain/types";
+} from "@/modules/biblioteca-juridica/domain/types";
 
 type BibliotecaRow = {
   id: string;

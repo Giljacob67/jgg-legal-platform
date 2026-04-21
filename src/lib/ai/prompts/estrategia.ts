@@ -1,7 +1,7 @@
 import { SYSTEM_PROMPT_BASE } from "./base";
 import { criarTesesJuridicasPadrao, criarTemplatesJuridicosPadrao } from "@/modules/peticoes/base-juridica-viva/infrastructure/defaultCatalog";
 import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
-import type { ChunkRelevante } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
+import type { ChunkRelevante } from "@/modules/biblioteca-juridica/infrastructure/vectorStore";
 
 export function buildEstrategiaPrompt(
   fatos: unknown,

@@ -7,7 +7,7 @@ import { withRetry } from "@/lib/ai/retry";
 import { buildAnaliseAdversaPrompt } from "@/lib/ai/prompts/analise-adversa";
 import { buildPesquisaApoioPrompt } from "@/lib/ai/prompts/pesquisa-de-apoio";
 import { buildAnaliseDocumentalClientePrompt } from "@/lib/ai/prompts/analise-documental-cliente";
-import { buscarChunksRelevantes } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
+import { buscarChunksRelevantes } from "@/modules/biblioteca-juridica/infrastructure/vectorStore";
 import { normalizarMateriaCanonica, normalizarTipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 import type { ContextoJuridicoPedido, SnapshotPipelineEtapa } from "@/modules/peticoes/domain/types";
 import {
@@ -31,7 +31,6 @@ interface ResultadoEstagio<T> {
 /** Extrai matéria, tipo de peça e fatos dos snapshots existentes do pipeline */
 function extrairDadosPipeline(
   snapshots: SnapshotPipelineEtapa[],
-  contexto: ContextoJuridicoPedido | null,
 ): {
   materia: string;
   tipoPeca: string;
@@ -122,7 +121,7 @@ export async function executarEstagioAnaliseAdversa(
   contexto: ContextoJuridicoPedido | null,
   pedidoId: string,
 ): Promise<ResultadoEstagio<AnaliseAdversaOutput>> {
-  const { materia, extracaoFatos } = extrairDadosPipeline(snapshots, contexto);
+  const { materia, extracaoFatos } = extrairDadosPipeline(snapshots);
 
   const { system, prompt } = buildAnaliseAdversaPrompt(
     contexto,
@@ -152,7 +151,7 @@ export async function executarEstagioPesquisaApoio(
   contexto: ContextoJuridicoPedido | null,
   pedidoId: string,
 ): Promise<ResultadoEstagio<PesquisaApoioOutput>> {
-  const { materia, tipoPeca, extracaoFatos } = extrairDadosPipeline(snapshots, contexto);
+  const { materia, tipoPeca, extracaoFatos } = extrairDadosPipeline(snapshots);
 
   const fatosTexto = Array.isArray(extracaoFatos.fatosRelevantes)
     ? (extracaoFatos.fatosRelevantes as string[]).slice(0, 5).join(" ")
@@ -194,7 +193,7 @@ export async function executarEstagioAnaliseDocumentalCliente(
   documentos: DocumentoComArquivoEVinculos[],
   pedidoId: string,
 ): Promise<ResultadoEstagio<AnaliseDocumentalClienteOutput>> {
-  const { materia, extracaoFatos } = extrairDadosPipeline(snapshots, contexto);
+  const { materia, extracaoFatos } = extrairDadosPipeline(snapshots);
 
   const { system, prompt } = buildAnaliseDocumentalClientePrompt(
     contexto,

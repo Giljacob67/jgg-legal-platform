@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
-import { processarDocumento } from "@/modules/biblioteca-conhecimento/infrastructure/processamentoPipeline.server";
-import { inferirTipoPorPasta } from "@/modules/biblioteca-conhecimento/domain/types";
-import type { TipoDocumentoBC } from "@/modules/biblioteca-conhecimento/domain/types";
+import { getBibliotecaRepository } from "@/modules/biblioteca-juridica/infrastructure/provider.server";
+import { processarDocumento } from "@/modules/biblioteca-juridica/infrastructure/processamentoPipeline.server";
+import { inferirTipoPorPasta } from "@/modules/biblioteca-juridica/domain/types";
+import type { TipoDocumentoBC } from "@/modules/biblioteca-juridica/domain/types";
 import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
 // Tamanho máximo: 20 MB

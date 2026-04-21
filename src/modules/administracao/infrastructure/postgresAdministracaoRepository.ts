@@ -73,7 +73,8 @@ export class PostgresAdministracaoRepository implements IAdministracaoRepository
 
   // ─── Auditoria ─────────────────────────────────────────────
   // Auditoria ainda não tem tabela própria — retorna vazia até ser implementada.
-  async listarAuditoria(_limite?: number): Promise<RegistroAuditoria[]> {
+  async listarAuditoria(limite?: number): Promise<RegistroAuditoria[]> {
+    void limite;
     return [];
   }
 

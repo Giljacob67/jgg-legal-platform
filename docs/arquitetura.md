@@ -79,6 +79,7 @@ src/
 - **Termos técnicos**: inglês quando alinhado ao ecossistema (`repository`, `provider`, `route`, `pipeline`).
 - **IDs de etapa**: `snake_case` no domínio (`analise_adversa`) e `kebab-case` na URL (`analise-adversa`) com mapeamento explícito.
 - **Rotas de produto**: sempre em português para experiência do usuário (`/peticoes`, `/clientes`, `/biblioteca-juridica`).
+- **Namespace canônico de módulo**: usar `@/modules/biblioteca-juridica/*` em imports de produto, mantendo compatibilidade interna com a estrutura física legada.
 
 ## Diretrizes de evolução
 - Manter regra jurídica em `domain`/`application`, não em componentes UI.

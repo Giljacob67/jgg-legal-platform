@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { DocumentoBiblioteca } from "@/modules/biblioteca-conhecimento/domain/types";
-import type { ResultadoSyncDrive } from "@/modules/biblioteca-conhecimento/domain/types";
-import { UploadDropzone } from "@/modules/biblioteca-conhecimento/ui/upload-dropzone";
-import { SyncDrivePanel } from "@/modules/biblioteca-conhecimento/ui/sync-drive-panel";
-import { ListaDocumentosBiblioteca } from "@/modules/biblioteca-conhecimento/ui/lista-documentos-biblioteca";
+import type { DocumentoBiblioteca } from "@/modules/biblioteca-juridica/domain/types";
+import type { ResultadoSyncDrive } from "@/modules/biblioteca-juridica/domain/types";
+import { UploadDropzone } from "@/modules/biblioteca-juridica/ui/upload-dropzone";
+import { SyncDrivePanel } from "@/modules/biblioteca-juridica/ui/sync-drive-panel";
+import { ListaDocumentosBiblioteca } from "@/modules/biblioteca-juridica/ui/lista-documentos-biblioteca";
 import { Card } from "@/components/ui/card";
 
 type BibliotecaConhecimentoProps = {

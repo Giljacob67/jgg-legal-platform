@@ -2,12 +2,6 @@ import { SYSTEM_PROMPT_BASE } from "./base";
 import type { ContextoJuridicoPedido } from "@/modules/peticoes/domain/types";
 import type { MateriaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 
-interface Chunk {
-  id: string;
-  conteudo: string;
-  metadados?: Record<string, unknown>;
-}
-
 export function buildPesquisaApoioPrompt(
   contexto: ContextoJuridicoPedido | null,
   materia: MateriaCanonica,

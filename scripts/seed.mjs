@@ -16,9 +16,6 @@
 import postgres from "postgres";
 import bcrypt from "bcrypt";
 
-const AGORA = new Date();
-const FORMAT_DATE = (d) => d.toISOString().split("T")[0];
-
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -72,7 +69,7 @@ async function main() {
     try {
       await sql`CREATE EXTENSION IF NOT EXISTS vector`;
       console.log("   ✅ pgvector habilitado.\n");
-    } catch (e) {
+    } catch {
       console.log("   ⚠️  pgvector já ativo ou sem permissão — continuando.\n");
     }
 

@@ -91,7 +91,11 @@ export function EditorClausulas({ contratoId, clausulasIniciais, conteudoInicial
     setSalvando(true);
     setErro(null);
     try {
-      const clausulasLimpas: Clausula[] = clausulas.map(({ _editando: _, ...c }) => c);
+      const clausulasLimpas: Clausula[] = clausulas.map((clausula) => {
+        const { _editando, ...persistida } = clausula;
+        void _editando;
+        return persistida;
+      });
       const res = await fetch(`/api/contratos/${contratoId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

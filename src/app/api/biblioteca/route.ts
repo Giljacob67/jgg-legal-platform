@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getBibliotecaRepository } from "@/modules/biblioteca-conhecimento/infrastructure/provider.server";
-import type { TipoDocumentoBC, StatusEmbedding } from "@/modules/biblioteca-conhecimento/domain/types";
+import { getBibliotecaRepository } from "@/modules/biblioteca-juridica/infrastructure/provider.server";
+import type { TipoDocumentoBC, StatusEmbedding } from "@/modules/biblioteca-juridica/domain/types";
 import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(request: Request) {

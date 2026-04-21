@@ -1,7 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { createServer } from "node:http";
-import { createServer as createHttpsServer } from "node:https";
-import type { AddressInfo } from "node:net";
+import { describe, it, expect, beforeAll } from "vitest";
 
 /**
  * Smoke tests E2E para o fluxo completo de petições.
@@ -39,8 +36,6 @@ const USERS = {
   advogado: { email: "mariana@jgg.adv.br", senha: "jgg@2026!" },
   estagiario: { email: "estagiario@jgg.adv.br", senha: "jgg@2026!" },
 } as const;
-
-type UserKey = keyof typeof USERS;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -125,7 +120,7 @@ describe("Smoke: RBAC em write routes", () => {
 
   it("advogado com peticoes:total consegue criar pedido", async () => {
     const { cookie } = await login(USERS.advogado.email, USERS.advogado.senha);
-    const { status, data } = await apiFetch("/api/peticoes", {
+    const { status } = await apiFetch("/api/peticoes", {
       method: "POST",
       cookie,
       body: JSON.stringify({

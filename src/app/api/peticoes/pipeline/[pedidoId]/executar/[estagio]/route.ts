@@ -20,7 +20,7 @@ import {
   normalizarMateriaCanonica,
   normalizarTipoPecaCanonica,
 } from "@/modules/peticoes/domain/geracao-minuta";
-import { buscarChunksRelevantes } from "@/modules/biblioteca-conhecimento/infrastructure/vectorStore";
+import { buscarChunksRelevantes } from "@/modules/biblioteca-juridica/infrastructure/vectorStore";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import type { EstagioExecutavel } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
 import type { EtapaPipeline } from "@/modules/peticoes/domain/types";
