@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
+import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
 import { requireAuth } from "@/lib/api-auth";
@@ -194,6 +195,7 @@ ${equipeStr}
 5. Defina prioridade real considerando o tribunal e prazo
 6. Sinalize alertas críticos`;
 
+    await syncRuntimeAIConfig();
     if (!isAIAvailable()) {
       const today = new Date();
       const prazoDefault = new Date(today.setDate(today.getDate() + 10)).toISOString().split("T")[0];

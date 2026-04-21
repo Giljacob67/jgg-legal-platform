@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { requireRBAC } from "@/lib/api-auth";
 import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
 import { isAIAvailable, getLLM } from "@/lib/ai/provider";
+import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { streamText } from "ai";
 import { retryStreamText } from "@/lib/ai/retry";
 import { verificarRateLimit } from "@/lib/rate-limit";
@@ -202,6 +203,7 @@ export async function POST(
     );
   }
 
+  await syncRuntimeAIConfig();
   if (!isAIAvailable()) {
     registrarEventoPipeline("api/pipeline/executar", requestId, "execucao_bloqueada_ia_indisponivel", {
       pedidoId,

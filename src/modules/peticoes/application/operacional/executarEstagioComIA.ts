@@ -1,6 +1,7 @@
 import "server-only";
 import { streamText } from "ai";
 import { getLLM } from "@/lib/ai/provider";
+import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import {
@@ -59,6 +60,7 @@ export async function executarEstagioComIA(
     | Promise<{ system: string; prompt: string }>,
 ): Promise<ReadableStream<string>> {
   let model;
+  await syncRuntimeAIConfig();
   try {
     model = getLLM();
   } catch {

@@ -33,12 +33,13 @@ export default async function ConfiguracoesPage() {
 
       <Card title="Variáveis de ambiente" subtitle="Configurações que requerem redeploy na Vercel.">
         <div className="space-y-2 text-sm text-[var(--color-muted)]">
-          <p>As variáveis abaixo são lidas diretamente do ambiente e não podem ser alteradas pela interface:</p>
+          <p>
+            As variáveis abaixo são lidas diretamente do ambiente e não podem ser alteradas pela interface.
+            Exceção: o provedor/modelo ativos são definidos pelo banco via painel administrativo.
+          </p>
           <ul className="mt-2 space-y-1 font-mono text-xs">
             {[
               "DATABASE_URL",
-              "AI_PROVIDER",
-              "AI_MODEL",
               "DATA_MODE",
               "OPENAI_API_KEY",
               "ANTHROPIC_API_KEY",
@@ -58,6 +59,13 @@ export default async function ConfiguracoesPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
                 {v}
                 <span className="text-emerald-600">{process.env[v] ? "✓ configurada" : "— não definida"}</span>
+              </li>
+            ))}
+            {["AI_PROVIDER", "AI_MODEL"].map((v) => (
+              <li key={v} className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                {v}
+                <span className="text-sky-600">sincronizada pelo painel</span>
               </li>
             ))}
           </ul>

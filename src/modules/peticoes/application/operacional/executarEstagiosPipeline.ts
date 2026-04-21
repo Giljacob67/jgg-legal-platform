@@ -3,6 +3,7 @@ import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getLLM } from "@/lib/ai/provider";
+import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { withRetry } from "@/lib/ai/retry";
 import { buildAnaliseAdversaPrompt } from "@/lib/ai/prompts/analise-adversa";
 import { buildPesquisaApoioPrompt } from "@/lib/ai/prompts/pesquisa-de-apoio";
@@ -69,6 +70,7 @@ async function executarEstagioComIA<T>(params: {
   pedidoId: string;
   entradaRef: Record<string, unknown>;
 }): Promise<ResultadoEstagio<T>> {
+  await syncRuntimeAIConfig();
   const result = await withRetry(
     async () => {
       const model = getLLM(params.modelId);

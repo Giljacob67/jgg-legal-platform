@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
+import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { requireAuth } from "@/lib/api-auth";
 import { auth } from "@/lib/auth";
 import { verificarRateLimit } from "@/lib/rate-limit";
@@ -56,6 +57,7 @@ export async function POST(
       usuarioId: session.user.id,
     });
 
+    await syncRuntimeAIConfig();
     if (!isAIAvailable()) {
       return jsonWithRequestId(requestId, {
         sugestao: `[Sugestão simulada] ${selecao}\n\n→ Reformulado conforme instrução: "${instrucao}". Configure OPENAI_API_KEY ou OPENROUTER_API_KEY para sugestões reais.`,

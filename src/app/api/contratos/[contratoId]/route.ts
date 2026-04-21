@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
+import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import {
   obterContratoPorId,
   salvarAnaliseRisco,
@@ -136,6 +137,8 @@ export async function POST(request: Request, { params }: Params) {
   if (body.acao !== "analisar-risco" && body.acao !== "gerar-minuta") {
     return NextResponse.json({ error: "Ação desconhecida. Use { acao: 'analisar-risco' } ou { acao: 'gerar-minuta' }." }, { status: 400 });
   }
+
+  await syncRuntimeAIConfig();
 
   // ── Gerar minuta com IA ─────────────────────────────────────
   if (body.acao === "gerar-minuta") {

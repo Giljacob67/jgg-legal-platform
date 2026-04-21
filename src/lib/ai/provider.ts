@@ -18,7 +18,7 @@ export interface ModeloCatalogo {
   descricao: string;
   suportaVisao: boolean;
   suportaStructuredOutput: boolean;
-  custo: "gratuito" | "baixo" | "medio" | "alto" | "local";
+  custo: "gratuito" | "baixo" | "medio" | "alto" | "local" | "desconhecido";
   recomendado: boolean;
 }
 
@@ -349,6 +349,17 @@ export const MODELOS_CATALOGADOS: ModeloCatalogo[] = [
     suportaStructuredOutput: true,
     custo: "local",
     recomendado: false,
+  },
+  {
+    id: "kimi-k2.6:cloud",
+    label: "Kimi K2.6 Cloud (Ollama Pro)",
+    provedor: "ollama",
+    provedorLabel: "Ollama Pro",
+    descricao: "Modelo cloud via Ollama Pro para alta qualidade sem depender de GPU local.",
+    suportaVisao: false,
+    suportaStructuredOutput: true,
+    custo: "medio",
+    recomendado: true,
   },
   // ── OpenRouter → Anthropic ───────────────────────────────────────────
   {
@@ -740,7 +751,7 @@ export function getConfigAtual(): {
         descricao: "Modelo personalizado configurado via env AI_MODEL.",
         suportaVisao: false,
         suportaStructuredOutput: true,
-        custo: "desconhecido" as never,
+        custo: "desconhecido",
         recomendado: false,
       },
     disponivel: isAIAvailable(),
