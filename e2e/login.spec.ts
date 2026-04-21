@@ -1,18 +1,19 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Login Flow", () => {
-  test("should show login page with demo credentials", async ({ page }) => {
+  test("should show login page with brand and form", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.locator("h1")).toContainText("HUB JGG Group");
-    await expect(page.locator("text=Credenciais de demonstração")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "HUB JGG Group" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Senha")).toBeVisible();
   });
 
   test("should login with valid credentials and redirect to dashboard", async ({ page }) => {
     await page.goto("/login");
 
-    await page.fill('input[type="email"]', "mariana@jgg.com.br");
-    await page.fill('input[type="password"]', "jgg2026");
-    await page.click('button[type="submit"]');
+    await page.getByLabel("Email").fill("mariana@jgg.com.br");
+    await page.getByLabel("Senha").fill("jgg2026");
+    await page.getByRole("button", { name: "Entrar" }).click();
 
     await page.waitForURL("/dashboard", { timeout: 10000 });
     await expect(page).toHaveURL("/dashboard");
@@ -21,9 +22,9 @@ test.describe("Login Flow", () => {
   test("should show error for invalid credentials", async ({ page }) => {
     await page.goto("/login");
 
-    await page.fill('input[type="email"]', "invalid@email.com");
-    await page.fill('input[type="password"]', "wrongpassword");
-    await page.click('button[type="submit"]');
+    await page.getByLabel("Email").fill("invalid@email.com");
+    await page.getByLabel("Senha").fill("wrongpassword");
+    await page.getByRole("button", { name: "Entrar" }).click();
 
     await expect(page.locator("text=Credenciais inválidas")).toBeVisible();
   });

@@ -1,0 +1,53 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      DATA_MODE: mock
+      AUTH_SECRET: e2e-ci-auth-secret
+      AUTH_URL: http://localhost:3100
+      PLAYWRIGHT_PORT: "3100"
+      PLAYWRIGHT_BASE_URL: http://localhost:3100
+      DEMO_USERS_JSON: >-
+        [{"id":"usr-adv-001","email":"mariana@jgg.com.br","passwordHash":"4c21a89a89e4fcafd251de5f6342f75cb44014947fc41c92d12fda483fb0709e","name":"Mariana Couto","initials":"MC","role":"advogado"}]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
