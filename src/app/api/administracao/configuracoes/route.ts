@@ -35,23 +35,44 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { chave: string; valor: string };
-    if (!body.chave || body.valor === undefined) {
-      return NextResponse.json({ error: "chave e valor são obrigatórios." }, { status: 400 });
+    const body = (await request.json()) as {
+      chave?: string;
+      valor?: string;
+      updates?: Array<{ chave: string; valor: string }>;
+    };
+
+    const updates =
+      Array.isArray(body.updates) && body.updates.length > 0
+        ? body.updates
+        : body.chave
+          ? [{ chave: body.chave, valor: body.valor ?? "" }]
+          : [];
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: "Informe 'chave/valor' ou 'updates'." }, { status: 400 });
     }
 
-    const valorSanitizado = String(body.valor).trim();
-    await atualizarConfiguracao(body.chave, valorSanitizado);
-
-    if (body.chave === "ai_provider") {
-      process.env.AI_PROVIDER = valorSanitizado;
+    for (const update of updates) {
+      if (!update.chave || typeof update.valor === "undefined") {
+        return NextResponse.json({ error: "Cada update precisa de chave e valor." }, { status: 400 });
+      }
+      const valorSanitizado = String(update.valor).trim();
+      await atualizarConfiguracao(update.chave, valorSanitizado);
     }
-    if (body.chave === "ai_model") {
-      process.env.AI_MODEL = valorSanitizado;
+
+    const updateMap = new Map(updates.map((item) => [item.chave, String(item.valor).trim()]));
+    if (updateMap.has("ai_provider")) {
+      process.env.AI_PROVIDER = updateMap.get("ai_provider") ?? "";
+    }
+    if (updateMap.has("ai_model")) {
+      process.env.AI_MODEL = updateMap.get("ai_model") ?? "";
     }
 
     await syncRuntimeAIConfig({ force: true });
-    return NextResponse.json({ ok: true, chave: body.chave, valor: valorSanitizado });
+    return NextResponse.json({
+      ok: true,
+      updated: updates.map((item) => ({ chave: item.chave, valor: String(item.valor).trim() })),
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro." }, { status: 500 });
   }

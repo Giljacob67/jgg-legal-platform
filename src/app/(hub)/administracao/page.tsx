@@ -30,6 +30,12 @@ export default async function AdministracaoPage() {
     openrouter: "OpenRouter",
     kilocode: "KiloCode",
     anthropic: "Anthropic",
+    google: "Google AI",
+    groq: "Groq",
+    xai: "xAI",
+    mistral: "Mistral AI",
+    ollama: "Ollama",
+    custom: "Custom",
   };
 
   return (

@@ -31,44 +31,16 @@ export default async function ConfiguracoesPage() {
         />
       </Card>
 
-      <Card title="Variáveis de ambiente" subtitle="Configurações que requerem redeploy na Vercel.">
+      <Card title="Infraestrutura" subtitle="Configurações sensíveis e operação em produção.">
         <div className="space-y-2 text-sm text-[var(--color-muted)]">
           <p>
-            As variáveis abaixo são lidas diretamente do ambiente e não podem ser alteradas pela interface.
-            Exceção: o provedor/modelo ativos são definidos pelo banco via painel administrativo.
+            As credenciais de IA (API Keys e Base URLs) podem ser gerenciadas diretamente nesta página e entram
+            em vigor imediatamente.
           </p>
-          <ul className="mt-2 space-y-1 font-mono text-xs">
-            {[
-              "DATABASE_URL",
-              "DATA_MODE",
-              "OPENAI_API_KEY",
-              "ANTHROPIC_API_KEY",
-              "GOOGLE_GENERATIVE_AI_API_KEY",
-              "GROQ_API_KEY",
-              "XAI_API_KEY",
-              "MISTRAL_API_KEY",
-              "OPENROUTER_API_KEY",
-              "KILO_API_KEY",
-              "OLLAMA_BASE_URL",
-              "OLLAMA_API_KEY",
-              "CUSTOM_BASE_URL",
-              "CUSTOM_API_KEY",
-              "BLOB_READ_WRITE_TOKEN",
-            ].map((v) => (
-              <li key={v} className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-                {v}
-                <span className="text-emerald-600">{process.env[v] ? "✓ configurada" : "— não definida"}</span>
-              </li>
-            ))}
-            {["AI_PROVIDER", "AI_MODEL"].map((v) => (
-              <li key={v} className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                {v}
-                <span className="text-sky-600">sincronizada pelo painel</span>
-              </li>
-            ))}
-          </ul>
+          <p>
+            Variáveis de infraestrutura como <span className="font-mono">DATABASE_URL</span> e tokens de storage
+            continuam sendo administradas no ambiente de deploy.
+          </p>
         </div>
       </Card>
     </div>
