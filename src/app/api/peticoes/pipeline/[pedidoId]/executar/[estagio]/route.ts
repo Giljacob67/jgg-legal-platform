@@ -2,6 +2,7 @@ import "server-only";
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRBAC } from "@/lib/api-auth";
+import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
 import { isAIAvailable, getLLM } from "@/lib/ai/provider";
 import { streamText } from "ai";
 import { retryStreamText } from "@/lib/ai/retry";
@@ -25,6 +26,7 @@ import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/o
 import type { EstagioExecutavel } from "@/modules/peticoes/application/operacional/executarEstagioComIA";
 import type { EtapaPipeline } from "@/modules/peticoes/domain/types";
 import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
+import { perfilTemAlcadaExecucaoEstagio } from "@/modules/peticoes/domain/aprovacao";
 
 export const maxDuration = 300;
 
@@ -82,12 +84,31 @@ export async function POST(
 ) {
   const requestId = getRequestId(req);
 
-  const forbidden = await requireRBAC("peticoes", "edicao");
+  const forbidden = await requireRBAC("peticoes", "leitura");
   if (forbidden) return forbidden;
 
   const session = await auth();
   if (!session) {
     return jsonError(requestId, "Não autorizado", 401);
+  }
+
+  const { pedidoId, estagio } = await params;
+
+  if (!ESTAGIOS_VALIDOS.includes(estagio as EstagioExecutavel)) {
+    return jsonError(
+      requestId,
+      `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}`,
+      400,
+    );
+  }
+
+  const perfilUsuario = resolverPerfilUsuario(session.user.role as string | undefined);
+  if (!perfilTemAlcadaExecucaoEstagio(perfilUsuario, estagio as EstagioExecutavel)) {
+    return jsonError(
+      requestId,
+      "Seu perfil não possui alçada para executar este estágio do pipeline.",
+      403,
+    );
   }
 
   const rl = verificarRateLimit(session.user.id, "pipeline-ia", 30);
@@ -103,16 +124,6 @@ export async function POST(
 
   if (!isAIAvailable()) {
     return jsonError(requestId, "IA não configurada. Defina OPENROUTER_API_KEY.", 503);
-  }
-
-  const { pedidoId, estagio } = await params;
-
-  if (!ESTAGIOS_VALIDOS.includes(estagio as EstagioExecutavel)) {
-    return jsonError(
-      requestId,
-      `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}`,
-      400,
-    );
   }
 
   const pedido = await obterPedidoDePeca(pedidoId);

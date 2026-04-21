@@ -65,4 +65,21 @@ test.describe("RBAC Smoke", () => {
     });
     expect(response.status()).toBe(200);
   });
+
+  test("administrador aprova pipeline, mas não executa estágio", async ({ page }) => {
+    await loginAs(page, "admin@jgg.com.br");
+
+    await page.goto("/peticoes/pipeline/PED-2026-001");
+    await expect(page.getByRole("heading", { level: 1, name: "Pipeline da Peça" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sem alçada para execução" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Aprovar" })).toBeVisible();
+
+    const execResponse = await page.request.post("/api/peticoes/pipeline/PED-2026-001/executar/triagem");
+    expect(execResponse.status()).toBe(403);
+
+    const aprovacaoResponse = await page.request.post("/api/peticoes/pipeline/PED-2026-001/aprovacao", {
+      data: { resultado: "aprovado", observacoes: "Aprovação por administrador em smoke RBAC." },
+    });
+    expect(aprovacaoResponse.status()).toBe(200);
+  });
 });

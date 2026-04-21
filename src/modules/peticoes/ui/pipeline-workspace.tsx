@@ -14,7 +14,10 @@ import {
   calcularDiasRestantesPrazo,
   responsavelObrigatorioAtendido,
 } from "@/modules/peticoes/application/governanca-pedido";
-import { perfilTemAlcadaAprovacao } from "@/modules/peticoes/domain/aprovacao";
+import {
+  perfilTemAlcadaAprovacao,
+  perfilTemAlcadaExecucaoEstagio,
+} from "@/modules/peticoes/domain/aprovacao";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -93,6 +96,7 @@ export function PipelineWorkspace({
   const [aprovacaoMensagem, setAprovacaoMensagem] = useState<string | null>(null);
 
   const podeAprovar = perfilTemAlcadaAprovacao(perfilUsuario);
+  const podeExecutarEstagios = perfilTemAlcadaExecucaoEstagio(perfilUsuario, "triagem");
   const responsavelDefinido = responsavelObrigatorioAtendido(responsavel);
 
   const executarEstagio = useCallback(
@@ -220,15 +224,18 @@ export function PipelineWorkspace({
       itens.push("Contexto jurídico consolidado ainda não foi gerado.");
     }
 
+    if (!podeExecutarEstagios) {
+      itens.push("Execução dos estágios depende de perfil com alçada operacional jurídica.");
+    }
     if (!podeAprovar) {
-      itens.push("Aprovação final depende de perfil com alçada de coordenação/sócio.");
+      itens.push("Aprovação final depende de perfil com alçada de coordenação/sócio/administração.");
     }
     if (!responsavelDefinido) {
       itens.push("Responsável obrigatório pendente. Defina o titular do pedido para executar e aprovar etapas.");
     }
 
     return itens;
-  }, [contextoAtual, podeAprovar, responsavelDefinido, snapshotsMap]);
+  }, [contextoAtual, podeAprovar, podeExecutarEstagios, responsavelDefinido, snapshotsMap]);
 
   const slaEtapaAtual = useMemo(
     () =>
@@ -288,6 +295,9 @@ export function PipelineWorkspace({
               const status = toStatus(etapa, snapshot, etapaInicial);
               const estagioExecutavel = PIPELINE_PARA_ESTAGIO[etapa.id];
               const streamKey = estagioExecutavel as EstagioExecutavel;
+              const podeExecutarEtapa = estagioExecutavel
+                ? perfilTemAlcadaExecucaoEstagio(perfilUsuario, estagioExecutavel)
+                : false;
 
               return (
                 <article key={etapa.id} className="rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
@@ -320,11 +330,18 @@ export function PipelineWorkspace({
                       <button
                         type="button"
                         onClick={() => executarEstagio(estagioExecutavel)}
-                        disabled={streamingEstagio !== null || status.isMock || !responsavelDefinido}
+                        disabled={
+                          streamingEstagio !== null ||
+                          status.isMock ||
+                          !responsavelDefinido ||
+                          !podeExecutarEtapa
+                        }
                         className="rounded-xl bg-[var(--color-accent)] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {status.isMock
                           ? "Etapa simulada"
+                          : !podeExecutarEtapa
+                            ? "Sem alçada para execução"
                           : !responsavelDefinido
                             ? "Defina o responsável para executar"
                           : streamingEstagio === estagioExecutavel

@@ -26,7 +26,7 @@ export async function POST(
 ) {
   const requestId = getRequestId(req);
 
-  const forbidden = await requireRBAC("peticoes", "edicao");
+  const forbidden = await requireRBAC("peticoes", "leitura");
   if (forbidden) return forbidden;
 
   const session = await auth();

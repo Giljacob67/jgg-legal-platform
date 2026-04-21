@@ -320,4 +320,53 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     expect(json.error).toContain("Conflito de concorrência");
     expect(json.details.ultimaVersaoAtual).toBe(3);
   });
+
+  it("deve bloquear execução de estágio para perfil sem alçada operacional", async () => {
+    mockAuth.mockResolvedValueOnce({
+      user: {
+        id: "usr-adm-001",
+        name: "Admin Sistema",
+        email: "admin@jgg.adv.br",
+        role: "administrador_sistema",
+      },
+    });
+
+    const response = await postExecutarPipeline(
+      new Request("http://localhost/api/peticoes/pipeline", {
+        method: "POST",
+        headers: { "x-request-id": "req-pipeline-sem-alcada" },
+      }) as unknown as NextRequest,
+      { params: Promise.resolve({ pedidoId: "PED-2026-001", estagio: "triagem" }) },
+    );
+
+    expect(response.status).toBe(403);
+    const json = (await response.json()) as { error: string };
+    expect(json.error).toContain("alçada");
+    expect(mockPipelineSnapshotRepository.salvarNovaVersao).not.toHaveBeenCalled();
+  });
+
+  it("deve permitir aprovação para administrador do sistema", async () => {
+    mockAuth.mockResolvedValueOnce({
+      user: {
+        id: "usr-adm-001",
+        name: "Admin Sistema",
+        email: "admin@jgg.adv.br",
+        role: "administrador_sistema",
+      },
+    });
+
+    const response = await postAprovacao(
+      new Request("http://localhost/api/peticoes/pipeline/aprovacao", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-request-id": "req-aprov-admin-001" },
+        body: JSON.stringify({ resultado: "aprovado", observacoes: "Aprovação por perfil administrador." }),
+      }) as unknown as NextRequest,
+      { params: Promise.resolve({ pedidoId: "PED-2026-001" }) },
+    );
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { resultado: string; snapshot: { saidaEstruturada: { perfil_aprovador: string } } };
+    expect(json.resultado).toBe("aprovado");
+    expect(json.snapshot.saidaEstruturada.perfil_aprovador).toBe("administrador_sistema");
+  });
 });
