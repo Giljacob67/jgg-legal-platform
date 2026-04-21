@@ -15,6 +15,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@/modules/biblioteca-juridica": path.resolve(
+        __dirname,
+        "./src/modules/biblioteca-conhecimento",
+      ),
       "@": path.resolve(__dirname, "./src"),
     },
   },
