@@ -395,4 +395,62 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
       perfilUsuario: "administrador_sistema",
     });
   });
+
+  it("deve bloquear execução duplicada quando a etapa já estiver em andamento", async () => {
+    snapshotsSalvos.push({
+      id: "SNP-EM-ANDAMENTO-001",
+      pedidoId: "PED-2026-001",
+      etapa: "classificacao",
+      versao: 1,
+      entradaRef: { origem: "ia_streaming" },
+      saidaEstruturada: {},
+      status: "em_andamento",
+      tentativa: 1,
+      executadoEm: new Date().toISOString(),
+    });
+
+    const response = await postExecutarPipeline(
+      new Request("http://localhost/api/peticoes/pipeline", {
+        method: "POST",
+        headers: { "x-request-id": "req-pipeline-duplicado-001" },
+      }) as unknown as NextRequest,
+      { params: Promise.resolve({ pedidoId: "PED-2026-001", estagio: "triagem" }) },
+    );
+
+    expect(response.status).toBe(409);
+    const json = (await response.json()) as {
+      error: string;
+      details: { codigoErro: string; reprocessavel: boolean };
+    };
+    expect(json.error).toContain("Já existe uma execução em andamento");
+    expect(json.details.codigoErro).toBe("PIPELINE_EXECUCAO_EM_ANDAMENTO");
+    expect(json.details.reprocessavel).toBe(false);
+    expect(mockPipelineSnapshotRepository.salvarNovaVersao).not.toHaveBeenCalled();
+  });
+
+  it("deve classificar falha transitória e persistir codigoErro no snapshot", async () => {
+    mockRetryStreamText.mockRejectedValueOnce(new Error("Request timed out calling provider"));
+
+    const response = await postExecutarPipeline(
+      new Request("http://localhost/api/peticoes/pipeline", {
+        method: "POST",
+        headers: { "x-request-id": "req-pipeline-timeout-001" },
+      }) as unknown as NextRequest,
+      { params: Promise.resolve({ pedidoId: "PED-2026-001", estagio: "triagem" }) },
+    );
+
+    expect(response.status).toBe(503);
+    const json = (await response.json()) as {
+      error: string;
+      details: { codigoErro: string; reprocessavel: boolean };
+    };
+    expect(json.details.codigoErro).toBe("FALHA_TRANSITORIA_IA");
+    expect(json.details.reprocessavel).toBe(true);
+
+    const snapshotErro = snapshotsSalvos.find(
+      (item) => item.etapa === "classificacao" && item.status === "erro",
+    );
+    expect(snapshotErro?.codigoErro).toBe("FALHA_TRANSITORIA_IA");
+    expect(snapshotErro?.mensagemErro).toContain("timed out");
+  });
 });

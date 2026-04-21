@@ -28,6 +28,10 @@ import type { EtapaPipeline } from "@/modules/peticoes/domain/types";
 import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
 import { perfilTemAlcadaExecucaoEstagio } from "@/modules/peticoes/domain/aprovacao";
 import {
+  classificarFalhaPipeline,
+  existeExecucaoEmAndamentoRecente,
+} from "@/modules/peticoes/application/operacional/confiabilidade-pipeline";
+import {
   criarEntradaRefAuditavel,
   registrarEventoPipeline,
   registrarFalhaPipeline,
@@ -42,6 +46,14 @@ const ESTAGIOS_VALIDOS: EstagioExecutavel[] = [
   "estrategia",
   "minuta",
 ];
+
+const MAPA_ESTAGIO_PIPELINE: Record<EstagioExecutavel, EtapaPipeline> = {
+  triagem: "classificacao",
+  "extracao-fatos": "extracao_de_fatos",
+  "analise-adversa": "analise_adversa",
+  estrategia: "estrategia_juridica",
+  minuta: "redacao",
+};
 
 type Pipeline = Awaited<ReturnType<typeof obterPipelineDoPedido>>;
 
@@ -122,10 +134,13 @@ export async function POST(
       requestId,
       `Estágio inválido: ${estagio}. Válidos: ${ESTAGIOS_VALIDOS.join(", ")}`,
       400,
+      { codigoErro: "ESTAGIO_INVALIDO", reprocessavel: false },
     );
   }
 
   const estagioExecutavel = estagio as EstagioExecutavel;
+  const etapaPipeline = MAPA_ESTAGIO_PIPELINE[estagioExecutavel];
+
   if (!perfilTemAlcadaExecucaoEstagio(perfilUsuario, estagioExecutavel)) {
     registrarEventoPipeline("api/pipeline/executar", requestId, "execucao_bloqueada_alcada", {
       pedidoId,
@@ -136,6 +151,33 @@ export async function POST(
       requestId,
       "Seu perfil não possui alçada para executar este estágio do pipeline.",
       403,
+      { codigoErro: "SEM_ALCADA_EXECUCAO", reprocessavel: false },
+    );
+  }
+
+  const infra = getPeticoesOperacionalInfra();
+  const ultimoSnapshotDaEtapa = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+    pedidoId,
+    etapaPipeline,
+  );
+  if (ultimoSnapshotDaEtapa && existeExecucaoEmAndamentoRecente(ultimoSnapshotDaEtapa)) {
+    registrarEventoPipeline("api/pipeline/executar", requestId, "execucao_bloqueada_andamento_recente", {
+      pedidoId,
+      estagio: estagioExecutavel,
+      ultimaVersao: ultimoSnapshotDaEtapa?.versao,
+      ultimoExecutadoEm: ultimoSnapshotDaEtapa?.executadoEm,
+      ...contextoAuditoria,
+    });
+    return jsonError(
+      requestId,
+      "Já existe uma execução em andamento para esta etapa. Aguarde a conclusão antes de reprocessar.",
+      409,
+      {
+        codigoErro: "PIPELINE_EXECUCAO_EM_ANDAMENTO",
+        reprocessavel: false,
+        ultimaVersao: ultimoSnapshotDaEtapa.versao,
+        ultimoExecutadoEm: ultimoSnapshotDaEtapa.executadoEm,
+      },
     );
   }
 
@@ -152,7 +194,11 @@ export async function POST(
       requestId,
       `Limite de execuções de IA atingido. Tente novamente em ${resetMin} minuto(s).`,
       429,
-      { retryAfterSec: Math.ceil(rl.resetEmMs / 1000) },
+      {
+        codigoErro: "RATE_LIMIT_PIPELINE_IA",
+        retryAfterSec: Math.ceil(rl.resetEmMs / 1000),
+        reprocessavel: true,
+      },
     );
   }
 
@@ -162,7 +208,10 @@ export async function POST(
       estagio: estagioExecutavel,
       ...contextoAuditoria,
     });
-    return jsonError(requestId, "IA não configurada. Defina OPENROUTER_API_KEY.", 503);
+    return jsonError(requestId, "IA não configurada. Defina OPENROUTER_API_KEY.", 503, {
+      codigoErro: "IA_NAO_CONFIGURADA",
+      reprocessavel: false,
+    });
   }
 
   const pedido = await obterPedidoDePeca(pedidoId);
@@ -172,7 +221,10 @@ export async function POST(
       estagio: estagioExecutavel,
       ...contextoAuditoria,
     });
-    return jsonError(requestId, `Pedido ${pedidoId} não encontrado.`, 404);
+    return jsonError(requestId, `Pedido ${pedidoId} não encontrado.`, 404, {
+      codigoErro: "PEDIDO_NAO_ENCONTRADO",
+      reprocessavel: false,
+    });
   }
   if (!responsavelObrigatorioAtendido(pedido.responsavel)) {
     registrarEventoPipeline("api/pipeline/executar", requestId, "execucao_bloqueada_sem_responsavel", {
@@ -185,6 +237,7 @@ export async function POST(
       requestId,
       "Responsável obrigatório pendente. Defina o responsável do pedido antes de executar o pipeline.",
       422,
+      { codigoErro: "RESPONSAVEL_OBRIGATORIO_PENDENTE", reprocessavel: false },
     );
   }
 
@@ -195,19 +248,7 @@ export async function POST(
     ...contextoAuditoria,
   });
 
-  const infra = getPeticoesOperacionalInfra();
   let modelId = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5";
-
-  // ── Marcar início do estágio ──────────────────────────────────
-  const MAPA_ESTAGIO: Record<EstagioExecutavel, EtapaPipeline> = {
-    triagem: "classificacao",
-    "extracao-fatos": "extracao_de_fatos",
-    "analise-adversa": "analise_adversa",
-    estrategia: "estrategia_juridica",
-    minuta: "redacao",
-  };
-
-  const etapaPipeline = MAPA_ESTAGIO[estagioExecutavel];
 
   await infra.pipelineSnapshotRepository.salvarNovaVersao({
     pedidoId,
@@ -290,7 +331,7 @@ export async function POST(
           });
           controller.close();
         } catch (err) {
-          const msg = err instanceof Error ? err.message : "Erro no stream";
+          const falha = classificarFalhaPipeline(err);
           await infra.pipelineSnapshotRepository.salvarNovaVersao({
             pedidoId,
             etapa: etapaPipeline,
@@ -300,7 +341,8 @@ export async function POST(
             ),
             saidaEstruturada: { textoGerado: textoCompleto },
             status: "erro",
-            mensagemErro: msg,
+            codigoErro: falha.codigoErro,
+            mensagemErro: falha.mensagemTecnica,
             tentativa: attempts,
           });
           registrarFalhaPipeline(
@@ -329,10 +371,11 @@ export async function POST(
       },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Erro interno";
+    const falha = classificarFalhaPipeline(err);
     registrarFalhaPipeline("api/pipeline/executar", requestId, "execucao_falha", err, {
       pedidoId,
       estagio: estagioExecutavel,
+      codigoErro: falha.codigoErro,
       ...contextoAuditoria,
     });
     await infra.pipelineSnapshotRepository.salvarNovaVersao({
@@ -344,9 +387,13 @@ export async function POST(
       ),
       saidaEstruturada: { textoGerado: textoCompleto },
       status: "erro",
-      mensagemErro: msg,
+      codigoErro: falha.codigoErro,
+      mensagemErro: falha.mensagemTecnica,
       tentativa: tentativaFinal,
     });
-    return jsonError(requestId, msg, 500);
+    return jsonError(requestId, falha.mensagemOperacional, falha.statusHttp, {
+      codigoErro: falha.codigoErro,
+      reprocessavel: falha.reprocessavel,
+    });
   }
 }
