@@ -91,7 +91,15 @@ function buildFriendlyError(provider: ProvedorIA, status: number, details?: stri
 function buildOllamaV1ModelsUrl(baseUrl: string): string {
   const normalized = baseUrl.replace(/\/+$/, "");
   if (normalized.endsWith("/v1")) return `${normalized}/models`;
+  if (normalized.endsWith("/api")) return `${normalized.slice(0, -4)}/v1/models`;
   return `${normalized}/v1/models`;
+}
+
+function buildOllamaNativeTagsUrl(baseUrl: string): string {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/api")) return `${normalized}/tags`;
+  if (normalized.endsWith("/v1")) return `${normalized.slice(0, -3)}/api/tags`;
+  return `${normalized}/api/tags`;
 }
 
 async function safeJson(response: Response): Promise<unknown> {
@@ -228,7 +236,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "Informe a Base URL do Ollama para testar." }, { status: 400 });
         }
         const apiKey = getConfigValue(credentials, "ai_ollama_api_key");
-        response = await fetchWithTimeout(`${baseUrl}/api/tags`, {
+        response = await fetchWithTimeout(buildOllamaNativeTagsUrl(baseUrl), {
           headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
         });
         if (!response.ok && response.status === 404) {

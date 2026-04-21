@@ -60,7 +60,15 @@ type ModeloResposta = {
 function buildOllamaV1ModelsUrl(baseUrl: string): string {
   const normalized = baseUrl.replace(/\/+$/, "");
   if (normalized.endsWith("/v1")) return `${normalized}/models`;
+  if (normalized.endsWith("/api")) return `${normalized.slice(0, -4)}/v1/models`;
   return `${normalized}/v1/models`;
+}
+
+function buildOllamaNativeTagsUrl(baseUrl: string): string {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/api")) return `${normalized}/tags`;
+  if (normalized.endsWith("/v1")) return `${normalized.slice(0, -3)}/api/tags`;
+  return `${normalized}/api/tags`;
 }
 
 function parseOpenRouterCost(precoPorMilhao: number | null): ModeloResposta["custo"] {
@@ -140,7 +148,7 @@ export async function GET() {
       : Promise.resolve(null);
 
     const fetchOllama = podeConsultarOllama
-      ? fetch(`${ollamaBaseURL.replace(/\/$/, "")}/api/tags`, {
+      ? fetch(buildOllamaNativeTagsUrl(ollamaBaseURL), {
           headers: ollamaApiKey ? { Authorization: `Bearer ${ollamaApiKey}` } : undefined,
           next: { revalidate: 60 },
         }).catch(() => null)
