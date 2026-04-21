@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRBAC } from "@/lib/api-auth";
 import { getDb } from "@/lib/database/client";
 import { minutas as minutasTable, versoesMinuta } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
+import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 
 type RouteContext = { params: Promise<{ minutaId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
+  const forbidden = await requireRBAC("peticoes", "edicao");
+  if (forbidden) return forbidden;
+
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
@@ -34,6 +39,16 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     const rows = await db.select().from(minutasTable).where(eq(minutasTable.id, minutaId));
     if (rows.length === 0) {
       return NextResponse.json({ error: "Minuta não encontrada." }, { status: 404 });
+    }
+
+    const pedidoId = rows[0].pedidoId ?? "";
+    if (!pedidoId) {
+      return NextResponse.json({ error: "Minuta sem pedido vinculado." }, { status: 422 });
+    }
+
+    const pedido = await obterPedidoDePeca(pedidoId);
+    if (!pedido) {
+      return NextResponse.json({ error: "Pedido da minuta não encontrado." }, { status: 404 });
     }
 
     // Atualizar conteúdo atual
