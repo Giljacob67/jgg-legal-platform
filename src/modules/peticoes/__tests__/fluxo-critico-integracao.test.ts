@@ -245,6 +245,15 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     expect(pipelineResponse.headers.get("x-request-id")).toBe("req-pipeline-001");
     expect(mockPipelineSnapshotRepository.salvarNovaVersao).toHaveBeenCalled();
 
+    mockAuth.mockResolvedValueOnce({
+      user: {
+        id: "usr-soc-001",
+        name: "Gilberto Jacob",
+        email: "gilberto@jgg.adv.br",
+        role: "socio_direcao",
+      },
+    });
+
     const aprovacaoResponse = await postAprovacao(
       new Request("http://localhost/api/peticoes/pipeline/aprovacao", {
         method: "POST",

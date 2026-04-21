@@ -14,6 +14,7 @@ import {
   calcularDiasRestantesPrazo,
   responsavelObrigatorioAtendido,
 } from "@/modules/peticoes/application/governanca-pedido";
+import { perfilTemAlcadaAprovacao } from "@/modules/peticoes/domain/aprovacao";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -33,8 +34,6 @@ type PipelineWorkspaceProps = {
 };
 
 type ResultadoAprovacao = "aprovado" | "rejeitado" | "revisao_pendente";
-
-const PERFIS_QUE_APROVAM = ["coordenador_juridico", "socio_direcao", "administrador_sistema"];
 
 const PIPELINE_PARA_ESTAGIO = Object.fromEntries(
   Object.entries(MAPA_ESTAGIO_PIPELINE).map(([key, value]) => [value, key as EstagioExecutavel]),
@@ -93,7 +92,7 @@ export function PipelineWorkspace({
   const [aprovacaoStatus, setAprovacaoStatus] = useState<"idle" | "loading" | "sucesso" | "erro">("idle");
   const [aprovacaoMensagem, setAprovacaoMensagem] = useState<string | null>(null);
 
-  const podeAprovar = perfilUsuario ? PERFIS_QUE_APROVAM.includes(perfilUsuario) : false;
+  const podeAprovar = perfilTemAlcadaAprovacao(perfilUsuario);
   const responsavelDefinido = responsavelObrigatorioAtendido(responsavel);
 
   const executarEstagio = useCallback(

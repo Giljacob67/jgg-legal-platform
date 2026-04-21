@@ -38,4 +38,31 @@ test.describe("RBAC Smoke", () => {
     const response = await page.request.get("/api/peticoes/governanca/responsaveis");
     expect(response.status()).toBe(200);
   });
+
+  test("advogado não deve ter alçada para aprovar pipeline", async ({ page }) => {
+    await loginAs(page, "mariana@jgg.com.br");
+
+    await page.goto("/peticoes/pipeline/PED-2026-001");
+    await expect(page.getByRole("heading", { level: 1, name: "Pipeline da Peça" })).toBeVisible();
+    await expect(page.getByText("Seu perfil não possui alçada para aprovação final.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Aprovar" })).toHaveCount(0);
+
+    const response = await page.request.post("/api/peticoes/pipeline/PED-2026-001/aprovacao", {
+      data: { resultado: "aprovado", observacoes: "Teste RBAC sem alçada" },
+    });
+    expect(response.status()).toBe(403);
+  });
+
+  test("sócio deve conseguir aprovar pipeline", async ({ page }) => {
+    await loginAs(page, "gilberto@jgg.com.br");
+
+    await page.goto("/peticoes/pipeline/PED-2026-001");
+    await expect(page.getByRole("heading", { level: 1, name: "Pipeline da Peça" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Aprovar" })).toBeVisible();
+
+    const response = await page.request.post("/api/peticoes/pipeline/PED-2026-001/aprovacao", {
+      data: { resultado: "aprovado", observacoes: "Teste RBAC com alçada" },
+    });
+    expect(response.status()).toBe(200);
+  });
 });

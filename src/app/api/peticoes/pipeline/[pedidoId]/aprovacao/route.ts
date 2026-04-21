@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { requireRBAC } from "@/lib/api-auth";
 import { auth } from "@/lib/auth";
+import { resolverPerfilUsuario } from "@/modules/administracao/domain/types";
 import {
   getRequestId,
   jsonError,
@@ -12,6 +13,7 @@ import {
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
+import { perfilTemAlcadaAprovacao } from "@/modules/peticoes/domain/aprovacao";
 
 const AprovacaoPayloadSchema = z.object({
   resultado: z.enum(["aprovado", "rejeitado", "revisao_pendente"]),
@@ -33,6 +35,11 @@ export async function POST(
   }
 
   const { pedidoId } = await params;
+  const perfilUsuario = resolverPerfilUsuario(session.user.role as string | undefined);
+
+  if (!perfilTemAlcadaAprovacao(perfilUsuario)) {
+    return jsonError(requestId, "Seu perfil não possui alçada para aprovação final.", 403);
+  }
 
   const pedido = await obterPedidoDePeca(pedidoId);
   if (!pedido) {
@@ -75,7 +82,7 @@ export async function POST(
         observacoes: observacoes ?? null,
         data_aprovacao: new Date().toISOString(),
         aprovado_por: session.user.id,
-        perfil_aprovador: session.user.role,
+        perfil_aprovador: perfilUsuario,
       },
       status:
         resultado === "aprovado"
