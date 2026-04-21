@@ -253,8 +253,10 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
   );
 
   const [mensagemConexao, setMensagemConexao] = useState<MensagemUI | null>(null);
+  const [mensagemTeste, setMensagemTeste] = useState<MensagemUI | null>(null);
   const [mensagemGeral, setMensagemGeral] = useState<MensagemUI | null>(null);
   const [salvandoConexao, setSalvandoConexao] = useState(false);
+  const [testandoConexao, setTestandoConexao] = useState(false);
   const [salvandoCampo, setSalvandoCampo] = useState<string | null>(null);
 
   const [carregandoModelos, setCarregandoModelos] = useState(false);
@@ -314,6 +316,7 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
 
   async function salvarConexaoIA() {
     setMensagemConexao(null);
+    setMensagemTeste(null);
     const faltantes = camposConexao
       .filter((campo) => campo.obrigatorio)
       .filter((campo) => !(valores[campo.chave] ?? "").trim());
@@ -354,6 +357,69 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
       });
     } finally {
       setSalvandoConexao(false);
+    }
+  }
+
+  async function testarConexaoIA() {
+    setMensagemTeste(null);
+    const faltantes = camposConexao
+      .filter((campo) => campo.obrigatorio)
+      .filter((campo) => !(valores[campo.chave] ?? "").trim());
+
+    if (!modeloAtual.trim()) {
+      setMensagemTeste({ tipo: "warning", texto: "Informe um modelo antes de testar a conexão." });
+      return;
+    }
+
+    if (faltantes.length > 0) {
+      setMensagemTeste({
+        tipo: "warning",
+        texto: `Campos obrigatórios pendentes: ${faltantes.map((item) => item.label).join(", ")}.`,
+      });
+      return;
+    }
+
+    setTestandoConexao(true);
+    try {
+      const credenciais = Object.fromEntries(
+        Object.entries(valores).filter(
+          ([chave]) => chave.startsWith("ai_") && chave !== "ai_provider" && chave !== "ai_model",
+        ),
+      );
+
+      const res = await fetch("/api/ai/test-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: provedorAtual,
+          modelId: modeloAtual.trim(),
+          credentials: credenciais,
+        }),
+      });
+      const payload = (await res.json()) as { error?: string; message?: string; modelCount?: number };
+
+      if (!res.ok) {
+        setStatusProvedorAtivo(false);
+        setMensagemTeste({
+          tipo: "error",
+          texto: payload.error ?? "Falha ao testar conexão com o provedor.",
+        });
+        return;
+      }
+
+      setStatusProvedorAtivo(true);
+      setMensagemTeste({
+        tipo: "success",
+        texto: payload.message ?? "Conexão validada com sucesso.",
+      });
+    } catch (error) {
+      setStatusProvedorAtivo(false);
+      setMensagemTeste({
+        tipo: "error",
+        texto: error instanceof Error ? error.message : "Falha inesperada no teste de conexão.",
+      });
+    } finally {
+      setTestandoConexao(false);
     }
   }
 
@@ -499,6 +565,15 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
           </InlineAlert>
         ) : null}
 
+        {mensagemTeste ? (
+          <InlineAlert
+            title={mensagemTeste.tipo === "success" ? "Teste de conexão concluído" : "Teste de conexão"}
+            variant={mensagemTeste.tipo === "success" ? "success" : "warning"}
+          >
+            {mensagemTeste.texto}
+          </InlineAlert>
+        ) : null}
+
         <InlineAlert
           title={statusProvedorAtivo ? "Provedor autenticado" : "Provedor sem credencial válida"}
           variant={statusProvedorAtivo ? "success" : "warning"}
@@ -508,14 +583,24 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
             : "Configure os campos obrigatórios e salve para habilitar chamadas de IA."}
         </InlineAlert>
 
-        <button
-          type="button"
-          onClick={() => void salvarConexaoIA()}
-          disabled={salvandoConexao}
-          className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {salvandoConexao ? "Salvando conexão..." : "Salvar conexão de IA"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void testarConexaoIA()}
+            disabled={testandoConexao || salvandoConexao}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] disabled:opacity-60"
+          >
+            {testandoConexao ? "Testando conexão..." : "Testar conexão"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void salvarConexaoIA()}
+            disabled={salvandoConexao || testandoConexao}
+            className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {salvandoConexao ? "Salvando conexão..." : "Salvar conexão de IA"}
+          </button>
+        </div>
       </section>
 
       <section className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
