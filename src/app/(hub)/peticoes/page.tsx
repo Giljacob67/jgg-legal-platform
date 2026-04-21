@@ -4,10 +4,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LibraryIcon, ScaleIcon } from "@/components/ui/icons";
 import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
+import { listarAlertasGovernancaPorResponsavel } from "@/modules/peticoes/application/listarAlertasGovernancaPorResponsavel";
+import { GovernancaResponsaveisBoard } from "@/modules/peticoes/ui/governanca-responsaveis-board";
 import { PedidosOperacionaisList } from "@/modules/peticoes/ui/pedidos-operacionais-list";
 
 export default async function PeticoesPage() {
   const pedidos = await listarPedidosDePeca();
+  const resumoGovernanca = listarAlertasGovernancaPorResponsavel(pedidos);
 
   return (
     <div className="space-y-6">
@@ -38,6 +41,8 @@ export default async function PeticoesPage() {
           produção, revisão e aprovação.
         </p>
       </Card>
+
+      <GovernancaResponsaveisBoard resumo={resumoGovernanca} />
 
       <PedidosOperacionaisList pedidos={pedidos} />
     </div>
