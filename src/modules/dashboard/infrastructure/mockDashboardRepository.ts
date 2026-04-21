@@ -1,8 +1,5 @@
 import type { DashboardViewModel } from "@/modules/dashboard/domain/types";
-
-export interface DashboardRepository {
-  obterVisaoGeral(): Promise<DashboardViewModel>;
-}
+import type { DashboardRepository } from "@/modules/dashboard/infrastructure/contracts";
 
 export class MockDashboardRepository implements DashboardRepository {
   async obterVisaoGeral(): Promise<DashboardViewModel> {

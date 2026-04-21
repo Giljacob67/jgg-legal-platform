@@ -1,4 +1,5 @@
 import type { MetricaFinanceira, MetricaJuridica, InsightIA } from "../domain/types";
+import type { BIRepository } from "@/modules/bi/infrastructure/contracts";
 
 const FINANCEIRO_MOCK: MetricaFinanceira = {
   receitaTotal: 19500000, // R$ 195.000 em centavos
@@ -80,7 +81,7 @@ const INSIGHTS_MOCK: InsightIA[] = [
   },
 ];
 
-export class MockBIRepository {
+export class MockBIRepository implements BIRepository {
   async obterFinanceiro(): Promise<MetricaFinanceira> { return FINANCEIRO_MOCK; }
   async obterJuridico(): Promise<MetricaJuridica> { return JURIDICO_MOCK; }
   async obterInsights(): Promise<InsightIA[]> { return INSIGHTS_MOCK; }

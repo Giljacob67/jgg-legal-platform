@@ -2,9 +2,7 @@ import { getDb, getSqlClient } from "@/lib/database/client";
 import { jurisprudencia as jurisprudenciaTable } from "@/lib/database/schema";
 import { eq, ilike, or } from "drizzle-orm";
 import type { Jurisprudencia, TipoDecisao } from "@/modules/jurisprudencia/domain/types";
-import type { MockJurisprudenciaRepository } from "@/modules/jurisprudencia/infrastructure/mockJurisprudenciaRepository";
-
-export type JurisprudenciaRepository = InstanceType<typeof MockJurisprudenciaRepository>;
+import type { JurisprudenciaRepository } from "@/modules/jurisprudencia/infrastructure/contracts";
 
 function mapRow(row: typeof jurisprudenciaTable.$inferSelect): Jurisprudencia {
   let materias: string[] = [];

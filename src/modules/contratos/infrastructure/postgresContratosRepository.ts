@@ -11,9 +11,7 @@ import type {
   VersaoContrato,
   AnaliseRiscoContrato,
 } from "@/modules/contratos/domain/types";
-import type { MockContratosRepository } from "@/modules/contratos/infrastructure/mockContratosRepository";
-
-export type ContratosRepository = InstanceType<typeof MockContratosRepository>;
+import type { ContratosRepository } from "@/modules/contratos/infrastructure/contracts";
 
 function mapRow(row: typeof contratosTable.$inferSelect): Contrato {
   let partes: ParteContrato[] = [];

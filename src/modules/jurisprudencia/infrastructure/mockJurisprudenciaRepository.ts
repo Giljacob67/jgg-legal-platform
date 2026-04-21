@@ -1,4 +1,5 @@
 import type { Jurisprudencia, TipoDecisao } from "../domain/types";
+import type { JurisprudenciaRepository } from "@/modules/jurisprudencia/infrastructure/contracts";
 
 const JD_MOCK: Jurisprudencia[] = [
   {
@@ -196,7 +197,7 @@ const JD_MOCK: Jurisprudencia[] = [
 const jdStore: Jurisprudencia[] = [...JD_MOCK];
 const _embeddingsStore = new Map<string, number[]>();
 
-export class MockJurisprudenciaRepository {
+export class MockJurisprudenciaRepository implements JurisprudenciaRepository {
   async listar(filtros?: { tribunal?: string; tipo?: TipoDecisao; materia?: string }): Promise<Jurisprudencia[]> {
     let resultado = [...jdStore];
     if (filtros?.tribunal) resultado = resultado.filter((j) => j.tribunal.toLowerCase() === filtros.tribunal!.toLowerCase());

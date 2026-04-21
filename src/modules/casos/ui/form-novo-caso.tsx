@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import type { NovoCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { NovoCasoPayload } from "@/modules/casos/application/contracts";
 
 const MATERIAS = [
   "Agrário / Agronegócio",

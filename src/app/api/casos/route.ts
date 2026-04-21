@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, requireRBAC } from "@/lib/api-auth";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { criarCaso } from "@/modules/casos/application/criarCaso";
-import type { NovoCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { NovoCasoPayload } from "@/modules/casos/application/contracts";
 
 export async function GET() {
   const unauth = await requireAuth();

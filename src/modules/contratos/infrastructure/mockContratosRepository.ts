@@ -5,6 +5,7 @@ import type {
   StatusContrato,
 } from "../domain/types";
 import { CLAUSULAS_PADRAO } from "./templatesClausulas";
+import type { ContratosRepository } from "@/modules/contratos/infrastructure/contracts";
 
 let _idCounter = 10;
 function nextId() {
@@ -101,7 +102,7 @@ const CONTRATOS_MOCK: Contrato[] = [
 
 const contratosStore: Contrato[] = [...CONTRATOS_MOCK];
 
-export class MockContratosRepository {
+export class MockContratosRepository implements ContratosRepository {
   async listar(filtros?: { status?: StatusContrato; tipo?: Contrato["tipo"] }): Promise<Contrato[]> {
     let resultado = [...contratosStore];
     if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);

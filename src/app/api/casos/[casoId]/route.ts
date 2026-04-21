@@ -3,7 +3,7 @@ import { requireAuth, requireRBAC } from "@/lib/api-auth";
 import { listarCasos } from "@/modules/casos/application/listarCasos";
 import { atualizarCaso } from "@/modules/casos/application/atualizarCaso";
 import { excluirCaso } from "@/modules/casos/application/excluirCaso";
-import type { AtualizarCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { AtualizarCasoPayload } from "@/modules/casos/application/contracts";
 
 export async function GET(
   _request: Request,

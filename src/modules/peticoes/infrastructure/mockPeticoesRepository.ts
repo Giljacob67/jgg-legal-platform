@@ -7,19 +7,7 @@ import type {
   TipoPeca,
 } from "@/modules/peticoes/domain/types";
 import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
-
-export interface PeticoesRepository {
-  listarPedidos(): Promise<PedidoDePeca[]>;
-  obterPedidoPorId(pedidoId: string): Promise<PedidoDePeca | undefined>;
-  listarEtapasPipeline(): Promise<EtapaPipelineInfo[]>;
-  listarHistoricoPipeline(pedidoId: string): Promise<HistoricoPipeline[]>;
-  obterMinutaPorId(minutaId: string): Promise<Minuta | undefined>;
-  obterMinutaPorPedidoId(pedidoId: string): Promise<Minuta | undefined>;
-  criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
-  /** @deprecated Use criarPedidoDePeca */
-  simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
-  listarTiposPeca(): Promise<TipoPeca[]>;
-}
+import type { PeticoesRepository } from "@/modules/peticoes/infrastructure/contracts";
 
 export class MockPeticoesRepository implements PeticoesRepository {
   private readonly etapas: EtapaPipelineInfo[] = [

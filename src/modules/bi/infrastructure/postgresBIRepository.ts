@@ -1,9 +1,7 @@
 import { getDb } from "@/lib/database/client";
 import { casos, pedidosPeca, contratos as contratosTable, jurisprudencia as jurisprudenciaTable } from "@/lib/database/schema";
 import type { MetricaFinanceira, MetricaJuridica, InsightIA } from "@/modules/bi/domain/types";
-import type { MockBIRepository } from "@/modules/bi/infrastructure/mockBIRepository";
-
-export type BIRepository = InstanceType<typeof MockBIRepository>;
+import type { BIRepository } from "@/modules/bi/infrastructure/contracts";
 
 export class PostgresBIRepository implements BIRepository {
   async obterFinanceiro(): Promise<MetricaFinanceira> {

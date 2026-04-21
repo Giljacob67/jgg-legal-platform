@@ -1,4 +1,5 @@
 import type { Cliente, NovoClientePayload, StatusCliente } from "../domain/types";
+import type { ClientesRepository } from "@/modules/clientes/infrastructure/contracts";
 
 let _id = 5;
 function nextId() { return `CLI-2026-${String(++_id).padStart(3, "0")}`; }
@@ -86,7 +87,7 @@ const CLIENTES_MOCK: Cliente[] = [
 
 const clientesStore: Cliente[] = [...CLIENTES_MOCK];
 
-export class MockClientesRepository {
+export class MockClientesRepository implements ClientesRepository {
   async listar(filtros?: { status?: StatusCliente }): Promise<Cliente[]> {
     let resultado = [...clientesStore];
     if (filtros?.status) resultado = resultado.filter((c) => c.status === filtros.status);

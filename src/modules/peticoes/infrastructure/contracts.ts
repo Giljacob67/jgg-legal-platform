@@ -1,0 +1,20 @@
+import type {
+  EtapaPipelineInfo,
+  HistoricoPipeline,
+  Minuta,
+  NovoPedidoPayload,
+  PedidoDePeca,
+  TipoPeca,
+} from "@/modules/peticoes/domain/types";
+
+export interface PeticoesRepository {
+  listarPedidos(): Promise<PedidoDePeca[]>;
+  obterPedidoPorId(pedidoId: string): Promise<PedidoDePeca | undefined>;
+  listarEtapasPipeline(): Promise<EtapaPipelineInfo[]>;
+  listarHistoricoPipeline(pedidoId: string): Promise<HistoricoPipeline[]>;
+  obterMinutaPorId(minutaId: string): Promise<Minuta | undefined>;
+  obterMinutaPorPedidoId(pedidoId: string): Promise<Minuta | undefined>;
+  criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
+  simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
+  listarTiposPeca(): Promise<TipoPeca[]>;
+}

@@ -1,6 +1,7 @@
 import "server-only";
 import { getSqlClient } from "@/lib/database/client";
 import type { KpiOperacional, AlcadaAdvogado, AlertaGestao } from "../domain/types";
+import type { GestaoRepository } from "@/modules/gestao/infrastructure/contracts";
 
 type KpiRow = {
   total: number;
@@ -41,7 +42,7 @@ type PedidoSemResponsavelRow = {
   titulo: string;
 };
 
-export class PostgresGestaoRepository {
+export class PostgresGestaoRepository implements GestaoRepository {
   async obterKpis(): Promise<KpiOperacional> {
     const sql = getSqlClient();
 

@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/database/client";
 import { casos, pedidosPeca, minutas } from "@/lib/database/schema";
 import type { DashboardViewModel, IndicadorDashboard, AtividadeRecente } from "@/modules/dashboard/domain/types";
-import type { DashboardRepository } from "@/modules/dashboard/infrastructure/mockDashboardRepository";
+import type { DashboardRepository } from "@/modules/dashboard/infrastructure/contracts";
 
 export class PostgresDashboardRepository implements DashboardRepository {
   async obterVisaoGeral(): Promise<DashboardViewModel> {

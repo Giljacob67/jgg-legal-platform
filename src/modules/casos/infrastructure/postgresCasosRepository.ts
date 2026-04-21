@@ -2,7 +2,7 @@ import { getDb, getSqlClient } from "@/lib/database/client";
 import { casos, partes, eventosCaso } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { Caso, StatusCaso, Parte, EventoCaso } from "@/modules/casos/domain/types";
-import type { CasosRepository, NovoCasoPayload, AtualizarCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { AtualizarCasoPayload, CasosRepository, NovoCasoPayload } from "@/modules/casos/application/contracts";
 
 type DocVinculoRow = { documento_juridico_id: string };
 

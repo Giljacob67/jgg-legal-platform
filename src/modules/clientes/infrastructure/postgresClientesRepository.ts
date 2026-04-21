@@ -2,9 +2,7 @@ import { getDb } from "@/lib/database/client";
 import { clientes as clientesTable } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
 import type { Cliente, NovoClientePayload, StatusCliente, Endereco } from "@/modules/clientes/domain/types";
-import type { MockClientesRepository } from "@/modules/clientes/infrastructure/mockClientesRepository";
-
-export type ClientesRepository = InstanceType<typeof MockClientesRepository>;
+import type { ClientesRepository } from "@/modules/clientes/infrastructure/contracts";
 
 let _idCounter = 0;
 

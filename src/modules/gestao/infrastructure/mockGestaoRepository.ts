@@ -1,4 +1,5 @@
 import type { KpiOperacional, AlcadaAdvogado, AlertaGestao } from "../domain/types";
+import type { GestaoRepository } from "@/modules/gestao/infrastructure/contracts";
 
 // KPIs calculados a partir dos dados mock dos módulos existentes
 const KPIS_MOCK: KpiOperacional = {
@@ -64,7 +65,7 @@ const ALERTAS_MOCK: AlertaGestao[] = [
   },
 ];
 
-export class MockGestaoRepository {
+export class MockGestaoRepository implements GestaoRepository {
   async obterKpis(): Promise<KpiOperacional> { return KPIS_MOCK; }
   async listarAlcadas(): Promise<AlcadaAdvogado[]> { return ALCADAS_MOCK; }
   async listarAlertas(): Promise<AlertaGestao[]> {

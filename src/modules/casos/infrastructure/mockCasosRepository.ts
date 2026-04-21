@@ -1,33 +1,5 @@
-import type { Caso, StatusCaso } from "@/modules/casos/domain/types";
-
-export type NovoCasoPayload = {
-  titulo: string;
-  cliente: string;
-  materia: string;
-  tribunal?: string;
-  prazoFinal?: string;
-  resumo?: string;
-  partes?: Array<{ nome: string; papel: "autor" | "réu" | "terceiro" }>;
-};
-
-export type AtualizarCasoPayload = {
-  titulo?: string;
-  cliente?: string;
-  materia?: string;
-  tribunal?: string;
-  prazoFinal?: string;
-  resumo?: string;
-  status?: StatusCaso;
-  partes?: Array<{ nome: string; papel: "autor" | "réu" | "terceiro" }>;
-};
-
-export interface CasosRepository {
-  listarCasos(): Promise<Caso[]>;
-  obterCasoPorId(casoId: string): Promise<Caso | undefined>;
-  criarCaso(payload: NovoCasoPayload): Promise<Caso>;
-  atualizarCaso(casoId: string, payload: AtualizarCasoPayload): Promise<Caso>;
-  excluirCaso(casoId: string): Promise<void>;
-}
+import type { Caso } from "@/modules/casos/domain/types";
+import type { AtualizarCasoPayload, CasosRepository, NovoCasoPayload } from "@/modules/casos/application/contracts";
 
 export class MockCasosRepository implements CasosRepository {
   private readonly casos: Caso[] = [

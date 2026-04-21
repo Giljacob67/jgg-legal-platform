@@ -1,7 +1,7 @@
 import { getDb, getSqlClient } from "@/lib/database/client";
 import { pedidosPeca, minutas as minutasTable, versoesMinuta } from "@/lib/database/schema";
 import { eq } from "drizzle-orm";
-import type { PeticoesRepository } from "@/modules/peticoes/infrastructure/mockPeticoesRepository";
+import type { PeticoesRepository } from "@/modules/peticoes/infrastructure/contracts";
 import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
 import type {
   PedidoDePeca,

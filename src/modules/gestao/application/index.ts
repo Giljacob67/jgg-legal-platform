@@ -1,8 +1,7 @@
 import { getDataMode } from "@/lib/data-mode";
 import { MockGestaoRepository } from "../infrastructure/mockGestaoRepository";
 import { PostgresGestaoRepository } from "../infrastructure/postgresGestaoRepository";
-
-type GestaoRepository = MockGestaoRepository | PostgresGestaoRepository;
+import type { GestaoRepository } from "@/modules/gestao/infrastructure/contracts";
 
 let _repo: GestaoRepository | null = null;
 

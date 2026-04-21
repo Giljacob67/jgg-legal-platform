@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import type { Caso, StatusCaso } from "@/modules/casos/domain/types";
-import type { AtualizarCasoPayload } from "@/modules/casos/infrastructure/mockCasosRepository";
+import type { AtualizarCasoPayload } from "@/modules/casos/application/contracts";
 
 const MATERIAS = [
   "Agrário / Agronegócio",
