@@ -21,7 +21,7 @@ jobs:
       PLAYWRIGHT_PORT: "3100"
       PLAYWRIGHT_BASE_URL: http://localhost:3100
       DEMO_USERS_JSON: >-
-        [{"id":"usr-adv-001","email":"mariana@jgg.com.br","passwordHash":"4c21a89a89e4fcafd251de5f6342f75cb44014947fc41c92d12fda483fb0709e","name":"Mariana Couto","initials":"MC","role":"advogado"}]
+        [{"id":"usr-adv-001","email":"mariana@jgg.com.br","passwordHash":"4c21a89a89e4fcafd251de5f6342f75cb44014947fc41c92d12fda483fb0709e","name":"Mariana Couto","initials":"MC","role":"advogado"},{"id":"usr-soc-001","email":"gilberto@jgg.com.br","passwordHash":"4c21a89a89e4fcafd251de5f6342f75cb44014947fc41c92d12fda483fb0709e","name":"Gilberto Jacob","initials":"GJ","role":"socio_direcao"},{"id":"usr-ops-001","email":"operacional@jgg.com.br","passwordHash":"4c21a89a89e4fcafd251de5f6342f75cb44014947fc41c92d12fda483fb0709e","name":"Ana Operacional","initials":"AO","role":"operacional_admin"}]
 
     steps:
       - name: Checkout
