@@ -50,7 +50,7 @@ const EQUIPE_JGG = [
   { nome: "Dr. Gilberto Jacob", especialidades: ["Agrário", "Empresarial", "Cível Empresarial", "Bancário"] },
   { nome: "Dra. Ana Beatriz Santos", especialidades: ["Trabalhista", "Consumidor", "Família", "Cível"] },
   { nome: "Dr. Carlos Mendes", especialidades: ["Tributário", "Bancário", "Empresarial", "Previdenciário"] },
-  { nome: "Dra. Fernanda Lima", especialidades: ["Criminal", "Ambiental", "Agrário", "Constitutional"] },
+  { nome: "Dra. Fernanda Lima", especialidades: ["Criminal", "Ambiental", "Agrário", "Constitucional"] },
 ];
 
 function construirContextoPolo(polo: "ativo" | "passivo" | "indefinido"): string {
