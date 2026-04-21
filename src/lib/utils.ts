@@ -4,6 +4,7 @@ export function cn(...classes: Array<string | false | null | undefined>): string
 
 export function formatarData(dataIso: string): string {
   return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -12,6 +13,7 @@ export function formatarData(dataIso: string): string {
 
 export function formatarDataHora(dataIso: string): string {
   return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
