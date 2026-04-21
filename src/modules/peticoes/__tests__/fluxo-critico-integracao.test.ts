@@ -244,6 +244,12 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     expect(pipelineResponse.status).toBe(200);
     expect(pipelineResponse.headers.get("x-request-id")).toBe("req-pipeline-001");
     expect(mockPipelineSnapshotRepository.salvarNovaVersao).toHaveBeenCalled();
+    const snapshotExecucao = snapshotsSalvos.find((item) => item.etapa === "classificacao" && item.status === "em_andamento");
+    expect(snapshotExecucao?.entradaRef).toMatchObject({
+      requestId: "req-pipeline-001",
+      usuarioId: "usr-adv-001",
+      perfilUsuario: "advogado",
+    });
 
     mockAuth.mockResolvedValueOnce({
       user: {
@@ -264,9 +270,18 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     );
 
     expect(aprovacaoResponse.status).toBe(200);
-    const aprovacaoJson = (await aprovacaoResponse.json()) as { resultado: string; requestId: string };
+    const aprovacaoJson = (await aprovacaoResponse.json()) as {
+      resultado: string;
+      requestId: string;
+      snapshot: { entradaRef: Record<string, unknown> };
+    };
     expect(aprovacaoJson.resultado).toBe("aprovado");
     expect(aprovacaoJson.requestId).toBe("req-aprov-001");
+    expect(aprovacaoJson.snapshot.entradaRef).toMatchObject({
+      requestId: "req-aprov-001",
+      usuarioId: "usr-soc-001",
+      perfilUsuario: "socio_direcao",
+    });
 
     const { sqlClient, writes } = createSqlClientScenario({
       pedidoId,
@@ -365,8 +380,19 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     );
 
     expect(response.status).toBe(200);
-    const json = (await response.json()) as { resultado: string; snapshot: { saidaEstruturada: { perfil_aprovador: string } } };
+    const json = (await response.json()) as {
+      resultado: string;
+      snapshot: {
+        entradaRef: Record<string, unknown>;
+        saidaEstruturada: { perfil_aprovador: string };
+      };
+    };
     expect(json.resultado).toBe("aprovado");
     expect(json.snapshot.saidaEstruturada.perfil_aprovador).toBe("administrador_sistema");
+    expect(json.snapshot.entradaRef).toMatchObject({
+      requestId: "req-aprov-admin-001",
+      usuarioId: "usr-adm-001",
+      perfilUsuario: "administrador_sistema",
+    });
   });
 });
