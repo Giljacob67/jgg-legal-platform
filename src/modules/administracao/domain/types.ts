@@ -200,6 +200,11 @@ export interface ConfiguracaoSistema {
 export type ConfiguracaoChave =
   | "ai_provider"
   | "ai_model"
+  | "ai_last_tested_at"
+  | "ai_last_tested_provider"
+  | "ai_last_tested_model"
+  | "ai_last_test_status"
+  | "ai_last_test_message"
   | "ai_openai_api_key"
   | "ai_openrouter_api_key"
   | "ai_kilocode_api_key"

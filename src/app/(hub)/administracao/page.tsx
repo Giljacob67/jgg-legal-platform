@@ -22,8 +22,14 @@ export default async function AdministracaoPage() {
   ]);
 
   const ativos = usuarios.filter((u) => u.ativo).length;
-  const provedor = configuracoes.find((c) => c.chave === "ai_provider")?.valor ?? "openai";
-  const modelo = configuracoes.find((c) => c.chave === "ai_model")?.valor ?? "gpt-4o-mini";
+  const configMap = new Map(configuracoes.map((item) => [item.chave, item.valor]));
+  const provedor = configMap.get("ai_provider") ?? "openai";
+  const modelo = configMap.get("ai_model") ?? "gpt-4o-mini";
+  const ultimoTesteAt = configMap.get("ai_last_tested_at") ?? "";
+  const ultimoTesteProvider = configMap.get("ai_last_tested_provider") ?? "";
+  const ultimoTesteModel = configMap.get("ai_last_tested_model") ?? "";
+  const ultimoTesteStatus = configMap.get("ai_last_test_status") ?? "";
+  const ultimoTesteMensagem = configMap.get("ai_last_test_message") ?? "";
 
   const LABEL_PROVEDOR: Record<string, string> = {
     openai: "OpenAI",
@@ -38,6 +44,20 @@ export default async function AdministracaoPage() {
     custom: "Custom",
   };
 
+  const formatoUltimoTeste = ultimoTesteAt
+    ? new Date(ultimoTesteAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+    : "Nunca executado";
+  const labelStatusTeste = ultimoTesteStatus === "success"
+    ? "Conectado"
+    : ultimoTesteStatus === "error"
+      ? "Falha"
+      : "Não testado";
+  const variantStatusTeste: "sucesso" | "alerta" | "neutro" = ultimoTesteStatus === "success"
+    ? "sucesso"
+    : ultimoTesteStatus === "error"
+      ? "alerta"
+      : "neutro";
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -51,7 +71,7 @@ export default async function AdministracaoPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <Card title="Usuários ativos" subtitle={`${ativos} de ${usuarios.length}`} eyebrow="Governança">
           <p className="font-serif text-4xl text-[var(--color-ink)]">{ativos}</p>
         </Card>
@@ -72,6 +92,19 @@ export default async function AdministracaoPage() {
                 <span className="font-semibold">{count}</span>
               </div>
             ))}
+          </div>
+        </Card>
+        <Card title="Saúde da IA" subtitle={formatoUltimoTeste} eyebrow="Operação">
+          <div className="space-y-2">
+            <StatusBadge label={labelStatusTeste} variant={variantStatusTeste} />
+            <p className="text-xs text-[var(--color-muted)]">
+              {LABEL_PROVEDOR[ultimoTesteProvider] ?? LABEL_PROVEDOR[provedor] ?? provedor}
+              {" · "}
+              <span className="font-mono">{ultimoTesteModel || modelo}</span>
+            </p>
+            {ultimoTesteMensagem ? (
+              <p className="text-xs text-[var(--color-muted)]">{ultimoTesteMensagem}</p>
+            ) : null}
           </div>
         </Card>
       </div>

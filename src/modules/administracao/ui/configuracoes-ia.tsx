@@ -397,6 +397,7 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
         }),
       });
       const payload = (await res.json()) as { error?: string; message?: string; modelCount?: number };
+      const testedAt = new Date().toISOString();
 
       if (!res.ok) {
         setStatusProvedorAtivo(false);
@@ -404,6 +405,13 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
           tipo: "error",
           texto: payload.error ?? "Falha ao testar conexão com o provedor.",
         });
+        await salvarConfiguracoes([
+          { chave: "ai_last_tested_at", valor: testedAt },
+          { chave: "ai_last_tested_provider", valor: provedorAtual },
+          { chave: "ai_last_tested_model", valor: modeloAtual.trim() },
+          { chave: "ai_last_test_status", valor: "error" },
+          { chave: "ai_last_test_message", valor: (payload.error ?? "Falha na conexão").slice(0, 500) },
+        ]);
         return;
       }
 
@@ -412,12 +420,33 @@ export function ConfiguracoesIA({ configuracoes, modelosDisponiveis = [] }: Conf
         tipo: "success",
         texto: payload.message ?? "Conexão validada com sucesso.",
       });
+      await salvarConfiguracoes([
+        { chave: "ai_last_tested_at", valor: testedAt },
+        { chave: "ai_last_tested_provider", valor: provedorAtual },
+        { chave: "ai_last_tested_model", valor: modeloAtual.trim() },
+        { chave: "ai_last_test_status", valor: "success" },
+        { chave: "ai_last_test_message", valor: (payload.message ?? "Conexão validada com sucesso.").slice(0, 500) },
+      ]);
     } catch (error) {
       setStatusProvedorAtivo(false);
       setMensagemTeste({
         tipo: "error",
         texto: error instanceof Error ? error.message : "Falha inesperada no teste de conexão.",
       });
+      try {
+        await salvarConfiguracoes([
+          { chave: "ai_last_tested_at", valor: new Date().toISOString() },
+          { chave: "ai_last_tested_provider", valor: provedorAtual },
+          { chave: "ai_last_tested_model", valor: modeloAtual.trim() },
+          { chave: "ai_last_test_status", valor: "error" },
+          {
+            chave: "ai_last_test_message",
+            valor: (error instanceof Error ? error.message : "Falha inesperada no teste de conexão.").slice(0, 500),
+          },
+        ]);
+      } catch {
+        // Não interrompe UX se falhar o registro de auditoria operacional.
+      }
     } finally {
       setTestandoConexao(false);
     }
