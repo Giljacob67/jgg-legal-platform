@@ -641,10 +641,21 @@ export function getLLM(modeloOverride?: string): LanguageModel {
     }
 
     case "ollama": {
-      const baseURL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+      const baseURL = (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434").replace(/\/+$/, "");
+      const apiKey = process.env.OLLAMA_API_KEY;
+
+      // Alguns endpoints remotos de Ollama Pro expõem API OpenAI-compatible em /v1.
+      // Quando detectado, usamos o provider OpenAI com baseURL customizado.
+      if (baseURL.endsWith("/v1")) {
+        return createOpenAI({
+          baseURL,
+          apiKey: apiKey ?? "ollama",
+        })(modeloId) as LanguageModel;
+      }
+
       const headers: Record<string, string> = {};
-      if (process.env.OLLAMA_API_KEY) {
-        headers["Authorization"] = `Bearer ${process.env.OLLAMA_API_KEY}`;
+      if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
       }
       // ollama-ai-provider retorna LanguageModelV1 — cast via unknown para compatibilidade
       return createOllama({ baseURL, headers })(modeloId) as unknown as LanguageModel;

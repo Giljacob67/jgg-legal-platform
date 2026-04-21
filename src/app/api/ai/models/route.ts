@@ -24,6 +24,14 @@ interface OpenRouterModelsResponse {
   data: OpenRouterModel[];
 }
 
+interface OpenAICompatibleModel {
+  id: string;
+}
+
+interface OpenAICompatibleModelsResponse {
+  data?: OpenAICompatibleModel[];
+}
+
 interface OllamaTag {
   name: string;
   details?: {
@@ -48,6 +56,12 @@ type ModeloResposta = {
   gratuito: boolean;
   suportaVisao: boolean;
 };
+
+function buildOllamaV1ModelsUrl(baseUrl: string): string {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/v1")) return `${normalized}/models`;
+  return `${normalized}/v1/models`;
+}
 
 function parseOpenRouterCost(precoPorMilhao: number | null): ModeloResposta["custo"] {
   if (precoPorMilhao === null) return "desconhecido";
@@ -202,6 +216,31 @@ export async function GET() {
           gratuito: false,
           suportaVisao: false,
         });
+      }
+    } else if (podeConsultarOllama) {
+      const respOllamaV1 = await fetch(buildOllamaV1ModelsUrl(ollamaBaseURL), {
+        headers: ollamaApiKey ? { Authorization: `Bearer ${ollamaApiKey}` } : undefined,
+        next: { revalidate: 60 },
+      }).catch(() => null);
+
+      if (respOllamaV1?.ok) {
+        const json = (await respOllamaV1.json()) as OpenAICompatibleModelsResponse;
+        for (const model of json.data ?? []) {
+          const nome = model.id;
+          const cloud = nome.includes(":cloud");
+          modelos.push({
+            id: nome,
+            label: nome,
+            provedor: "ollama",
+            provedorLabel: "Ollama Pro",
+            descricao: "Modelo detectado em endpoint Ollama OpenAI-compatible (/v1).",
+            contexto: null,
+            custo: cloud ? "medio" : "desconhecido",
+            precoPorMilhaoTokens: null,
+            gratuito: false,
+            suportaVisao: false,
+          });
+        }
       }
     }
 

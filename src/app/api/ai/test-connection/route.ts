@@ -71,6 +71,9 @@ function buildFriendlyError(provider: ProvedorIA, status: number, details?: stri
     return `${nome}: credencial inválida ou sem permissão. Revise a API key/token.`;
   }
   if (status === 404) {
+    if (provider === "ollama") {
+      return "Ollama: endpoint não encontrado. Use URL base nativa (ex.: http://localhost:11434) ou endpoint OpenAI-compatible terminando em /v1.";
+    }
     return `${nome}: endpoint não encontrado. Verifique a Base URL e o sufixo /v1 quando aplicável.`;
   }
   if (status === 429) {
@@ -83,6 +86,12 @@ function buildFriendlyError(provider: ProvedorIA, status: number, details?: stri
     return `${nome}: falha na validação (${details.slice(0, 180)}).`;
   }
   return `${nome}: não foi possível validar a conexão.`;
+}
+
+function buildOllamaV1ModelsUrl(baseUrl: string): string {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/v1")) return `${normalized}/models`;
+  return `${normalized}/v1/models`;
 }
 
 async function safeJson(response: Response): Promise<unknown> {
@@ -117,6 +126,7 @@ export async function POST(request: Request) {
 
   try {
     let response: Response | null = null;
+    let connectionMode: "native" | "openai-compatible" | null = null;
 
     switch (provider) {
       case "openai": {
@@ -221,6 +231,16 @@ export async function POST(request: Request) {
         response = await fetchWithTimeout(`${baseUrl}/api/tags`, {
           headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
         });
+        if (!response.ok && response.status === 404) {
+          response = await fetchWithTimeout(buildOllamaV1ModelsUrl(baseUrl), {
+            headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+          });
+          if (response.ok) {
+            connectionMode = "openai-compatible";
+          }
+        } else if (response.ok) {
+          connectionMode = "native";
+        }
         break;
       }
       case "custom": {
@@ -259,13 +279,19 @@ export async function POST(request: Request) {
     }
 
     const modelCount = parseModelCount(payload);
+    const ollamaModeTexto =
+      provider === "ollama" && connectionMode === "openai-compatible"
+        ? " via endpoint OpenAI-compatible (/v1)"
+        : provider === "ollama" && connectionMode === "native"
+          ? " via endpoint nativo (/api)"
+          : "";
     return NextResponse.json({
       ok: true,
       provider,
       message:
         modelCount !== null
-          ? `Conexão com ${friendlyProviderName(provider)} validada (${modelCount} modelos retornados).`
-          : `Conexão com ${friendlyProviderName(provider)} validada com sucesso.`,
+          ? `Conexão com ${friendlyProviderName(provider)} validada${ollamaModeTexto} (${modelCount} modelos retornados).`
+          : `Conexão com ${friendlyProviderName(provider)} validada com sucesso${ollamaModeTexto}.`,
       modelCount,
     });
   } catch (error) {
