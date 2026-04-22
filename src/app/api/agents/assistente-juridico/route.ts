@@ -31,6 +31,7 @@ type AssistenteBody = {
 type ContextoAplicado = Record<string, string | null>;
 const OLLAMA_FIRST_TOKEN_TIMEOUT_MS = 12_000;
 const OLLAMA_TOTAL_TIMEOUT_MS = 45_000;
+const OLLAMA_COMPAT_TOTAL_TIMEOUT_MS = 28_000;
 const OLLAMA_MAX_TOKENS = 320;
 
 function limitarTexto(valor: string, max = 2200): string {
@@ -249,6 +250,19 @@ function deveTentarFallbackOllama(diagnostic: string): boolean {
   return status === 404 || status === 405 || status === 501;
 }
 
+function extrairConteudoChatCompletion(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const obj = payload as Record<string, unknown>;
+  const choices = Array.isArray(obj.choices) ? obj.choices : [];
+  const choice = choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>) : null;
+  const message =
+    choice?.message && typeof choice.message === "object"
+      ? (choice.message as Record<string, unknown>)
+      : null;
+  const content = typeof message?.content === "string" ? message.content.trim() : "";
+  return content;
+}
+
 function programarAbort(controller: AbortController, timeoutMs: number): NodeJS.Timeout {
   return setTimeout(() => controller.abort(), timeoutMs);
 }
@@ -363,8 +377,10 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   system: string;
   prompt: string;
 }): Promise<{ text: string; diagnostic: string }> {
-  const baseUrl = normalizarBaseOpenAICompat(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
+  const rawBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+  const baseUrl = normalizarBaseOpenAICompat(rawBaseUrl);
   if (!baseUrl) return { text: "", diagnostic: "base_url_openai_vazia" };
+  const usarModoCloud = priorizarOpenAICompatOllama(rawBaseUrl, params.modelId);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -374,20 +390,23 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   }
 
   const controller = new AbortController();
-  const timeout = programarAbort(controller, OLLAMA_FIRST_TOKEN_TIMEOUT_MS);
+  const timeout = programarAbort(
+    controller,
+    usarModoCloud ? OLLAMA_COMPAT_TOTAL_TIMEOUT_MS : OLLAMA_FIRST_TOKEN_TIMEOUT_MS,
+  );
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: params.modelId,
-        stream: true,
+        stream: !usarModoCloud,
         messages: [
           { role: "system", content: params.system },
           { role: "user", content: params.prompt },
         ],
         temperature: 0.1,
-        max_tokens: OLLAMA_MAX_TOKENS,
+        max_tokens: usarModoCloud ? 220 : OLLAMA_MAX_TOKENS,
         reasoning_effort: "low",
       }),
       signal: controller.signal,
@@ -398,6 +417,14 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
       return {
         text: "",
         diagnostic: `openai_compat_http_${response.status}:${limitarTexto(bodyText, 180)}`,
+      };
+    }
+
+    if (usarModoCloud) {
+      const payload = await response.json().catch(() => null);
+      return {
+        text: extrairConteudoChatCompletion(payload),
+        diagnostic: "openai_compat_ok",
       };
     }
 
@@ -679,6 +706,15 @@ ${resumoContexto}
 Responda obrigatoriamente em português-BR com os blocos:
 Entendimento, Fundamentação, Próximos passos.`;
 
+    const promptOllama = contextoAplicado.casoId || contextoAplicado.pedidoId || contextoAplicado.minutaId
+      ? promptEnxuto
+      : `Pergunta jurídica:
+${pergunta}
+
+Responda em português-BR, com objetividade, usando os blocos:
+Entendimento, Fundamentação, Próximos passos.
+Se citar requisitos, organize em itens curtos.`;
+
     const provedorAtivo = getProvedor();
     const usarFluxoRapidoOllama = provedorAtivo === "ollama";
     let respostaFinal = "";
@@ -735,7 +771,7 @@ Entendimento, Fundamentação, Próximos passos.`;
         modelId: getModeloId(),
         system:
           "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
-        prompt: promptEnxuto,
+        prompt: promptOllama,
       });
       if (ollamaResult.text) {
         respostaFinal = ollamaResult.text;
