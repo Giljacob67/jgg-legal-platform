@@ -11,11 +11,13 @@ import type { PrioridadePedido, TipoPeca } from "@/modules/peticoes/domain/types
 import {
   calcularPendencias,
   consolidarEstrategiaInicial,
+  consolidarTesesPreliminares,
   construirInputTriagemPreview,
   construirPayloadCriacao,
   criarDraftInicial,
   listarObjetivosPorCategoria,
   montarRevisaoNovoPedido,
+  normalizarTipoPecaCatalogo,
   obterEtapaAnterior,
   obterEtapaSeguinte,
   validarEtapaWizard,
@@ -32,6 +34,7 @@ import type {
   EtapaNovoPedidoWizard,
   NovoPedidoWizardDraft,
   SugestaoTriagemWizard,
+  TesePreliminarNovoPedido,
 } from "@/modules/peticoes/novo-pedido/domain/types";
 
 type NovoPedidoWizardProps = {
@@ -92,6 +95,10 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
     const draftComEstrategia = {
       ...draft,
       estrategia: estrategiaAtual,
+      teses: consolidarTesesPreliminares({
+        draft,
+        estrategia: estrategiaAtual,
+      }),
     };
     const pendencias = calcularPendencias(draftComEstrategia);
     const revisao = montarRevisaoNovoPedido({ ...draftComEstrategia, pendencias });
@@ -176,7 +183,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
       ...current,
       estrategia: {
         ...current.estrategia,
-        tipoPecaConfirmada: tipoPeca,
+        tipoPecaConfirmada: normalizarTipoPecaCatalogo(tipoPeca),
       },
     }));
   }
@@ -234,6 +241,45 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
     }));
   }
 
+  function atualizarTese(teseId: string, atualizacao: Partial<TesePreliminarNovoPedido>) {
+    setDraft((current) => ({
+      ...current,
+      teses: current.teses.map((tese) =>
+        tese.id === teseId
+          ? {
+              ...tese,
+              ...atualizacao,
+            }
+          : tese,
+      ),
+    }));
+  }
+
+  function adicionarTeseManual() {
+    setDraft((current) => ({
+      ...current,
+      teses: [
+        ...current.teses,
+        {
+          id: `TESE-MANUAL-${Date.now().toString(36).toUpperCase()}`,
+          titulo: "",
+          descricao: "",
+          fundamentos: [],
+          origem: "manual",
+          statusValidacao: "ajustada",
+          observacoesHumanas: "",
+        },
+      ],
+    }));
+  }
+
+  function removerTeseManual(teseId: string) {
+    setDraft((current) => ({
+      ...current,
+      teses: current.teses.filter((tese) => !(tese.id === teseId && tese.origem === "manual")),
+    }));
+  }
+
   const atualizarSugestoesTriagem = useCallback(async () => {
     setCarregandoTriagem(true);
     setErroTriagem(null);
@@ -257,6 +303,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
 
       setSugestaoTriagem({
         ...data.triagem,
+        tipoPecaClassificado: normalizarTipoPecaCatalogo(data.triagem.tipoPecaClassificado),
         modo: data.modo ?? data.triagem.modo,
       });
     } catch (error) {
@@ -448,6 +495,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
           {etapaAtual === "estrategia_inicial" ? (
             <EstrategiaInicialStep
               estrategia={draftAtual.estrategia}
+              teses={draftAtual.teses}
               tiposPeca={tiposPeca}
               triagem={sugestaoTriagem}
               carregandoTriagem={carregandoTriagem}
@@ -455,6 +503,9 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
               onAtualizarTriagem={atualizarSugestoesTriagem}
               onConfirmarTipoPeca={confirmarTipoPeca}
               onConfirmarPrioridade={confirmarPrioridade}
+              onAtualizarTese={atualizarTese}
+              onAdicionarTeseManual={adicionarTeseManual}
+              onRemoverTeseManual={removerTeseManual}
             />
           ) : null}
 

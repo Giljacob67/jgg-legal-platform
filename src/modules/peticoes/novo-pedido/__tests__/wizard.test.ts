@@ -3,9 +3,11 @@ import type { Caso } from "@/modules/casos/domain/types";
 import {
   calcularPendencias,
   consolidarEstrategiaInicial,
+  consolidarTesesPreliminares,
   construirPayloadCriacao,
   criarDraftInicial,
   montarRevisaoNovoPedido,
+  normalizarTipoPecaCatalogo,
   validarEtapaWizard,
 } from "@/modules/peticoes/novo-pedido/application/wizard";
 
@@ -100,6 +102,17 @@ describe("wizard novo pedido", () => {
     draft.objetivo.intencaoSelecionada = "redigir_contestacao";
     draft.estrategia.tipoPecaSugerida = "Contestação";
     draft.estrategia.tipoPecaConfirmada = "Contestação";
+    draft.teses = [
+      {
+        id: "TESE-1",
+        titulo: "Tese principal",
+        descricao: "Neutralizar narrativa da parte autora.",
+        fundamentos: ["Contrato contém cláusula favorável."],
+        origem: "inferida",
+        statusValidacao: "aprovada",
+        observacoesHumanas: "",
+      },
+    ];
     draft.confirmacao.confirmadoPeloUsuario = true;
 
     const revisao = montarRevisaoNovoPedido(draft);
@@ -118,6 +131,17 @@ describe("wizard novo pedido", () => {
     draft.objetivo.intencaoSelecionada = "outro";
     draft.objetivo.intencaoLivre = "Redigir petição para homologação parcial de acordo.";
     draft.estrategia.tipoPecaConfirmada = "Petição inicial";
+    draft.teses = [
+      {
+        id: "TESE-2",
+        titulo: "Tese manual",
+        descricao: "Homologação parcial com preservação de cláusulas pendentes.",
+        fundamentos: ["Manifestação expressa das partes."],
+        origem: "manual",
+        statusValidacao: "ajustada",
+        observacoesHumanas: "Revisar multa contratual.",
+      },
+    ];
     draft.confirmacao.confirmadoPeloUsuario = true;
     draft.confirmacao.observacoesFinais = "Validar prova documental antes do protocolo.";
 
@@ -126,6 +150,7 @@ describe("wizard novo pedido", () => {
     expect(payload.intencaoCustom).toContain("homologação parcial");
     expect(payload.observacoesOperacionais).toContain("Revisão final:");
     expect(payload.observacoesOperacionais).toContain("Objetivo confirmado:");
+    expect(payload.observacoesOperacionais).toContain("Teses validadas no intake:");
 
     const incompleto = criarDraftInicial([]);
     expect(() => construirPayloadCriacao(incompleto)).toThrow(
@@ -141,5 +166,43 @@ describe("wizard novo pedido", () => {
 
     const pendencias = calcularPendencias(draft);
     expect(pendencias.some((item) => item.codigo === "confirmacao_humana_pendente")).toBe(true);
+    expect(pendencias.some((item) => item.codigo === "tese_nao_validada")).toBe(true);
+  });
+
+  it("deve gerar teses preliminares e exigir validação humana", () => {
+    const caso = criarCaso();
+    const draft = criarDraftInicial([caso]);
+    draft.briefing.contextoFatico = "Cliente relata inadimplemento e risco de perecimento do direito.";
+    draft.objetivo.categoria = "iniciar_medida";
+    draft.objetivo.intencaoSelecionada = "redigir_peticao_inicial";
+
+    const estrategia = consolidarEstrategiaInicial({
+      caso,
+      objetivo: draft.objetivo,
+      prazoFinal: caso.prazoFinal,
+      documentos: [],
+      sugestaoTriagem: null,
+      tipoPecaConfirmada: "Petição inicial",
+      prioridadeConfirmada: null,
+    });
+
+    const teses = consolidarTesesPreliminares({
+      draft,
+      estrategia,
+    });
+
+    expect(teses.length).toBeGreaterThan(0);
+
+    const erros = validarEtapaWizard("estrategia_inicial", {
+      ...draft,
+      estrategia,
+      teses,
+    });
+    expect(erros).toContain("Valide ao menos uma tese sugerida ou adicione uma tese manual antes de avançar.");
+  });
+
+  it("deve normalizar tipo de peça inválido vindo da triagem", () => {
+    expect(normalizarTipoPecaCatalogo("Peça inventada")).toBeNull();
+    expect(normalizarTipoPecaCatalogo("Petição inicial")).toBe("Petição inicial");
   });
 });

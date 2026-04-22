@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { services } from "@/services/container";
-import { validarNovoPedidoPayload } from "@/modules/peticoes/domain/validarNovoPedidoPayload";
+import { validarNovoPedidoSafe } from "@/modules/peticoes/domain/validarNovoPedidoPayload";
 import type { NovoPedidoPayload } from "@/modules/peticoes/domain/types";
 import { requireAuth, requireRBAC } from "@/lib/api-auth";
 
@@ -13,8 +13,14 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as NovoPedidoPayload;
-    validarNovoPedidoPayload(body);
-    const pedido = await services.peticoesRepository.criarPedidoDePeca(body);
+    const validacao = validarNovoPedidoSafe(body);
+    if (!validacao.success) {
+      return NextResponse.json(
+        { error: validacao.errors[0] ?? "Dados inválidos.", errors: validacao.errors },
+        { status: 400 },
+      );
+    }
+    const pedido = await services.peticoesRepository.criarPedidoDePeca(validacao.data);
     return NextResponse.json({ pedido }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

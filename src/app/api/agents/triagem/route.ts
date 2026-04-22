@@ -4,7 +4,12 @@ import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { services } from "@/services/container";
 import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
-import type { TipoPeca, PrioridadePedido, IntencaoProcessual } from "@/modules/peticoes/domain/types";
+import {
+  TODOS_TIPOS_PECA,
+  type TipoPeca,
+  type PrioridadePedido,
+  type IntencaoProcessual,
+} from "@/modules/peticoes/domain/types";
 import { requireAuth } from "@/lib/api-auth";
 import { auth } from "@/lib/auth";
 import { verificarRateLimit } from "@/lib/rate-limit";
@@ -23,7 +28,9 @@ const TriagemSchema = z.object({
   justificativaPolo: z.string().describe(
     "Explicação de 1 linha sobre como o polo foi determinado a partir das partes e documentos"
   ),
-  tipoPecaClassificado: z.string().describe("Tipo de peça jurídica mais adequada para este pedido"),
+  tipoPecaClassificado: z.enum(
+    TODOS_TIPOS_PECA as [typeof TODOS_TIPOS_PECA[number], ...typeof TODOS_TIPOS_PECA[number][]],
+  ).describe("Tipo de peça jurídica mais adequada para este pedido"),
   intencaoDetectada: z.enum([
     "redigir_contestacao",
     "redigir_impugnacao",

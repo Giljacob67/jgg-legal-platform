@@ -20,6 +20,8 @@ export type NivelUrgenciaPedido = "baixa" | "moderada" | "alta" | "critica";
 export type SeveridadePendencia = "baixa" | "media" | "alta";
 
 export type OrigemEvidencia = "inferido" | "confirmado" | "faltando";
+export type OrigemTeseWizard = "inferida" | "manual";
+export type StatusValidacaoTeseWizard = "pendente" | "aprovada" | "rejeitada" | "ajustada";
 
 export interface BriefingNovoPedido {
   casoId: string;
@@ -62,6 +64,16 @@ export interface DocumentoSelecionadoNovoPedido {
   mimeType: string;
 }
 
+export interface TesePreliminarNovoPedido {
+  id: string;
+  titulo: string;
+  descricao: string;
+  fundamentos: string[];
+  origem: OrigemTeseWizard;
+  statusValidacao: StatusValidacaoTeseWizard;
+  observacoesHumanas: string;
+}
+
 export interface PendenciaNovoPedido {
   codigo: string;
   titulo: string;
@@ -93,6 +105,7 @@ export interface NovoPedidoWizardDraft {
   briefing: BriefingNovoPedido;
   objetivo: ObjetivoJuridicoNovoPedido;
   estrategia: EstrategiaInicialNovoPedido;
+  teses: TesePreliminarNovoPedido[];
   documentos: DocumentoSelecionadoNovoPedido[];
   pendencias: PendenciaNovoPedido[];
   revisao: RevisaoNovoPedido;
