@@ -31,8 +31,9 @@ type AssistenteBody = {
 type ContextoAplicado = Record<string, string | null>;
 const OLLAMA_FIRST_TOKEN_TIMEOUT_MS = 12_000;
 const OLLAMA_TOTAL_TIMEOUT_MS = 45_000;
-const OLLAMA_COMPAT_TOTAL_TIMEOUT_MS = 28_000;
+const OLLAMA_COMPAT_TOTAL_TIMEOUT_MS = 36_000;
 const OLLAMA_MAX_TOKENS = 320;
+const OLLAMA_MAX_TOKENS_GERAL = 420;
 
 function limitarTexto(valor: string, max = 2200): string {
   if (!valor) return "";
@@ -207,6 +208,24 @@ function extrairRespostaUtil(texto: string | undefined): string {
     return "";
   }
   return limpo;
+}
+
+function temBlocoResposta(texto: string, titulo: "Entendimento" | "Fundamentação" | "Próximos passos"): boolean {
+  return new RegExp(`(?:##\\s*)?${titulo}\\b`, "i").test(texto);
+}
+
+function respostaPareceIncompleta(texto: string, opts?: { consultaGeral?: boolean }): boolean {
+  const limpo = extrairRespostaUtil(texto);
+  if (!limpo) return true;
+  if (!temBlocoResposta(limpo, "Entendimento")) return true;
+  if (!temBlocoResposta(limpo, "Fundamentação")) return true;
+  if (!temBlocoResposta(limpo, "Próximos passos")) return true;
+
+  const minChars = opts?.consultaGeral ? 520 : 260;
+  if (limpo.length < minChars) return true;
+
+  if (!/[.!?:)]$/.test(limpo)) return true;
+  return false;
 }
 
 function descreverEscopoContexto(contextoAplicado: ContextoAplicado): string {
@@ -445,6 +464,7 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   modelId: string;
   system: string;
   prompt: string;
+  maxTokens?: number;
 }): Promise<{ text: string; diagnostic: string }> {
   const rawBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
   const baseUrl = normalizarBaseOpenAICompat(rawBaseUrl);
@@ -475,7 +495,7 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
           { role: "user", content: params.prompt },
         ],
         temperature: 0.1,
-        max_tokens: usarModoCloud ? 220 : OLLAMA_MAX_TOKENS,
+        max_tokens: params.maxTokens ?? (usarModoCloud ? 220 : OLLAMA_MAX_TOKENS),
         reasoning_effort: "none",
         reasoning: {
           effort: "none",
@@ -519,6 +539,7 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
   modelId: string;
   system: string;
   prompt: string;
+  maxTokens?: number;
 }): Promise<{ text: string; diagnostic: string }> {
   const baseUrl = normalizarBaseNativaOllama(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
   if (!baseUrl) return { text: "", diagnostic: "base_url_nativa_vazia" };
@@ -546,7 +567,7 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
         ],
         options: {
           temperature: 0.1,
-          num_predict: OLLAMA_MAX_TOKENS,
+          num_predict: params.maxTokens ?? OLLAMA_MAX_TOKENS,
         },
       }),
       signal: controller.signal,
@@ -577,6 +598,7 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
   modelId: string;
   system: string;
   prompt: string;
+  maxTokens?: number;
 }): Promise<{ text: string; diagnostic: string }> {
   const baseUrl = normalizarBaseNativaOllama(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
   if (!baseUrl) return { text: "", diagnostic: "base_url_generate_vazia" };
@@ -601,7 +623,7 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
         prompt: `${params.system}\n\n${params.prompt}`,
         options: {
           temperature: 0.1,
-          num_predict: OLLAMA_MAX_TOKENS,
+          num_predict: params.maxTokens ?? OLLAMA_MAX_TOKENS,
         },
       }),
       signal: controller.signal,
@@ -633,6 +655,7 @@ async function tentarGeracaoOllamaRapida(params: {
   modelId: string;
   system: string;
   prompt: string;
+  maxTokens?: number;
 }): Promise<{
   text: string;
   modo: "ai_retry_compat" | "ai_retry_native" | "ai_retry_generate";
@@ -783,14 +806,43 @@ ${resumoContexto}
 Responda obrigatoriamente em português-BR com os blocos:
 Entendimento, Fundamentação, Próximos passos.`;
 
-    const promptOllama = contextoAplicado.casoId || contextoAplicado.pedidoId || contextoAplicado.minutaId
+    const consultaJuridicaGeral = !contextoAplicado.casoId && !contextoAplicado.pedidoId && !contextoAplicado.minutaId;
+
+    const promptOllama = !consultaJuridicaGeral
       ? promptEnxuto
       : `Pergunta jurídica:
 ${pergunta}
 
-Responda em português-BR, com objetividade, usando os blocos:
-Entendimento, Fundamentação, Próximos passos.
-Se citar requisitos, organize em itens curtos.`;
+Entregue apenas a resposta final, em português-BR, sem raciocínio interno, usando exatamente estes blocos:
+## Entendimento
+## Fundamentação
+## Próximos passos
+
+Regras de qualidade:
+- Em perguntas conceituais, explique a tese jurídica com precisão técnica.
+- Em "Fundamentação", organize em itens curtos: base constitucional, base legal, requisitos e observações relevantes.
+- Não invente artigo, súmula ou precedente. Se faltar segurança sobre a base específica, diga para confirmar.
+- Não pare no meio da frase.
+- A resposta deve ser completa e útil para um advogado usar como orientação inicial.`;
+
+    const promptOllamaReforco = !consultaJuridicaGeral
+      ? `${promptEnxuto}
+
+Refaça do zero com resposta completa, sem truncar, e detalhe melhor os requisitos e próximos passos.`
+      : `Pergunta jurídica:
+${pergunta}
+
+Reescreva do zero a resposta final, com mais profundidade técnica e sem truncar.
+Estrutura obrigatória:
+## Entendimento
+## Fundamentação
+## Próximos passos
+
+Regras obrigatórias:
+- Em "Fundamentação", inclua base constitucional, base legal, requisitos cumulativos e limitações relevantes, somente quando houver segurança técnica.
+- Se houver dúvida sobre artigo ou precedente, escreva expressamente "confirmar base normativa específica".
+- Feche todos os blocos completos; não termine no meio da frase.
+- Não exponha raciocínio interno.`;
 
     const provedorAtivo = getProvedor();
     const usarFluxoRapidoOllama = provedorAtivo === "ollama";
@@ -849,6 +901,7 @@ Se citar requisitos, organize em itens curtos.`;
         system:
           "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
         prompt: promptOllama,
+        maxTokens: consultaJuridicaGeral ? OLLAMA_MAX_TOKENS_GERAL : OLLAMA_MAX_TOKENS,
       });
       if (ollamaResult.text) {
         respostaFinal = ollamaResult.text;
@@ -857,6 +910,28 @@ Se citar requisitos, organize em itens curtos.`;
           modo: ollamaResult.modo,
           diagnostico: ollamaResult.diagnostic,
         });
+
+        if (respostaPareceIncompleta(respostaFinal, { consultaGeral: consultaJuridicaGeral })) {
+          const ollamaReforco = await tentarGeracaoOllamaRapida({
+            modelId: getModeloId(),
+            system:
+              "Você é um assistente jurídico sênior de apoio interno. Entregue apenas a resposta final, completa e tecnicamente segura, em português-BR.",
+            prompt: promptOllamaReforco,
+            maxTokens: consultaJuridicaGeral ? OLLAMA_MAX_TOKENS_GERAL + 120 : OLLAMA_MAX_TOKENS_GERAL,
+          });
+
+          if (
+            ollamaReforco.text &&
+            !respostaPareceIncompleta(ollamaReforco.text, { consultaGeral: consultaJuridicaGeral })
+          ) {
+            respostaFinal = ollamaReforco.text;
+            modoResposta = ollamaReforco.modo;
+            logApiInfo("api/agents/assistente-juridico", requestId, "ollama_resposta_reforcada", {
+              modo: ollamaReforco.modo,
+              diagnostico: ollamaReforco.diagnostic,
+            });
+          }
+        }
       } else {
         diagnosticoFalha = ollamaResult.diagnostic;
         logApiInfo("api/agents/assistente-juridico", requestId, "fallback_ollama_sem_texto", {
