@@ -476,7 +476,10 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
         ],
         temperature: 0.1,
         max_tokens: usarModoCloud ? 220 : OLLAMA_MAX_TOKENS,
-        reasoning_effort: "low",
+        reasoning_effort: "none",
+        reasoning: {
+          effort: "none",
+        },
       }),
       signal: controller.signal,
     });
@@ -536,6 +539,7 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
       body: JSON.stringify({
         model: params.modelId,
         stream: true,
+        think: false,
         messages: [
           { role: "system", content: params.system },
           { role: "user", content: params.prompt },
@@ -593,6 +597,7 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
       body: JSON.stringify({
         model: params.modelId,
         stream: true,
+        think: false,
         prompt: `${params.system}\n\n${params.prompt}`,
         options: {
           temperature: 0.1,
