@@ -29,6 +29,7 @@ type AssistenteBody = {
 };
 
 type ContextoAplicado = Record<string, string | null>;
+const OLLAMA_FAST_TIMEOUT_MS = 12_000;
 
 function limitarTexto(valor: string, max = 2200): string {
   if (!valor) return "";
@@ -278,7 +279,7 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_FAST_TIMEOUT_MS);
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
@@ -332,7 +333,7 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_FAST_TIMEOUT_MS);
   try {
     const response = await fetch(`${baseUrl}/chat`, {
       method: "POST",
@@ -395,7 +396,7 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_FAST_TIMEOUT_MS);
   try {
     const response = await fetch(`${baseUrl}/generate`, {
       method: "POST",
@@ -429,6 +430,53 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function tentarGeracaoOllamaRapida(params: {
+  modelId: string;
+  system: string;
+  prompt: string;
+}): Promise<{
+  text: string;
+  modo: "ai_retry_compat" | "ai_retry_native" | "ai_retry_generate";
+  diagnostic: string;
+}> {
+  const tentativas = [
+    {
+      modo: "ai_retry_compat" as const,
+      executar: () => tentarGeracaoDiretaOllamaOpenAICompat(params),
+    },
+    {
+      modo: "ai_retry_native" as const,
+      executar: () => tentarGeracaoDiretaOllamaNativo(params),
+    },
+    {
+      modo: "ai_retry_generate" as const,
+      executar: () => tentarGeracaoDiretaOllamaGenerate(params),
+    },
+  ];
+
+  const resultados = await Promise.all(
+    tentativas.map(async (tentativa) => ({
+      modo: tentativa.modo,
+      ...(await tentativa.executar()),
+    })),
+  );
+
+  const sucesso = resultados.find((resultado) => extrairRespostaUtil(resultado.text));
+  if (sucesso) {
+    return {
+      text: extrairRespostaUtil(sucesso.text),
+      modo: sucesso.modo,
+      diagnostic: sucesso.diagnostic,
+    };
+  }
+
+  return {
+    text: "",
+    modo: "ai_retry_native",
+    diagnostic: resultados.map((resultado) => resultado.diagnostic).join(" | "),
+  };
 }
 
 export async function POST(request: Request) {
@@ -520,27 +568,37 @@ ${resumoContexto}
 Responda obrigatoriamente em português-BR com os blocos:
 Entendimento, Fundamentação, Próximos passos.`;
 
+    const provedorAtivo = getProvedor();
+    const usarFluxoRapidoOllama = provedorAtivo === "ollama";
     let respostaFinal = "";
-    let modoResposta: "ai" | "ai_retry" | "ai_retry_compat" | "ai_retry_native" | "ai_fallback_local" = "ai";
+    let modoResposta:
+      | "ai"
+      | "ai_retry"
+      | "ai_retry_compat"
+      | "ai_retry_native"
+      | "ai_retry_generate"
+      | "ai_fallback_local" = "ai";
     let aviso: string | undefined;
     let diagnosticoFalha = "";
 
-    try {
-      const primeira = await generateText({
-        model: getLLM(),
-        maxOutputTokens: 900,
-        temperature: 0.2,
-        system: systemCompleto,
-        prompt: promptCompleto,
-      });
-      respostaFinal = extrairRespostaUtil(primeira.text);
-    } catch (error) {
-      logApiInfo("api/agents/assistente-juridico", requestId, "primeira_tentativa_falhou", {
-        erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
-      });
+    if (!usarFluxoRapidoOllama) {
+      try {
+        const primeira = await generateText({
+          model: getLLM(),
+          maxOutputTokens: 900,
+          temperature: 0.2,
+          system: systemCompleto,
+          prompt: promptCompleto,
+        });
+        respostaFinal = extrairRespostaUtil(primeira.text);
+      } catch (error) {
+        logApiInfo("api/agents/assistente-juridico", requestId, "primeira_tentativa_falhou", {
+          erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
+        });
+      }
     }
 
-    if (!respostaFinal) {
+    if (!respostaFinal && !usarFluxoRapidoOllama) {
       try {
         const segunda = await generateText({
           model: getLLM(),
@@ -561,48 +619,25 @@ Entendimento, Fundamentação, Próximos passos.`;
       }
     }
 
-    if (!respostaFinal) {
-      const provedorAtivo = getProvedor();
-      if (provedorAtivo === "ollama") {
-        const compatResult = await tentarGeracaoDiretaOllamaOpenAICompat({
-          modelId: getModeloId(),
-          system:
-            "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
-          prompt: promptEnxuto,
+    if (!respostaFinal && usarFluxoRapidoOllama) {
+      const ollamaResult = await tentarGeracaoOllamaRapida({
+        modelId: getModeloId(),
+        system:
+          "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
+        prompt: promptEnxuto,
+      });
+      if (ollamaResult.text) {
+        respostaFinal = ollamaResult.text;
+        modoResposta = ollamaResult.modo;
+        logApiInfo("api/agents/assistente-juridico", requestId, "ollama_resposta_rapida", {
+          modo: ollamaResult.modo,
+          diagnostico: ollamaResult.diagnostic,
         });
-        if (compatResult.text) {
-          respostaFinal = compatResult.text;
-          modoResposta = "ai_retry_compat";
-        } else {
-          const nativeResult = await tentarGeracaoDiretaOllamaNativo({
-            modelId: getModeloId(),
-            system:
-              "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
-            prompt: promptEnxuto,
-          });
-          if (nativeResult.text) {
-            respostaFinal = nativeResult.text;
-            modoResposta = "ai_retry_native";
-          } else {
-            const generateResult = await tentarGeracaoDiretaOllamaGenerate({
-              modelId: getModeloId(),
-              system:
-                "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
-              prompt: promptEnxuto,
-            });
-            if (generateResult.text) {
-              respostaFinal = generateResult.text;
-              modoResposta = "ai_retry_native";
-            } else {
-              diagnosticoFalha = `${compatResult.diagnostic} | ${nativeResult.diagnostic} | ${generateResult.diagnostic}`;
-              logApiInfo("api/agents/assistente-juridico", requestId, "fallback_ollama_sem_texto", {
-                compat: compatResult.diagnostic,
-                native: nativeResult.diagnostic,
-                generate: generateResult.diagnostic,
-              });
-            }
-          }
-        }
+      } else {
+        diagnosticoFalha = ollamaResult.diagnostic;
+        logApiInfo("api/agents/assistente-juridico", requestId, "fallback_ollama_sem_texto", {
+          diagnostico: diagnosticoFalha,
+        });
       }
     }
 
