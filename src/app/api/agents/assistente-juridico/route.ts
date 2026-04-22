@@ -278,7 +278,7 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
@@ -308,8 +308,9 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
       text: extrairConteudoChatCompletion(payload),
       diagnostic: "openai_compat_ok",
     };
-  } catch {
-    return { text: "", diagnostic: "openai_compat_fetch_exception" };
+  } catch (error) {
+    const msg = error instanceof Error ? `${error.name}:${error.message}` : String(error);
+    return { text: "", diagnostic: `openai_compat_exception:${limitarTexto(msg, 180)}` };
   } finally {
     clearTimeout(timeout);
   }
@@ -331,7 +332,7 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const response = await fetch(`${baseUrl}/chat`, {
       method: "POST",
@@ -370,8 +371,9 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
       text: responseText,
       diagnostic: responseText ? "ollama_nativo_response_ok" : "ollama_nativo_sem_texto",
     };
-  } catch {
-    return { text: "", diagnostic: "ollama_nativo_fetch_exception" };
+  } catch (error) {
+    const msg = error instanceof Error ? `${error.name}:${error.message}` : String(error);
+    return { text: "", diagnostic: `ollama_nativo_exception:${limitarTexto(msg, 180)}` };
   } finally {
     clearTimeout(timeout);
   }
@@ -393,7 +395,7 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const response = await fetch(`${baseUrl}/generate`, {
       method: "POST",
@@ -421,8 +423,9 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
     }
 
     return { text: "", diagnostic: "ollama_generate_sem_texto" };
-  } catch {
-    return { text: "", diagnostic: "ollama_generate_fetch_exception" };
+  } catch (error) {
+    const msg = error instanceof Error ? `${error.name}:${error.message}` : String(error);
+    return { text: "", diagnostic: `ollama_generate_exception:${limitarTexto(msg, 180)}` };
   } finally {
     clearTimeout(timeout);
   }
