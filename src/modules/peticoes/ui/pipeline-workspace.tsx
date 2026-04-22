@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import type {
   ContextoJuridicoPedido,
   EtapaPipeline,
@@ -88,6 +89,7 @@ export function PipelineWorkspace({
   pedidoCriadoEm,
   perfilUsuario,
 }: PipelineWorkspaceProps) {
+  const router = useRouter();
   const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
   const [streamTexts, setStreamTexts] = useState<Partial<Record<EstagioExecutavel, string>>>({});
   const [streamErrors, setStreamErrors] = useState<Partial<Record<EstagioExecutavel, string>>>({});
@@ -128,6 +130,8 @@ export function PipelineWorkspace({
             [estagio]: (prev[estagio] ?? "") + decoder.decode(value),
           }));
         }
+
+        router.refresh();
       } catch (err) {
         setStreamErrors((prev) => ({
           ...prev,
@@ -137,7 +141,7 @@ export function PipelineWorkspace({
         setStreamingEstagio(null);
       }
     },
-    [pedidoId],
+    [pedidoId, router],
   );
 
   const enviarAprovacao = useCallback(
@@ -167,12 +171,13 @@ export function PipelineWorkspace({
               ? "Minuta rejeitada. Solicitar revisão ao responsável."
               : "Pendência de revisão registrada.",
         );
+        router.refresh();
       } catch (err) {
         setAprovacaoStatus("erro");
         setAprovacaoMensagem(err instanceof Error ? err.message : "Erro desconhecido.");
       }
     },
-    [pedidoId, aprovacaoObservacoes],
+    [pedidoId, aprovacaoObservacoes, router],
   );
 
   const snapshotsMap = useMemo(() => {

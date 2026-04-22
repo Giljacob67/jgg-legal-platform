@@ -4,6 +4,8 @@ import type {
   Minuta,
   NovoPedidoPayload,
   PedidoDePeca,
+  EtapaPipeline,
+  StatusPedido,
   TipoPeca,
 } from "@/modules/peticoes/domain/types";
 
@@ -17,5 +19,9 @@ export interface PeticoesRepository {
   criarPedidoDePeca(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
   simularCriacaoPedido(payload: NovoPedidoPayload): Promise<PedidoDePeca>;
   atualizarResponsavel(pedidoId: string, responsavel: string): Promise<PedidoDePeca | undefined>;
+  atualizarFluxoPedido(
+    pedidoId: string,
+    input: { status: StatusPedido; etapaAtual: EtapaPipeline },
+  ): Promise<PedidoDePeca | undefined>;
   listarTiposPeca(): Promise<TipoPeca[]>;
 }

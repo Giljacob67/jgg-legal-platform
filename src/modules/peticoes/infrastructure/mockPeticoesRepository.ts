@@ -1,9 +1,11 @@
 import type {
+  EtapaPipeline,
   EtapaPipelineInfo,
   HistoricoPipeline,
   Minuta,
   NovoPedidoPayload,
   PedidoDePeca,
+  StatusPedido,
   TipoPeca,
 } from "@/modules/peticoes/domain/types";
 import { TODOS_TIPOS_PECA } from "@/modules/peticoes/domain/types";
@@ -694,6 +696,25 @@ export class MockPeticoesRepository implements PeticoesRepository {
     const atualizado: PedidoDePeca = {
       ...pedidoAtual,
       responsavel: responsavel.trim(),
+    };
+    this.pedidos = this.pedidos.map((pedido, index) => (index === indice ? atualizado : pedido));
+    return atualizado;
+  }
+
+  async atualizarFluxoPedido(
+    pedidoId: string,
+    input: { status: StatusPedido; etapaAtual: EtapaPipeline },
+  ): Promise<PedidoDePeca | undefined> {
+    const indice = this.pedidos.findIndex((pedido) => pedido.id === pedidoId);
+    if (indice < 0) {
+      return undefined;
+    }
+
+    const pedidoAtual = this.pedidos[indice];
+    const atualizado: PedidoDePeca = {
+      ...pedidoAtual,
+      status: input.status,
+      etapaAtual: input.etapaAtual,
     };
     this.pedidos = this.pedidos.map((pedido, index) => (index === indice ? atualizado : pedido));
     return atualizado;

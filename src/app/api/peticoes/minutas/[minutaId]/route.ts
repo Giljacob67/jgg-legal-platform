@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRBAC } from "@/lib/api-auth";
 import { getSqlClient } from "@/lib/database/client";
-import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
+import { atualizarFluxoPedido } from "@/modules/peticoes/application/atualizarFluxoPedido";
+import { services } from "@/services/container";
 import { getRequestId, jsonError, jsonWithRequestId, logApiError, logApiInfo } from "@/lib/api-response";
 
 type RouteContext = { params: Promise<{ minutaId: string }> };
@@ -66,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
         return { tipo: "sem_pedido" as const };
       }
 
-      const pedido = await obterPedidoDePeca(pedidoId);
+      const pedido = await services.peticoesRepository.obterPedidoPorId(pedidoId);
       if (!pedido) {
         return { tipo: "pedido_nao_encontrado" as const };
       }
@@ -110,6 +111,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
       return {
         tipo: "ok" as const,
+        pedidoId,
+        pedidoStatusAtual: pedido.status,
         versaoId,
         numero: proximoNumero,
         numeroAnterior: numeroAtual,
@@ -129,6 +132,13 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       return jsonError(requestId, "Conflito de concorrência ao salvar minuta. Atualize a página e tente novamente.", 409, {
         ultimaVersaoAtual: resultado.numeroAtual,
         ultimaVersaoEnviada: resultado.numeroRecebido,
+      });
+    }
+
+    if (resultado.pedidoStatusAtual !== "aprovado") {
+      await atualizarFluxoPedido(resultado.pedidoId, {
+        status: "em revisão",
+        etapaAtual: "revisao",
       });
     }
 

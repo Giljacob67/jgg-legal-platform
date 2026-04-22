@@ -283,6 +283,11 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
       perfilUsuario: "socio_direcao",
     });
 
+    const { services } = await import("@/services/container");
+    const pedidoAprovado = await services.peticoesRepository.obterPedidoPorId(pedidoId);
+    expect(pedidoAprovado?.status).toBe("aprovado");
+    expect(pedidoAprovado?.etapaAtual).toBe("aprovacao");
+
     const { sqlClient, writes } = createSqlClientScenario({
       pedidoId,
       maxNumeroAtual: 0,
@@ -309,6 +314,10 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     expect(minutaJson.requestId).toBe("req-minuta-001");
     expect(writes.updates).toBe(1);
     expect(writes.inserts).toBe(1);
+
+    const pedidoPosSalvarMinuta = await services.peticoesRepository.obterPedidoPorId(pedidoId);
+    expect(pedidoPosSalvarMinuta?.status).toBe("aprovado");
+    expect(pedidoPosSalvarMinuta?.etapaAtual).toBe("aprovacao");
   });
 
   it("deve retornar 409 no editor quando houver conflito de concorrência", async () => {

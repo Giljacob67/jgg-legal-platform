@@ -160,6 +160,22 @@ export class PostgresPeticoesRepository implements PeticoesRepository {
     return this.obterPedidoPorId(pedidoId);
   }
 
+  async atualizarFluxoPedido(
+    pedidoId: string,
+    input: { status: StatusPedido; etapaAtual: EtapaPipeline },
+  ): Promise<PedidoDePeca | undefined> {
+    const db = getDb();
+    await db
+      .update(pedidosPeca)
+      .set({
+        status: input.status,
+        etapaAtual: input.etapaAtual,
+      })
+      .where(eq(pedidosPeca.id, pedidoId));
+
+    return this.obterPedidoPorId(pedidoId);
+  }
+
   async listarTiposPeca(): Promise<TipoPeca[]> {
     return [...TODOS_TIPOS_PECA];
   }

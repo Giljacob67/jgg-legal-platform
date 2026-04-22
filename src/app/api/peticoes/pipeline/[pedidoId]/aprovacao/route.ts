@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-response";
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
+import { atualizarFluxoPedido } from "@/modules/peticoes/application/atualizarFluxoPedido";
 import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
 import { perfilTemAlcadaAprovacao } from "@/modules/peticoes/domain/aprovacao";
 import {
@@ -134,6 +135,11 @@ export async function POST(
             ? "erro"
             : "em_andamento",
       tentativa: 1,
+    });
+
+    await atualizarFluxoPedido(pedidoId, {
+      status: resultado === "aprovado" ? "aprovado" : "em revisão",
+      etapaAtual: resultado === "aprovado" ? "aprovacao" : "revisao",
     });
 
     registrarEventoPipeline("api/pipeline/aprovacao", requestId, "aprovacao_registrada", {
