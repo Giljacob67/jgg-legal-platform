@@ -23,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { formatarDataHora } from "@/lib/utils";
+import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
 
 type PipelineWorkspaceProps = {
   pedidoId: string;
@@ -227,6 +228,8 @@ export function PipelineWorkspace({
 
     if (!contextoAtual) {
       itens.push("Contexto jurídico consolidado ainda não foi gerado.");
+    } else if (contextoAtual.validacaoHumanaTesesPendente) {
+      itens.push("Validação humana de teses pendente. A aprovação final permanece bloqueada.");
     }
 
     if (!podeExecutarEstagios) {
@@ -392,6 +395,8 @@ export function PipelineWorkspace({
             </div>
           )}
         </Card>
+
+        <MapaTesesPanel pedidoId={pedidoId} contextoAtual={contextoAtual} compact />
       </div>
 
       <div className="space-y-6">
@@ -477,6 +482,10 @@ export function PipelineWorkspace({
             <InlineAlert title="Aprovação bloqueada" variant="warning">
               Defina o responsável do pedido antes de registrar aprovação.
             </InlineAlert>
+          ) : contextoAtual?.validacaoHumanaTesesPendente ? (
+            <InlineAlert title="Aprovação bloqueada" variant="warning">
+              Valide as teses inferidas pelo sistema ou registre tese manual antes da decisão final.
+            </InlineAlert>
           ) : (
             <div className="space-y-4">
               <div>
@@ -495,7 +504,7 @@ export function PipelineWorkspace({
                 <button
                   type="button"
                   onClick={() => enviarAprovacao("aprovado")}
-                  disabled={aprovacaoStatus === "loading"}
+                  disabled={aprovacaoStatus === "loading" || contextoAtual?.validacaoHumanaTesesPendente}
                   className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {aprovacaoStatus === "loading" ? "Registrando..." : "Aprovar"}
@@ -503,7 +512,7 @@ export function PipelineWorkspace({
                 <button
                   type="button"
                   onClick={() => enviarAprovacao("revisao_pendente")}
-                  disabled={aprovacaoStatus === "loading"}
+                  disabled={aprovacaoStatus === "loading" || contextoAtual?.validacaoHumanaTesesPendente}
                   className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] disabled:opacity-50"
                 >
                   Solicitar revisão
@@ -511,7 +520,7 @@ export function PipelineWorkspace({
                 <button
                   type="button"
                   onClick={() => enviarAprovacao("rejeitado")}
-                  disabled={aprovacaoStatus === "loading"}
+                  disabled={aprovacaoStatus === "loading" || contextoAtual?.validacaoHumanaTesesPendente}
                   className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   Rejeitar

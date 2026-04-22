@@ -472,6 +472,23 @@ export interface ReferenciaDocumentalContexto {
   trecho?: string;
 }
 
+export type OrigemTeseJuridica = "ia" | "usuario";
+
+export type StatusValidacaoTese = "pendente" | "aprovada" | "rejeitada" | "ajustada";
+
+export interface TeseJuridicaPedido {
+  id: string;
+  titulo: string;
+  descricao: string;
+  fundamentos: string[];
+  documentosRelacionados: string[];
+  origem: OrigemTeseJuridica;
+  statusValidacao: StatusValidacaoTese;
+  observacoesHumanas?: string;
+  confirmadaPor?: string;
+  confirmadaEm?: string;
+}
+
 export interface ContextoJuridicoPedido {
   id: string;
   pedidoId: string;
@@ -482,6 +499,8 @@ export interface ContextoJuridicoPedido {
   documentosChave: Array<{ documentoId: string; titulo: string; tipoDocumento: string }>;
   referenciasDocumentais: ReferenciaDocumentalContexto[];
   estrategiaSugerida: string;
+  teses: TeseJuridicaPedido[];
+  validacaoHumanaTesesPendente: boolean;
   fontesSnapshot: Array<{ etapa: EtapaPipeline; versao: number }>;
   criadoEm: string;
 }

@@ -7,7 +7,12 @@ import type {
   MinutaRastroContextoRepository,
   PipelineSnapshotRepository,
 } from "@/modules/peticoes/application/operacional/contracts";
-import type { ContextoJuridicoPedido, EtapaPipeline, SnapshotPipelineEtapa } from "@/modules/peticoes/domain/types";
+import type {
+  ContextoJuridicoPedido,
+  EtapaPipeline,
+  SnapshotPipelineEtapa,
+  TeseJuridicaPedido,
+} from "@/modules/peticoes/domain/types";
 
 type SnapshotRow = {
   id: string;
@@ -33,6 +38,8 @@ type ContextoRow = {
   documentos_chave: Array<{ documentoId: string; titulo: string; tipoDocumento: string }>;
   referencias_documentais: Array<{ documentoId: string; titulo: string; tipoDocumento: string; trecho?: string }>;
   estrategia_sugerida: string;
+  teses: TeseJuridicaPedido[];
+  validacao_humana_teses_pendente: boolean;
   fontes_snapshot: Array<{ etapa: EtapaPipeline; versao: number }>;
   criado_em: string;
 };
@@ -122,6 +129,12 @@ function mapContexto(row: ContextoRow): ContextoJuridicoPedido {
       Array<{ documentoId: string; titulo: string; tipoDocumento: string; trecho?: string }>
     >(row.referencias_documentais, [], "pedido_contexto_juridico_versao.referencias_documentais"),
     estrategiaSugerida: row.estrategia_sugerida,
+    teses: parseJsonValue<TeseJuridicaPedido[]>(
+      row.teses,
+      [],
+      "pedido_contexto_juridico_versao.teses",
+    ),
+    validacaoHumanaTesesPendente: row.validacao_humana_teses_pendente,
     fontesSnapshot: parseJsonValue<Array<{ etapa: EtapaPipeline; versao: number }>>(
       row.fontes_snapshot,
       [],
@@ -281,6 +294,8 @@ class RealContextoJuridicoPedidoRepository implements ContextoJuridicoPedidoRepo
         documentos_chave,
         referencias_documentais,
         estrategia_sugerida,
+        teses,
+        validacao_humana_teses_pendente,
         fontes_snapshot
       )
       VALUES (
@@ -292,6 +307,8 @@ class RealContextoJuridicoPedidoRepository implements ContextoJuridicoPedidoRepo
         ${JSON.stringify(input.documentosChave)}::jsonb,
         ${JSON.stringify(input.referenciasDocumentais)}::jsonb,
         ${input.estrategiaSugerida},
+        ${JSON.stringify(input.teses)}::jsonb,
+        ${input.validacaoHumanaTesesPendente},
         ${JSON.stringify(input.fontesSnapshot)}::jsonb
       )
       RETURNING *

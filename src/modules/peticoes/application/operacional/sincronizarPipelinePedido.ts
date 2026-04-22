@@ -15,6 +15,10 @@ import type {
 import { processarDocumentoJuridico } from "@/modules/processamento-documental/application/processarDocumentoJuridico";
 import { parallelMap } from "@/lib/parallel";
 import type { ResultadoEtapaDocumental } from "@/modules/processamento-documental/domain/types";
+import {
+  buildMapaTesesContexto,
+  existeValidacaoHumanaPendente,
+} from "@/modules/peticoes/application/teses-juridicas";
 
 const ETAPAS_IMPLEMENTADAS_PIPELINE: EtapaPipeline[] = [
   "classificacao",
@@ -343,11 +347,23 @@ async function salvarContextoSeMudou(input: {
       ? estrategia.diretriz
       : "Consolidar tese principal a partir dos fatos extraídos e validar pedidos com suporte documental.";
 
+  const ultimo = await infra.contextoJuridicoPedidoRepository.obterUltimaVersao(input.pedidoId);
+
+  const teses = buildMapaTesesContexto({
+    pedidoId: input.pedidoId,
+    estrategiaSugerida,
+    pontosControvertidos,
+    fatosRelevantes,
+    documentosRelacionados: referenciasDocumentais.map((item) => item.documentoId),
+    contextoAnterior: ultimo,
+  });
+
+  const validacaoHumanaTesesPendente = existeValidacaoHumanaPendente(teses);
+
   const fontesSnapshot = [...latestByStage.values()]
     .filter((snapshot) => ETAPAS_IMPLEMENTADAS_PIPELINE.includes(snapshot.etapa))
     .map((snapshot) => ({ etapa: snapshot.etapa, versao: snapshot.versao }));
 
-  const ultimo = await infra.contextoJuridicoPedidoRepository.obterUltimaVersao(input.pedidoId);
   const payload = {
     pedidoId: input.pedidoId,
     versaoContexto: (ultimo?.versaoContexto ?? 0) + 1,
@@ -357,6 +373,8 @@ async function salvarContextoSeMudou(input: {
     documentosChave,
     referenciasDocumentais,
     estrategiaSugerida,
+    teses,
+    validacaoHumanaTesesPendente,
     fontesSnapshot,
   };
 
@@ -368,6 +386,8 @@ async function salvarContextoSeMudou(input: {
     serializar(ultimo.documentosChave) === serializar(payload.documentosChave) &&
     serializar(ultimo.referenciasDocumentais) === serializar(payload.referenciasDocumentais) &&
     ultimo.estrategiaSugerida === payload.estrategiaSugerida &&
+    serializar(ultimo.teses) === serializar(payload.teses) &&
+    ultimo.validacaoHumanaTesesPendente === payload.validacaoHumanaTesesPendente &&
     serializar(ultimo.fontesSnapshot) === serializar(payload.fontesSnapshot)
   ) {
     return ultimo;

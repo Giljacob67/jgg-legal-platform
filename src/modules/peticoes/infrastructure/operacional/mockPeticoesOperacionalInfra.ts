@@ -102,6 +102,21 @@ function criarSeed(): MockPeticoesOperacionalStore {
         ],
         estrategiaSugerida:
           "Sustentar tutela de urgência com base no risco de dano contínuo e no inadimplemento já documentado.",
+        teses: [
+          {
+            id: "TSE-PED-2026-001-principal",
+            titulo: "Tese principal sugerida",
+            descricao: "Sustentar tutela de urgência com base no risco de dano contínuo e no inadimplemento já documentado.",
+            fundamentos: [
+              "Contrato principal previa multa diária por atraso de entrega.",
+              "Notificação extrajudicial foi recebida sem resposta no prazo.",
+            ],
+            documentosRelacionados: ["DOC-001", "DOC-002"],
+            origem: "ia",
+            statusValidacao: "pendente",
+          },
+        ],
+        validacaoHumanaTesesPendente: true,
         fontesSnapshot: [
           { etapa: "classificacao", versao: 1 },
           { etapa: "leitura_documental", versao: 1 },

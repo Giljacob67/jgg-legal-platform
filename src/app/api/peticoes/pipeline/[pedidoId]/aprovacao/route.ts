@@ -18,6 +18,7 @@ import {
   registrarEventoPipeline,
   registrarFalhaPipeline,
 } from "@/modules/peticoes/application/operacional/observabilidade-pipeline";
+import { resumirMapaTeses } from "@/modules/peticoes/application/teses-juridicas";
 
 const AprovacaoPayloadSchema = z.object({
   resultado: z.enum(["aprovado", "rejeitado", "revisao_pendente"]),
@@ -81,6 +82,33 @@ export async function POST(
     );
   }
 
+  const infra = getPeticoesOperacionalInfra();
+  const contextoAtual = await infra.contextoJuridicoPedidoRepository.obterUltimaVersao(pedidoId);
+  if (!contextoAtual) {
+    registrarEventoPipeline("api/pipeline/aprovacao", requestId, "aprovacao_bloqueada_sem_contexto", {
+      pedidoId,
+      ...contextoAuditoria,
+    });
+    return jsonError(
+      requestId,
+      "Contexto jurídico não consolidado. Execute a estratégia jurídica antes da aprovação final.",
+      422,
+    );
+  }
+
+  if (contextoAtual.validacaoHumanaTesesPendente) {
+    registrarEventoPipeline("api/pipeline/aprovacao", requestId, "aprovacao_bloqueada_teses_pendentes", {
+      pedidoId,
+      ...contextoAuditoria,
+      resumoTeses: resumirMapaTeses(contextoAtual.teses),
+    });
+    return jsonError(
+      requestId,
+      "Validação humana de teses pendente. Aprove, ajuste ou rejeite as teses sugeridas antes da aprovação final.",
+      422,
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -108,7 +136,6 @@ export async function POST(
 
   try {
     const { resultado, observacoes } = parsed.data;
-    const infra = getPeticoesOperacionalInfra();
     registrarEventoPipeline("api/pipeline/aprovacao", requestId, "aprovacao_decisao_recebida", {
       pedidoId,
       resultado,

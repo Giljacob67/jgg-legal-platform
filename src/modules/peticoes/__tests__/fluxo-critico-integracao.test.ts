@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
+import type { ContextoJuridicoPedido } from "@/modules/peticoes/domain/types";
 
 vi.mock("server-only", () => ({}));
 
@@ -29,6 +30,7 @@ type SnapshotSalvo = SnapshotInput & {
 };
 
 const snapshotsSalvos: SnapshotSalvo[] = [];
+const contextosSalvos: ContextoJuridicoPedido[] = [];
 
 const mockPipelineSnapshotRepository = {
   salvarNovaVersao: vi.fn(async (input: SnapshotInput) => {
@@ -91,9 +93,27 @@ vi.mock("@/modules/peticoes/infrastructure/operacional/provider.server", () => (
   getPeticoesOperacionalInfra: () => ({
     pipelineSnapshotRepository: mockPipelineSnapshotRepository,
     contextoJuridicoPedidoRepository: {
-      listarVersoes: vi.fn(async () => []),
-      obterUltimaVersao: vi.fn(async () => null),
-      salvarNovaVersao: vi.fn(),
+      listarVersoes: vi.fn(async (pedidoId: string) =>
+        contextosSalvos
+          .filter((contexto) => contexto.pedidoId === pedidoId)
+          .slice()
+          .sort((a, b) => b.versaoContexto - a.versaoContexto),
+      ),
+      obterUltimaVersao: vi.fn(async (pedidoId: string) =>
+        contextosSalvos
+          .filter((contexto) => contexto.pedidoId === pedidoId)
+          .slice()
+          .sort((a, b) => b.versaoContexto - a.versaoContexto)[0] ?? null,
+      ),
+      salvarNovaVersao: vi.fn(async (input: Omit<ContextoJuridicoPedido, "id" | "criadoEm">) => {
+        const contexto: ContextoJuridicoPedido = {
+          ...input,
+          id: `CTX-TEST-${contextosSalvos.length + 1}`,
+          criadoEm: new Date().toISOString(),
+        };
+        contextosSalvos.push(contexto);
+        return contexto;
+      }),
     },
     minutaRastroContextoRepository: {
       upsertVinculo: vi.fn(),
@@ -108,6 +128,10 @@ let postExecutarPipeline: (
   ctx: { params: Promise<{ pedidoId: string; estagio: string }> },
 ) => Promise<Response>;
 let postAprovacao: (
+  req: NextRequest,
+  ctx: { params: Promise<{ pedidoId: string }> },
+) => Promise<Response>;
+let postTeses: (
   req: NextRequest,
   ctx: { params: Promise<{ pedidoId: string }> },
 ) => Promise<Response>;
@@ -174,12 +198,14 @@ beforeAll(async () => {
     "@/app/api/peticoes/pipeline/[pedidoId]/executar/[estagio]/route"
   ));
   ({ POST: postAprovacao } = await import("@/app/api/peticoes/pipeline/[pedidoId]/aprovacao/route"));
+  ({ POST: postTeses } = await import("@/app/api/peticoes/pipeline/[pedidoId]/teses/route"));
   ({ PATCH: patchMinuta } = await import("@/app/api/peticoes/minutas/[minutaId]/route"));
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
   snapshotsSalvos.length = 0;
+  contextosSalvos.length = 0;
 
   mockRequireAuth.mockResolvedValue(null);
   mockRequireRBAC.mockResolvedValue(null);
@@ -209,6 +235,33 @@ beforeEach(() => {
     textPromise: Promise.resolve("Trecho 1 Trecho 2"),
     attempts: 1,
   });
+  contextosSalvos.push({
+    id: "CTX-BASE-001",
+    pedidoId: "PED-2026-001",
+    versaoContexto: 1,
+    fatosRelevantes: ["Fato relevante base."],
+    cronologia: [{ data: "2026-04-01", descricao: "Evento base." }],
+    pontosControvertidos: ["Ponto controvertido base."],
+    documentosChave: [{ documentoId: "DOC-001", titulo: "Documento base", tipoDocumento: "Contrato" }],
+    referenciasDocumentais: [{ documentoId: "DOC-001", titulo: "Documento base", tipoDocumento: "Contrato" }],
+    estrategiaSugerida: "Estratégia base validada para o fluxo de testes.",
+    teses: [
+      {
+        id: "TSE-BASE-001",
+        titulo: "Tese base validada",
+        descricao: "Tese principal já confirmada em cenário padrão de teste.",
+        fundamentos: ["Fundamento base."],
+        documentosRelacionados: ["DOC-001"],
+        origem: "usuario",
+        statusValidacao: "aprovada",
+        confirmadaPor: "usr-adv-001",
+        confirmadaEm: new Date().toISOString(),
+      },
+    ],
+    validacaoHumanaTesesPendente: false,
+    fontesSnapshot: [{ etapa: "classificacao", versao: 1 }],
+    criadoEm: new Date().toISOString(),
+  });
 });
 
 describe("Fluxo crítico de Petições (integração de rotas)", () => {
@@ -232,6 +285,33 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     expect(createJson.pedido.id).toBeTruthy();
 
     const pedidoId = createJson.pedido.id;
+    contextosSalvos.push({
+      id: "CTX-NOVO-PEDIDO-001",
+      pedidoId,
+      versaoContexto: 1,
+      fatosRelevantes: ["Fato relevante do pedido recém-criado."],
+      cronologia: [{ data: "2026-04-01", descricao: "Evento do pedido recém-criado." }],
+      pontosControvertidos: ["Controvérsia do pedido recém-criado."],
+      documentosChave: [{ documentoId: "DOC-001", titulo: "Documento do pedido", tipoDocumento: "Contrato" }],
+      referenciasDocumentais: [{ documentoId: "DOC-001", titulo: "Documento do pedido", tipoDocumento: "Contrato" }],
+      estrategiaSugerida: "Estratégia consolidada para o pedido recém-criado.",
+      teses: [
+        {
+          id: "TSE-NOVO-PEDIDO-001",
+          titulo: "Tese validada do pedido recém-criado",
+          descricao: "Tese principal já confirmada para destravar a aprovação do fluxo.",
+          fundamentos: ["Fundamento do pedido recém-criado."],
+          documentosRelacionados: ["DOC-001"],
+          origem: "usuario",
+          statusValidacao: "aprovada",
+          confirmadaPor: "usr-adv-001",
+          confirmadaEm: new Date().toISOString(),
+        },
+      ],
+      validacaoHumanaTesesPendente: false,
+      fontesSnapshot: [{ etapa: "estrategia_juridica", versao: 1 }],
+      criadoEm: new Date().toISOString(),
+    });
 
     const pipelineResponse = await postExecutarPipeline(
       new Request("http://localhost/api/peticoes/pipeline", {
@@ -403,6 +483,87 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
       usuarioId: "usr-adm-001",
       perfilUsuario: "administrador_sistema",
     });
+  });
+
+  it("deve bloquear aprovação quando houver tese pendente de validação humana", async () => {
+    mockAuth.mockResolvedValueOnce({
+      user: {
+        id: "usr-soc-001",
+        name: "Gilberto Jacob",
+        email: "gilberto@jgg.adv.br",
+        role: "socio_direcao",
+      },
+    });
+
+    contextosSalvos.length = 0;
+    contextosSalvos.push({
+      id: "CTX-PEND-001",
+      pedidoId: "PED-2026-001",
+      versaoContexto: 1,
+      fatosRelevantes: ["Fato pendente."],
+      cronologia: [{ data: "2026-04-01", descricao: "Evento pendente." }],
+      pontosControvertidos: ["Controvérsia pendente."],
+      documentosChave: [{ documentoId: "DOC-001", titulo: "Documento base", tipoDocumento: "Contrato" }],
+      referenciasDocumentais: [{ documentoId: "DOC-001", titulo: "Documento base", tipoDocumento: "Contrato" }],
+      estrategiaSugerida: "Estratégia com tese ainda não triada humanamente.",
+      teses: [
+        {
+          id: "TSE-PEND-001",
+          titulo: "Tese inferida pendente",
+          descricao: "Tese ainda depende de aprovação humana.",
+          fundamentos: ["Fundamento pendente."],
+          documentosRelacionados: ["DOC-001"],
+          origem: "ia",
+          statusValidacao: "pendente",
+        },
+      ],
+      validacaoHumanaTesesPendente: true,
+      fontesSnapshot: [{ etapa: "estrategia_juridica", versao: 1 }],
+      criadoEm: new Date().toISOString(),
+    });
+
+    const response = await postAprovacao(
+      new Request("http://localhost/api/peticoes/pipeline/aprovacao", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-request-id": "req-aprov-bloqueio-001" },
+        body: JSON.stringify({ resultado: "aprovado" }),
+      }) as unknown as NextRequest,
+      { params: Promise.resolve({ pedidoId: "PED-2026-001" }) },
+    );
+
+    expect(response.status).toBe(422);
+    const json = (await response.json()) as { error: string };
+    expect(json.error).toContain("Validação humana de teses pendente");
+  });
+
+  it("deve registrar nova tese manual em nova versão de contexto", async () => {
+    const response = await postTeses(
+      new Request("http://localhost/api/peticoes/pipeline/teses", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-request-id": "req-tese-001" },
+        body: JSON.stringify({
+          acao: "registrar_tese",
+          origem: "usuario",
+          titulo: "Tese subsidiária manual",
+          descricao: "Formulação manual para reforçar pedido subsidiário.",
+          fundamentos: ["Fundamento 1", "Fundamento 2"],
+          statusValidacao: "aprovada",
+          observacoesHumanas: "Usar apenas se a tese principal sofrer resistência.",
+        }),
+      }) as unknown as NextRequest,
+      { params: Promise.resolve({ pedidoId: "PED-2026-001" }) },
+    );
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as {
+      contexto: ContextoJuridicoPedido;
+      tese: { titulo: string; origem: string };
+    };
+
+    expect(json.tese.titulo).toBe("Tese subsidiária manual");
+    expect(json.tese.origem).toBe("usuario");
+    expect(json.contexto.versaoContexto).toBe(2);
+    expect(json.contexto.teses.some((tese) => tese.titulo === "Tese subsidiária manual")).toBe(true);
   });
 
   it("deve bloquear execução duplicada quando a etapa já estiver em andamento", async () => {

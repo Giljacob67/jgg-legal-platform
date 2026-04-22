@@ -18,6 +18,8 @@ import { listarDocumentosPorPedido } from "@/modules/documentos/application/list
 import { listarDocumentosPorCaso } from "@/modules/documentos/application/listarDocumentosPorCaso";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
 import { AtribuirResponsavelCard } from "@/modules/peticoes/ui/atribuir-responsavel-card";
+import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
+import { PedidoWorkspaceOverview } from "@/modules/peticoes/ui/pedido-workspace-overview";
 import { getDataMode } from "@/lib/data-mode";
 import { formatarData, formatarDataHora } from "@/lib/utils";
 import type { EtapaPipeline, SnapshotPipelineEtapa, StatusPedido } from "@/modules/peticoes/domain/types";
@@ -151,6 +153,12 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
       descricao: "Ainda não há consolidação estruturada de fatos, cronologia e pontos controvertidos.",
       severidade: "media",
     });
+  } else if (pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente) {
+    pendencias.push({
+      titulo: "Validação humana de teses pendente",
+      descricao: "Aprovação final bloqueada até aprovar, ajustar ou rejeitar as teses inferidas e/ou registrar tese manual.",
+      severidade: "alta",
+    });
   }
 
   const snapshotsComErro = snapshots.filter((snapshot) => snapshot.status === "erro");
@@ -174,6 +182,25 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
     ...PROXIMOS_PASSOS_POR_ETAPA[etapaAtual],
     ...pendencias.slice(0, 2).map((item) => item.descricao),
   ];
+  const bloqueiosCriticos = pendencias.filter((item) => item.severidade === "alta").length;
+  const hrefAcaoPrincipal = !responsavelDefinido
+    ? "#responsavel"
+    : !pipelineOperacional?.contextoAtual
+      ? `/peticoes/pipeline/${pedido.id}`
+      : pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente
+        ? "#mapa-teses"
+        : minuta
+          ? `/peticoes/minutas/${minuta.id}/editor`
+          : `/peticoes/pipeline/${pedido.id}`;
+  const labelAcaoPrincipal = !responsavelDefinido
+    ? "Definir responsável"
+    : !pipelineOperacional?.contextoAtual
+      ? "Consolidar contexto"
+      : pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente
+        ? "Validar teses"
+        : minuta
+          ? "Continuar no editor"
+          : "Abrir produção";
 
   return (
     <div className="space-y-6">
@@ -189,15 +216,29 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         }
         actions={
           <>
+            <ButtonLink href={hrefAcaoPrincipal} label={labelAcaoPrincipal} icon={<ScaleIcon size={16} />} />
             <ButtonLink href={`/peticoes/pipeline/${pedido.id}`} label="Abrir pipeline" icon={<ScaleIcon size={16} />} variant="secundario" />
             {minuta ? (
-              <ButtonLink href={`/peticoes/minutas/${minuta.id}/editor`} label="Abrir editor" icon={<FileIcon size={16} />} />
+              <ButtonLink href={`/peticoes/minutas/${minuta.id}/editor`} label="Abrir editor" icon={<FileIcon size={16} />} variant="secundario" />
             ) : null}
           </>
         }
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <PedidoWorkspaceOverview
+        pedidoId={pedido.id}
+        pedidoStatus={pedido.status}
+        etapaAtual={etapaAtual}
+        responsavel={pedido.responsavel}
+        responsavelDefinido={responsavelDefinido}
+        totalDocumentos={documentos.length}
+        percentualConclusao={percentualConclusao}
+        pendenciasCriticas={bloqueiosCriticos}
+        contextoAtual={pipelineOperacional?.contextoAtual ?? null}
+        minutaId={minuta?.id}
+      />
+
+      <section id="controle" className="grid gap-4 scroll-mt-24 md:grid-cols-2 xl:grid-cols-4">
         <Card title="Etapa atual" eyebrow="Execução">
           <p className="font-serif text-3xl text-[var(--color-ink)]">{etapaAtual.replaceAll("_", " ")}</p>
           <p className="text-xs text-[var(--color-muted)]">Status geral do pedido: {pedido.status}</p>
@@ -293,28 +334,36 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
       </section>
 
       {!responsavelDefinido ? (
-        <AtribuirResponsavelCard pedidoId={pedido.id} responsavelAtual={pedido.responsavel} />
+        <div id="responsavel" className="scroll-mt-24">
+          <AtribuirResponsavelCard pedidoId={pedido.id} responsavelAtual={pedido.responsavel} />
+        </div>
       ) : null}
 
-      <Card title="Timeline do pedido" subtitle="Histórico cronológico de eventos operacionais e técnicos." eyebrow="Rastro">
-        {historico.length === 0 ? (
-          <p className="text-sm text-[var(--color-muted)]">Sem eventos registrados até o momento.</p>
-        ) : (
-          <div className="space-y-3">
-            {historico.map((item) => (
-              <article key={item.id} className="rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-[var(--color-ink)]">{item.descricao}</p>
-                  <p className="text-xs text-[var(--color-muted)]">{formatarDataHora(item.data)}</p>
-                </div>
-                <p className="mt-2 text-xs text-[var(--color-muted)]">
-                  Etapa: {item.etapa.replaceAll("_", " ")} • Responsável: {item.responsavel}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
-      </Card>
+      <div id="mapa-teses" className="scroll-mt-24">
+        <MapaTesesPanel pedidoId={pedido.id} contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
+      </div>
+
+      <div id="timeline" className="scroll-mt-24">
+        <Card title="Timeline do pedido" subtitle="Histórico cronológico de eventos operacionais e técnicos." eyebrow="Rastro">
+          {historico.length === 0 ? (
+            <p className="text-sm text-[var(--color-muted)]">Sem eventos registrados até o momento.</p>
+          ) : (
+            <div className="space-y-3">
+              {historico.map((item) => (
+                <article key={item.id} className="rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-[var(--color-ink)]">{item.descricao}</p>
+                    <p className="text-xs text-[var(--color-muted)]">{formatarDataHora(item.data)}</p>
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--color-muted)]">
+                    Etapa: {item.etapa.replaceAll("_", " ")} • Responsável: {item.responsavel}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
 
       <DocumentoUploadPanel
         titulo="Adicionar documento ao pedido"
@@ -327,7 +376,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         modoUpload={dataMode === "real" ? "cliente_blob" : "api"}
       />
 
-      <section className="grid gap-6 xl:grid-cols-[1.25fr,0.9fr]">
+      <section id="documentos" className="grid gap-6 scroll-mt-24 xl:grid-cols-[1.25fr,0.9fr]">
         <Card title="Documentos vinculados" subtitle="Material disponível para leitura, estratégia e redação da peça." eyebrow="Documentação">
           {documentos.length === 0 ? (
             <p className="text-sm text-[var(--color-muted)]">Nenhum documento vinculado ao pedido ou caso.</p>

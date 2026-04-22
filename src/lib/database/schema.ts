@@ -310,6 +310,8 @@ export const pedidoContextoJuridicoVersao = pgTable(
     documentosChave: jsonb("documentos_chave").notNull().default([]),
     referenciasDocumentais: jsonb("referencias_documentais").notNull().default([]),
     estrategiaSugerida: text("estrategia_sugerida").notNull().default(""),
+    teses: jsonb("teses").notNull().default([]),
+    validacaoHumanaTesesPendente: boolean("validacao_humana_teses_pendente").notNull().default(true),
     fontesSnapshot: jsonb("fontes_snapshot").notNull().default([]),
     criadoEm: timestamp("criado_em").defaultNow().notNull(),
   },

@@ -59,6 +59,13 @@ export function EditorMinuta({
   const referenciasDocumentais = toArray<{ documentoId: string; titulo: string }>(
     contextoJuridico?.referenciasDocumentais,
   );
+  const tesesConfirmadas = toArray(contextoJuridico?.teses).filter(
+    (tese): tese is NonNullable<ContextoJuridicoPedido["teses"]>[number] =>
+      typeof tese === "object" &&
+      tese !== null &&
+      "statusValidacao" in tese &&
+      (tese.statusValidacao === "aprovada" || tese.statusValidacao === "ajustada"),
+  );
 
   const editor = useEditor({
     extensions: [
@@ -174,6 +181,9 @@ export function EditorMinuta({
 
   const proximosPassos = [
     contextoJuridico ? "Conferir coerência entre estratégia consolidada e pedidos finais da minuta." : "Consolidar contexto jurídico antes da revisão final da peça.",
+    contextoJuridico?.validacaoHumanaTesesPendente
+      ? "Validar teses inferidas ou registrar tese manual antes da submissão para aprovação."
+      : "Checar aderência da redação às teses já confirmadas pelo responsável jurídico.",
     referenciasDocumentais.length > 0
       ? "Validar se todas as referências documentais citadas estão corretas e atualizadas."
       : "Anexar ou vincular documentos-chave para fortalecer fundamentação e provas.",
@@ -318,6 +328,9 @@ export function EditorMinuta({
               <p>
                 <strong>Referências:</strong> {referenciasDocumentais.length}
               </p>
+              <p>
+                <strong>Teses confirmadas:</strong> {tesesConfirmadas.length}
+              </p>
 
               {fatosRelevantes.length > 0 ? (
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
@@ -329,6 +342,22 @@ export function EditorMinuta({
                       <li key={fato}>{fato}</li>
                     ))}
                   </ul>
+                </div>
+              ) : null}
+
+              {tesesConfirmadas.length > 0 ? (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                    Teses já validadas
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {tesesConfirmadas.slice(0, 3).map((tese) => (
+                      <div key={tese.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2">
+                        <p className="text-xs font-semibold text-[var(--color-ink)]">{tese.titulo}</p>
+                        <p className="mt-1 text-xs text-[var(--color-muted)]">{tese.descricao}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>

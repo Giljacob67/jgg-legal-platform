@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ScaleIcon } from "@/components/ui/icons";
+import { FileIcon, ScaleIcon } from "@/components/ui/icons";
 import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { EditorMinuta } from "@/modules/peticoes/ui/editor-minuta";
 
@@ -66,12 +66,19 @@ export default async function EditorMinutaPage({ params }: EditorMinutaPageProps
         }
         actions={
           editorData?.pedidoId ? (
-            <ButtonLink
-              href={`/peticoes/pipeline/${editorData.pedidoId}`}
-              label="Abrir pipeline"
-              icon={<ScaleIcon size={16} />}
-              variant="secundario"
-            />
+            <>
+              <ButtonLink
+                href={`/peticoes/pedidos/${editorData.pedidoId}`}
+                label="Voltar ao pedido"
+                icon={<FileIcon size={16} />}
+              />
+              <ButtonLink
+                href={`/peticoes/pipeline/${editorData.pedidoId}`}
+                label="Abrir pipeline"
+                icon={<ScaleIcon size={16} />}
+                variant="secundario"
+              />
+            </>
           ) : undefined
         }
       />
