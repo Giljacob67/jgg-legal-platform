@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { requireAuth } from "@/lib/api-auth";
 import { auth } from "@/lib/auth";
-import { getLLM, isAIAvailable } from "@/lib/ai/provider";
+import { getLLM, getModeloId, getProvedor, isAIAvailable } from "@/lib/ai/provider";
 import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { verificarRateLimit } from "@/lib/rate-limit";
 import { services } from "@/services/container";
@@ -214,6 +214,92 @@ Pergunta original:
 ${limitarTexto(pergunta, 600)}`;
 }
 
+function normalizarBaseOpenAICompat(rawBaseUrl: string): string {
+  const base = rawBaseUrl.trim().replace(/\/+$/, "");
+  if (!base) return "";
+  if (base.endsWith("/v1")) return base;
+  if (base.endsWith("/api")) return `${base.slice(0, -4)}/v1`;
+  return `${base}/v1`;
+}
+
+function extrairConteudoChatCompletion(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const obj = payload as Record<string, unknown>;
+  const choices = Array.isArray(obj.choices) ? obj.choices : [];
+  if (choices.length === 0 || typeof choices[0] !== "object" || choices[0] === null) return "";
+  const first = choices[0] as Record<string, unknown>;
+  const message = (first.message && typeof first.message === "object"
+    ? first.message
+    : null) as Record<string, unknown> | null;
+  if (!message) return "";
+
+  if (typeof message.content === "string") {
+    return message.content.trim();
+  }
+
+  if (Array.isArray(message.content)) {
+    const parts = message.content
+      .map((item) => {
+        if (!item || typeof item !== "object") return "";
+        const chunk = item as Record<string, unknown>;
+        if (typeof chunk.text === "string") return chunk.text;
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    return parts;
+  }
+
+  return "";
+}
+
+async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
+  modelId: string;
+  system: string;
+  prompt: string;
+}): Promise<string> {
+  const baseUrl = normalizarBaseOpenAICompat(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
+  if (!baseUrl) return "";
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.OLLAMA_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: params.modelId,
+        messages: [
+          { role: "system", content: params.system },
+          { role: "user", content: params.prompt },
+        ],
+        temperature: 0.1,
+        max_tokens: 700,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return "";
+    }
+
+    const payload = await response.json().catch(() => null);
+    return extrairConteudoChatCompletion(payload);
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
   let perguntaParaFallback = "";
@@ -304,7 +390,7 @@ Responda obrigatoriamente em português-BR com os blocos:
 Entendimento, Fundamentação, Próximos passos.`;
 
     let respostaFinal = "";
-    let modoResposta: "ai" | "ai_retry" | "ai_fallback_local" = "ai";
+    let modoResposta: "ai" | "ai_retry" | "ai_retry_compat" | "ai_fallback_local" = "ai";
     let aviso: string | undefined;
 
     try {
@@ -340,6 +426,22 @@ Entendimento, Fundamentação, Próximos passos.`;
         logApiInfo("api/agents/assistente-juridico", requestId, "segunda_tentativa_falhou", {
           erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
         });
+      }
+    }
+
+    if (!respostaFinal) {
+      const provedorAtivo = getProvedor();
+      if (provedorAtivo === "ollama") {
+        const textoDireto = await tentarGeracaoDiretaOllamaOpenAICompat({
+          modelId: getModeloId(),
+          system:
+            "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
+          prompt: promptEnxuto,
+        });
+        if (textoDireto) {
+          respostaFinal = textoDireto;
+          modoResposta = "ai_retry_compat";
+        }
       }
     }
 
