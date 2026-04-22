@@ -189,6 +189,23 @@ function extrairRespostaUtil(texto: string | undefined): string {
   const limpo = texto.trim();
   if (!limpo) return "";
   if (limpo === "{}" || limpo === "[]") return "";
+  const indiceBlocoFinal = limpo.search(/(?:\*\*)?(Entendimento|Fundamentação|Próximos passos)(?:\*\*)?:/i);
+  if (indiceBlocoFinal > 0) {
+    return limpo.slice(indiceBlocoFinal).trim();
+  }
+
+  const padroesRaciocinio = [
+    /^o usuário quer\b/i,
+    /^o utilizador quer\b/i,
+    /^preciso responder\b/i,
+    /^vou estruturar\b/i,
+    /^vou responder\b/i,
+    /^preciso estruturar\b/i,
+    /^analisando a pergunta\b/i,
+  ];
+  if (padroesRaciocinio.some((padrao) => padrao.test(limpo))) {
+    return "";
+  }
   return limpo;
 }
 
@@ -268,7 +285,6 @@ function extrairTextoEstruturado(valor: unknown): string {
     obj.value,
     obj.output_text,
     obj.response,
-    obj.reasoning,
   ];
 
   for (const candidato of candidatos) {
