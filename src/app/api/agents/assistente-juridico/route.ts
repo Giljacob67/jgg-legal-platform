@@ -250,17 +250,70 @@ function deveTentarFallbackOllama(diagnostic: string): boolean {
   return status === 404 || status === 405 || status === 501;
 }
 
+function extrairTextoEstruturado(valor: unknown): string {
+  if (typeof valor === "string") return valor.trim();
+  if (Array.isArray(valor)) {
+    return valor
+      .map((item) => extrairTextoEstruturado(item))
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+  }
+  if (!valor || typeof valor !== "object") return "";
+
+  const obj = valor as Record<string, unknown>;
+  const candidatos = [
+    obj.text,
+    obj.content,
+    obj.value,
+    obj.output_text,
+    obj.response,
+    obj.reasoning,
+  ];
+
+  for (const candidato of candidatos) {
+    const texto = extrairTextoEstruturado(candidato);
+    if (texto) return texto;
+  }
+
+  if (Array.isArray(obj.parts)) {
+    const texto = extrairTextoEstruturado(obj.parts);
+    if (texto) return texto;
+  }
+
+  return "";
+}
+
 function extrairConteudoChatCompletion(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const obj = payload as Record<string, unknown>;
+
+  const textoDireto = extrairTextoEstruturado(obj.output_text);
+  if (textoDireto) return textoDireto;
+
   const choices = Array.isArray(obj.choices) ? obj.choices : [];
   const choice = choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>) : null;
-  const message =
-    choice?.message && typeof choice.message === "object"
-      ? (choice.message as Record<string, unknown>)
-      : null;
-  const content = typeof message?.content === "string" ? message.content.trim() : "";
-  return content;
+  if (choice) {
+    const textoChoice = extrairTextoEstruturado(choice.text);
+    if (textoChoice) return textoChoice;
+
+    const message =
+      choice.message && typeof choice.message === "object"
+        ? (choice.message as Record<string, unknown>)
+        : null;
+    const textoMensagem = extrairTextoEstruturado(message);
+    if (textoMensagem) return textoMensagem;
+
+    const delta =
+      choice.delta && typeof choice.delta === "object"
+        ? (choice.delta as Record<string, unknown>)
+        : null;
+    const textoDelta = extrairTextoEstruturado(delta);
+    if (textoDelta) return textoDelta;
+  }
+
+  const textoFallback = extrairTextoEstruturado(obj.response);
+  return textoFallback;
 }
 
 function programarAbort(controller: AbortController, timeoutMs: number): NodeJS.Timeout {
@@ -422,9 +475,12 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
 
     if (usarModoCloud) {
       const payload = await response.json().catch(() => null);
+      const text = extrairConteudoChatCompletion(payload);
       return {
-        text: extrairConteudoChatCompletion(payload),
-        diagnostic: "openai_compat_ok",
+        text,
+        diagnostic: text
+          ? "openai_compat_ok"
+          : `openai_compat_sem_texto:${limitarTexto(JSON.stringify(payload ?? {}), 220)}`,
       };
     }
 
