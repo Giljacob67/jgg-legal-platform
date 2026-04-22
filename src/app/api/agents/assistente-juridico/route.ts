@@ -860,6 +860,25 @@ Regras obrigatórias:
 - Feche todos os blocos completos; não termine no meio da frase.
 - Não exponha raciocínio interno.`;
 
+    const promptNaoOllamaReforco = !consultaJuridicaGeral
+      ? `${promptEnxuto}
+
+Refaça do zero com resposta completa, sem truncar, e detalhe melhor os requisitos, limitações e próximos passos.`
+      : `Pergunta jurídica:
+${pergunta}
+
+Reescreva do zero a resposta final, com mais profundidade técnica e sem truncar.
+Estrutura obrigatória:
+## Entendimento
+## Fundamentação
+## Próximos passos
+
+Regras obrigatórias:
+- Em "Fundamentação", inclua base constitucional, base legal, requisitos cumulativos e limitações relevantes, somente quando houver segurança técnica.
+- Se houver dúvida sobre artigo ou precedente, escreva expressamente "confirmar base normativa específica".
+- Feche todos os blocos completos; não termine no meio da frase.
+- Não exponha raciocínio interno.`;
+
     const construirPromptContinuacao = (respostaParcial: string) => `Pergunta jurídica:
 ${pergunta}
 
@@ -886,7 +905,7 @@ ${respostaParcial}`;
       try {
         const primeira = await generateText({
           model: getLLM(),
-          maxOutputTokens: 900,
+          maxOutputTokens: consultaJuridicaGeral ? 1200 : 900,
           temperature: 0.2,
           system: systemCompleto,
           prompt: promptCompleto,
@@ -903,7 +922,7 @@ ${respostaParcial}`;
       try {
         const segunda = await generateText({
           model: getLLM(),
-          maxOutputTokens: 700,
+          maxOutputTokens: consultaJuridicaGeral ? 1000 : 700,
           temperature: 0.1,
           system:
             "Você é assistente jurídico operacional. Responda obrigatoriamente com texto objetivo em português-BR.",
@@ -917,6 +936,66 @@ ${respostaParcial}`;
         logApiInfo("api/agents/assistente-juridico", requestId, "segunda_tentativa_falhou", {
           erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
         });
+      }
+    }
+
+    if (respostaFinal && !usarFluxoRapidoOllama && respostaPareceIncompleta(respostaFinal, { consultaGeral: consultaJuridicaGeral })) {
+      try {
+        const reforco = await generateText({
+          model: getLLM(),
+          maxOutputTokens: consultaJuridicaGeral ? 1400 : 900,
+          temperature: 0.1,
+          system:
+            "Você é um assistente jurídico sênior de apoio interno. Entregue apenas a resposta final, completa e tecnicamente segura, em português-BR.",
+          prompt: promptNaoOllamaReforco,
+        });
+        const respostaReforcada = extrairRespostaUtil(reforco.text);
+        if (respostaReforcada && !respostaPareceIncompleta(respostaReforcada, { consultaGeral: consultaJuridicaGeral })) {
+          respostaFinal = respostaReforcada;
+          modoResposta = "ai_retry";
+          logApiInfo("api/agents/assistente-juridico", requestId, "resposta_reforcada_nao_ollama", {});
+        }
+      } catch (error) {
+        logApiInfo("api/agents/assistente-juridico", requestId, "reforco_nao_ollama_falhou", {
+          erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
+        });
+      }
+    }
+
+    if (respostaFinal && !usarFluxoRapidoOllama) {
+      let tentativasContinuacaoNaoOllama = 0;
+      while (
+        respostaPareceIncompleta(respostaFinal, { consultaGeral: consultaJuridicaGeral }) &&
+        tentativasContinuacaoNaoOllama < 2
+      ) {
+        tentativasContinuacaoNaoOllama += 1;
+        try {
+          const continuacao = await generateText({
+            model: getLLM(),
+            maxOutputTokens: consultaJuridicaGeral ? 500 : 260,
+            temperature: 0.1,
+            system:
+              "Você é um assistente jurídico sênior. Continue apenas a resposta final já iniciada, sem repetir o começo e sem expor raciocínio interno.",
+            prompt: construirPromptContinuacao(respostaFinal),
+          });
+          const textoContinuacao = extrairRespostaUtil(continuacao.text);
+          if (!textoContinuacao) break;
+
+          const respostaExpandida = juntarRespostaContinuada(respostaFinal, textoContinuacao);
+          if (respostaExpandida.length <= respostaFinal.length) break;
+
+          respostaFinal = respostaExpandida;
+          modoResposta = "ai_retry";
+          logApiInfo("api/agents/assistente-juridico", requestId, "resposta_continuada_nao_ollama", {
+            tentativa: tentativasContinuacaoNaoOllama,
+          });
+        } catch (error) {
+          logApiInfo("api/agents/assistente-juridico", requestId, "continuacao_nao_ollama_falhou", {
+            tentativa: tentativasContinuacaoNaoOllama,
+            erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
+          });
+          break;
+        }
       }
     }
 
