@@ -222,6 +222,14 @@ function normalizarBaseOpenAICompat(rawBaseUrl: string): string {
   return `${base}/v1`;
 }
 
+function normalizarBaseNativaOllama(rawBaseUrl: string): string {
+  const base = rawBaseUrl.trim().replace(/\/+$/, "");
+  if (!base) return "";
+  if (base.endsWith("/v1")) return `${base.slice(0, -3)}/api`;
+  if (base.endsWith("/api")) return base;
+  return `${base}/api`;
+}
+
 function extrairConteudoChatCompletion(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const obj = payload as Record<string, unknown>;
@@ -258,9 +266,9 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   modelId: string;
   system: string;
   prompt: string;
-}): Promise<string> {
+}): Promise<{ text: string; diagnostic: string }> {
   const baseUrl = normalizarBaseOpenAICompat(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
-  if (!baseUrl) return "";
+  if (!baseUrl) return { text: "", diagnostic: "base_url_openai_vazia" };
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -288,13 +296,82 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
     });
 
     if (!response.ok) {
-      return "";
+      const bodyText = await response.text().catch(() => "");
+      return {
+        text: "",
+        diagnostic: `openai_compat_http_${response.status}:${limitarTexto(bodyText, 180)}`,
+      };
     }
 
     const payload = await response.json().catch(() => null);
-    return extrairConteudoChatCompletion(payload);
+    return {
+      text: extrairConteudoChatCompletion(payload),
+      diagnostic: "openai_compat_ok",
+    };
   } catch {
-    return "";
+    return { text: "", diagnostic: "openai_compat_fetch_exception" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function tentarGeracaoDiretaOllamaNativo(params: {
+  modelId: string;
+  system: string;
+  prompt: string;
+}): Promise<{ text: string; diagnostic: string }> {
+  const baseUrl = normalizarBaseNativaOllama(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
+  if (!baseUrl) return { text: "", diagnostic: "base_url_nativa_vazia" };
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.OLLAMA_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(`${baseUrl}/chat`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: params.modelId,
+        stream: false,
+        messages: [
+          { role: "system", content: params.system },
+          { role: "user", content: params.prompt },
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => "");
+      return {
+        text: "",
+        diagnostic: `ollama_nativo_http_${response.status}:${limitarTexto(bodyText, 180)}`,
+      };
+    }
+
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    const message =
+      payload?.message && typeof payload.message === "object"
+        ? (payload.message as Record<string, unknown>)
+        : null;
+    const content = typeof message?.content === "string" ? message.content.trim() : "";
+    if (content) {
+      return { text: content, diagnostic: "ollama_nativo_ok" };
+    }
+
+    const responseText = typeof payload?.response === "string" ? payload.response.trim() : "";
+    return {
+      text: responseText,
+      diagnostic: responseText ? "ollama_nativo_response_ok" : "ollama_nativo_sem_texto",
+    };
+  } catch {
+    return { text: "", diagnostic: "ollama_nativo_fetch_exception" };
   } finally {
     clearTimeout(timeout);
   }
@@ -390,7 +467,7 @@ Responda obrigatoriamente em português-BR com os blocos:
 Entendimento, Fundamentação, Próximos passos.`;
 
     let respostaFinal = "";
-    let modoResposta: "ai" | "ai_retry" | "ai_retry_compat" | "ai_fallback_local" = "ai";
+    let modoResposta: "ai" | "ai_retry" | "ai_retry_compat" | "ai_retry_native" | "ai_fallback_local" = "ai";
     let aviso: string | undefined;
 
     try {
@@ -432,15 +509,31 @@ Entendimento, Fundamentação, Próximos passos.`;
     if (!respostaFinal) {
       const provedorAtivo = getProvedor();
       if (provedorAtivo === "ollama") {
-        const textoDireto = await tentarGeracaoDiretaOllamaOpenAICompat({
+        const compatResult = await tentarGeracaoDiretaOllamaOpenAICompat({
           modelId: getModeloId(),
           system:
             "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
           prompt: promptEnxuto,
         });
-        if (textoDireto) {
-          respostaFinal = textoDireto;
+        if (compatResult.text) {
+          respostaFinal = compatResult.text;
           modoResposta = "ai_retry_compat";
+        } else {
+          const nativeResult = await tentarGeracaoDiretaOllamaNativo({
+            modelId: getModeloId(),
+            system:
+              "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
+            prompt: promptEnxuto,
+          });
+          if (nativeResult.text) {
+            respostaFinal = nativeResult.text;
+            modoResposta = "ai_retry_native";
+          } else {
+            logApiInfo("api/agents/assistente-juridico", requestId, "fallback_ollama_sem_texto", {
+              compat: compatResult.diagnostic,
+              native: nativeResult.diagnostic,
+            });
+          }
         }
       }
     }
