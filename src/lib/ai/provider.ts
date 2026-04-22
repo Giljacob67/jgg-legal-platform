@@ -4,7 +4,6 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createXai } from "@ai-sdk/xai";
 import { createMistral } from "@ai-sdk/mistral";
-import { createOllama } from "ollama-ai-provider";
 import type { LanguageModel } from "ai";
 
 /**
@@ -594,6 +593,13 @@ export function getModeloId(): string {
   return MODELO_PADRAO[getProvedor()];
 }
 
+function normalizarOllamaBaseURLParaOpenAI(baseURLRaw: string): string {
+  const base = baseURLRaw.replace(/\/+$/, "");
+  if (base.endsWith("/v1")) return base;
+  if (base.endsWith("/api")) return `${base.slice(0, -4)}/v1`;
+  return `${base}/v1`;
+}
+
 /**
  * Cria e retorna a instância do LLM configurado, pronto para uso nos agentes.
  *
@@ -644,26 +650,14 @@ export function getLLM(modeloOverride?: string): LanguageModel {
       const baseURLConfigurada = (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434").replace(/\/+$/, "");
       const apiKey = process.env.OLLAMA_API_KEY;
 
-      // Alguns endpoints remotos de Ollama Pro expõem API OpenAI-compatible em /v1.
-      // Quando detectado, usamos o provider OpenAI com baseURL customizado.
-      if (baseURLConfigurada.endsWith("/v1")) {
-        return createOpenAI({
-          baseURL: baseURLConfigurada,
-          apiKey: apiKey ?? "ollama",
-        })(modeloId) as LanguageModel;
-      }
-
-      // ollama-ai-provider espera baseURL terminando em /api (ex.: http://localhost:11434/api).
-      const baseURL = baseURLConfigurada.endsWith("/api")
-        ? baseURLConfigurada
-        : `${baseURLConfigurada}/api`;
-
-      const headers: Record<string, string> = {};
-      if (apiKey) {
-        headers["Authorization"] = `Bearer ${apiKey}`;
-      }
-      // ollama-ai-provider retorna LanguageModelV1 — cast via unknown para compatibilidade
-      return createOllama({ baseURL, headers })(modeloId) as unknown as LanguageModel;
+      // Usa sempre endpoint OpenAI-compatible (/v1), normalizando entradas como
+      // http://localhost:11434, http://localhost:11434/api ou .../v1.
+      // Isso evita incompatibilidade de spec do provider nativo em alguns fluxos.
+      const openAIBaseURL = normalizarOllamaBaseURLParaOpenAI(baseURLConfigurada);
+      return createOpenAI({
+        baseURL: openAIBaseURL,
+        apiKey: apiKey ?? "ollama",
+      })(modeloId) as LanguageModel;
     }
 
     case "openrouter": {
