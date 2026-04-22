@@ -130,9 +130,14 @@ export function FloatingLegalAssistant() {
         }),
       });
 
-      const payload = (await resposta.json()) as { resposta?: string; error?: string };
+      let payload: { resposta?: string; error?: string; aviso?: string } = {};
+      try {
+        payload = (await resposta.json()) as { resposta?: string; error?: string; aviso?: string };
+      } catch {
+        // Ignora parse error e usa fallback de status HTTP abaixo.
+      }
       if (!resposta.ok) {
-        throw new Error(payload.error ?? "Não foi possível responder agora.");
+        throw new Error(payload.error ?? `Erro HTTP ${resposta.status} ao consultar assistente.`);
       }
 
       setMensagens((prev) => [
@@ -145,14 +150,18 @@ export function FloatingLegalAssistant() {
             "Não consegui gerar uma resposta útil agora. Tente reformular a pergunta com mais contexto.",
         },
       ]);
+      if (payload.aviso) {
+        setErro(payload.aviso);
+      }
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro inesperado ao consultar assistente.");
+      const erroLegivel = error instanceof Error ? error.message : "Erro inesperado ao consultar assistente.";
+      setErro(erroLegivel);
       setMensagens((prev) => [
         ...prev,
         {
           id: gerarId("assistant"),
           papel: "assistant",
-          texto: "Falha de conexão no assistente. Revise a configuração de IA em Administração > Configurações.",
+          texto: `Falha ao consultar o assistente: ${erroLegivel}`,
         },
       ]);
     } finally {

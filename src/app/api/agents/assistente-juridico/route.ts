@@ -216,6 +216,13 @@ ${limitarTexto(pergunta, 600)}`;
 
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
+  let perguntaParaFallback = "";
+  let contextoAplicadoFallback: ContextoAplicado = {
+    modulo: null,
+    casoId: null,
+    pedidoId: null,
+    minutaId: null,
+  };
 
   const unauth = await requireAuth();
   if (unauth) return unauth;
@@ -234,6 +241,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as AssistenteBody;
     const pergunta = limitarTexto(body.pergunta ?? "", 3000);
+    perguntaParaFallback = pergunta;
     const contextoRota = limitarTexto(body.contextoRota ?? "", 200);
     const historico = serializarHistorico(body.historico);
 
@@ -250,6 +258,7 @@ export async function POST(request: Request) {
       body.contextoEntidades,
       contextoRota,
     );
+    contextoAplicadoFallback = contextoAplicado;
 
     await syncRuntimeAIConfig();
     if (!isAIAvailable()) {
@@ -352,10 +361,15 @@ Entendimento, Fundamentação, Próximos passos.`;
     });
   } catch (error) {
     logApiError("api/agents/assistente-juridico", requestId, error);
-    return jsonError(
-      requestId,
-      error instanceof Error ? error.message : "Erro interno no assistente jurídico.",
-      500,
-    );
+    const msgErro = error instanceof Error ? error.message : "Erro interno no assistente jurídico.";
+    return jsonWithRequestId(requestId, {
+      resposta: montarRespostaFallback(
+        perguntaParaFallback || "Pergunta não informada.",
+        contextoAplicadoFallback,
+      ),
+      modo: "erro_fallback_local",
+      contextoAplicado: contextoAplicadoFallback,
+      aviso: `Assistente respondeu em fallback local devido a falha interna: ${limitarTexto(msgErro, 180)}.`,
+    });
   }
 }
