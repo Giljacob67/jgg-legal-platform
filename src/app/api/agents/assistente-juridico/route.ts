@@ -31,9 +31,9 @@ type AssistenteBody = {
 type ContextoAplicado = Record<string, string | null>;
 const OLLAMA_FIRST_TOKEN_TIMEOUT_MS = 12_000;
 const OLLAMA_TOTAL_TIMEOUT_MS = 45_000;
-const OLLAMA_COMPAT_TOTAL_TIMEOUT_MS = 36_000;
+const OLLAMA_COMPAT_TOTAL_TIMEOUT_MS = 50_000;
 const OLLAMA_MAX_TOKENS = 320;
-const OLLAMA_MAX_TOKENS_GERAL = 420;
+const OLLAMA_MAX_TOKENS_GERAL = 560;
 
 function limitarTexto(valor: string, max = 2200): string {
   if (!valor) return "";
@@ -226,6 +226,22 @@ function respostaPareceIncompleta(texto: string, opts?: { consultaGeral?: boolea
 
   if (!/[.!?:)]$/.test(limpo)) return true;
   return false;
+}
+
+function juntarRespostaContinuada(base: string, continuidade: string): string {
+  const principal = extrairRespostaUtil(base).trimEnd();
+  const extra = extrairRespostaUtil(continuidade).trimStart();
+  if (!principal) return extra;
+  if (!extra) return principal;
+
+  if (temBlocoResposta(extra, "Entendimento") && extra.length > principal.length) {
+    return extra;
+  }
+
+  const semTitulosDuplicados = extra.replace(/^##\s*(Entendimento|Fundamentação|Próximos passos)\s*\n?/i, "");
+  const conectaSemSeparador =
+    /[A-Za-zÀ-ÿ0-9]$/.test(principal) && /^[a-zà-ÿ0-9]/.test(semTitulosDuplicados);
+  return `${principal}${conectaSemSeparador ? "" : "\n"}${semTitulosDuplicados}`.trim();
 }
 
 function descreverEscopoContexto(contextoAplicado: ContextoAplicado): string {
@@ -844,6 +860,15 @@ Regras obrigatórias:
 - Feche todos os blocos completos; não termine no meio da frase.
 - Não exponha raciocínio interno.`;
 
+    const construirPromptContinuacao = (respostaParcial: string) => `Pergunta jurídica:
+${pergunta}
+
+Continue exatamente a resposta abaixo a partir do ponto de corte, sem reiniciar do zero, sem repetir trechos já escritos e sem expor raciocínio interno.
+Se a resposta já abriu os blocos, apenas conclua o texto restante até fechar todos os blocos com frase final completa.
+
+Resposta parcial:
+${respostaParcial}`;
+
     const provedorAtivo = getProvedor();
     const usarFluxoRapidoOllama = provedorAtivo === "ollama";
     let respostaFinal = "";
@@ -931,6 +956,39 @@ Regras obrigatórias:
               diagnostico: ollamaReforco.diagnostic,
             });
           }
+        }
+
+        let tentativasContinuacao = 0;
+        while (
+          respostaFinal &&
+          respostaPareceIncompleta(respostaFinal, { consultaGeral: consultaJuridicaGeral }) &&
+          tentativasContinuacao < 2
+        ) {
+          tentativasContinuacao += 1;
+          const continuacao = await tentarGeracaoOllamaRapida({
+            modelId: getModeloId(),
+            system:
+              "Você é um assistente jurídico sênior. Continue apenas a resposta final já iniciada, sem repetir o começo e sem expor raciocínio interno.",
+            prompt: construirPromptContinuacao(respostaFinal),
+            maxTokens: consultaJuridicaGeral ? 260 : 180,
+          });
+
+          if (!continuacao.text) {
+            break;
+          }
+
+          const respostaExpandida = juntarRespostaContinuada(respostaFinal, continuacao.text);
+          if (respostaExpandida.length <= respostaFinal.length) {
+            break;
+          }
+
+          respostaFinal = respostaExpandida;
+          modoResposta = continuacao.modo;
+          logApiInfo("api/agents/assistente-juridico", requestId, "ollama_resposta_continuada", {
+            tentativa: tentativasContinuacao,
+            modo: continuacao.modo,
+            diagnostico: continuacao.diagnostic,
+          });
         }
       } else {
         diagnosticoFalha = ollamaResult.diagnostic;
