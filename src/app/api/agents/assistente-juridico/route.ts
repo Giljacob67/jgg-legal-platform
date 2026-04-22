@@ -29,7 +29,9 @@ type AssistenteBody = {
 };
 
 type ContextoAplicado = Record<string, string | null>;
-const OLLAMA_FAST_TIMEOUT_MS = 12_000;
+const OLLAMA_FIRST_TOKEN_TIMEOUT_MS = 12_000;
+const OLLAMA_TOTAL_TIMEOUT_MS = 45_000;
+const OLLAMA_MAX_TOKENS = 320;
 
 function limitarTexto(valor: string, max = 2200): string {
   if (!valor) return "";
@@ -231,36 +233,129 @@ function normalizarBaseNativaOllama(rawBaseUrl: string): string {
   return `${base}/api`;
 }
 
-function extrairConteudoChatCompletion(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "";
-  const obj = payload as Record<string, unknown>;
-  const choices = Array.isArray(obj.choices) ? obj.choices : [];
-  if (choices.length === 0 || typeof choices[0] !== "object" || choices[0] === null) return "";
-  const first = choices[0] as Record<string, unknown>;
-  const message = (first.message && typeof first.message === "object"
-    ? first.message
-    : null) as Record<string, unknown> | null;
-  if (!message) return "";
+function priorizarOpenAICompatOllama(rawBaseUrl: string, modelId: string): boolean {
+  const base = rawBaseUrl.trim().toLowerCase();
+  const model = modelId.trim().toLowerCase();
+  return base.includes("ollama.com") || base.endsWith("/v1") || model.endsWith(":cloud");
+}
 
-  if (typeof message.content === "string") {
-    return message.content.trim();
+function extrairStatusDiagnostico(diagnostic: string): number | null {
+  const match = diagnostic.match(/_http_(\d{3})/);
+  return match ? Number(match[1]) : null;
+}
+
+function deveTentarFallbackOllama(diagnostic: string): boolean {
+  const status = extrairStatusDiagnostico(diagnostic);
+  return status === 404 || status === 405 || status === 501;
+}
+
+function programarAbort(controller: AbortController, timeoutMs: number): NodeJS.Timeout {
+  return setTimeout(() => controller.abort(), timeoutMs);
+}
+
+async function lerTextoStreamOpenAICompat(
+  response: Response,
+  controller: AbortController,
+): Promise<string> {
+  if (!response.body) return "";
+  const decoder = new TextDecoder();
+  const reader = response.body.getReader();
+  let buffer = "";
+  let texto = "";
+  let timer = programarAbort(controller, OLLAMA_FIRST_TOKEN_TIMEOUT_MS);
+  let recebeuPrimeiroToken = false;
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const linhas = buffer.split("\n");
+      buffer = linhas.pop() ?? "";
+
+      for (const linhaBruta of linhas) {
+        const linha = linhaBruta.trim();
+        if (!linha.startsWith("data:")) continue;
+        const payload = linha.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+
+        const json = JSON.parse(payload) as Record<string, unknown>;
+        const choices = Array.isArray(json.choices) ? json.choices : [];
+        const choice = choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>) : null;
+        const delta =
+          choice?.delta && typeof choice.delta === "object"
+            ? (choice.delta as Record<string, unknown>)
+            : null;
+        const content = typeof delta?.content === "string" ? delta.content : "";
+        if (content) {
+          texto += content;
+          if (!recebeuPrimeiroToken) {
+            recebeuPrimeiroToken = true;
+            clearTimeout(timer);
+            timer = programarAbort(controller, OLLAMA_TOTAL_TIMEOUT_MS);
+          }
+        }
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+    reader.releaseLock();
   }
 
-  if (Array.isArray(message.content)) {
-    const parts = message.content
-      .map((item) => {
-        if (!item || typeof item !== "object") return "";
-        const chunk = item as Record<string, unknown>;
-        if (typeof chunk.text === "string") return chunk.text;
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-    return parts;
+  return texto.trim();
+}
+
+async function lerTextoStreamNdjson(
+  response: Response,
+  controller: AbortController,
+  field: "response" | "message",
+): Promise<string> {
+  if (!response.body) return "";
+  const decoder = new TextDecoder();
+  const reader = response.body.getReader();
+  let buffer = "";
+  let texto = "";
+  let timer = programarAbort(controller, OLLAMA_FIRST_TOKEN_TIMEOUT_MS);
+  let recebeuPrimeiroToken = false;
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const linhas = buffer.split("\n");
+      buffer = linhas.pop() ?? "";
+
+      for (const linhaBruta of linhas) {
+        const linha = linhaBruta.trim();
+        if (!linha) continue;
+        const json = JSON.parse(linha) as Record<string, unknown>;
+        const token =
+          field === "response"
+            ? typeof json.response === "string"
+              ? json.response
+              : ""
+            : json.message && typeof json.message === "object"
+              ? typeof (json.message as Record<string, unknown>).content === "string"
+                ? ((json.message as Record<string, unknown>).content as string)
+                : ""
+              : "";
+        if (token) {
+          texto += token;
+          if (!recebeuPrimeiroToken) {
+            recebeuPrimeiroToken = true;
+            clearTimeout(timer);
+            timer = programarAbort(controller, OLLAMA_TOTAL_TIMEOUT_MS);
+          }
+        }
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+    reader.releaseLock();
   }
 
-  return "";
+  return texto.trim();
 }
 
 async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
@@ -279,19 +374,21 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), OLLAMA_FAST_TIMEOUT_MS);
+  const timeout = programarAbort(controller, OLLAMA_FIRST_TOKEN_TIMEOUT_MS);
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: params.modelId,
+        stream: true,
         messages: [
           { role: "system", content: params.system },
           { role: "user", content: params.prompt },
         ],
         temperature: 0.1,
-        max_tokens: 700,
+        max_tokens: OLLAMA_MAX_TOKENS,
+        reasoning_effort: "low",
       }),
       signal: controller.signal,
     });
@@ -304,9 +401,8 @@ async function tentarGeracaoDiretaOllamaOpenAICompat(params: {
       };
     }
 
-    const payload = await response.json().catch(() => null);
     return {
-      text: extrairConteudoChatCompletion(payload),
+      text: await lerTextoStreamOpenAICompat(response, controller),
       diagnostic: "openai_compat_ok",
     };
   } catch (error) {
@@ -333,18 +429,22 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), OLLAMA_FAST_TIMEOUT_MS);
+  const timeout = programarAbort(controller, OLLAMA_FIRST_TOKEN_TIMEOUT_MS);
   try {
     const response = await fetch(`${baseUrl}/chat`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: params.modelId,
-        stream: false,
+        stream: true,
         messages: [
           { role: "system", content: params.system },
           { role: "user", content: params.prompt },
         ],
+        options: {
+          temperature: 0.1,
+          num_predict: OLLAMA_MAX_TOKENS,
+        },
       }),
       signal: controller.signal,
     });
@@ -357,20 +457,10 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
       };
     }
 
-    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-    const message =
-      payload?.message && typeof payload.message === "object"
-        ? (payload.message as Record<string, unknown>)
-        : null;
-    const content = typeof message?.content === "string" ? message.content.trim() : "";
-    if (content) {
-      return { text: content, diagnostic: "ollama_nativo_ok" };
-    }
-
-    const responseText = typeof payload?.response === "string" ? payload.response.trim() : "";
+    const responseText = await lerTextoStreamNdjson(response, controller, "message");
     return {
       text: responseText,
-      diagnostic: responseText ? "ollama_nativo_response_ok" : "ollama_nativo_sem_texto",
+      diagnostic: responseText ? "ollama_nativo_ok" : "ollama_nativo_sem_texto",
     };
   } catch (error) {
     const msg = error instanceof Error ? `${error.name}:${error.message}` : String(error);
@@ -396,15 +486,19 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), OLLAMA_FAST_TIMEOUT_MS);
+  const timeout = programarAbort(controller, OLLAMA_FIRST_TOKEN_TIMEOUT_MS);
   try {
     const response = await fetch(`${baseUrl}/generate`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: params.modelId,
-        stream: false,
+        stream: true,
         prompt: `${params.system}\n\n${params.prompt}`,
+        options: {
+          temperature: 0.1,
+          num_predict: OLLAMA_MAX_TOKENS,
+        },
       }),
       signal: controller.signal,
     });
@@ -417,8 +511,7 @@ async function tentarGeracaoDiretaOllamaGenerate(params: {
       };
     }
 
-    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-    const responseText = typeof payload?.response === "string" ? payload.response.trim() : "";
+    const responseText = await lerTextoStreamNdjson(response, controller, "response");
     if (responseText) {
       return { text: responseText, diagnostic: "ollama_generate_ok" };
     }
@@ -441,41 +534,59 @@ async function tentarGeracaoOllamaRapida(params: {
   modo: "ai_retry_compat" | "ai_retry_native" | "ai_retry_generate";
   diagnostic: string;
 }> {
-  const tentativas = [
-    {
-      modo: "ai_retry_compat" as const,
-      executar: () => tentarGeracaoDiretaOllamaOpenAICompat(params),
-    },
-    {
-      modo: "ai_retry_native" as const,
-      executar: () => tentarGeracaoDiretaOllamaNativo(params),
-    },
-    {
-      modo: "ai_retry_generate" as const,
-      executar: () => tentarGeracaoDiretaOllamaGenerate(params),
-    },
-  ];
+  const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+  const preferirCompat = priorizarOpenAICompatOllama(baseUrl, params.modelId);
+  const tentativas = preferirCompat
+    ? [
+        {
+          modo: "ai_retry_compat" as const,
+          executar: () => tentarGeracaoDiretaOllamaOpenAICompat(params),
+        },
+        {
+          modo: "ai_retry_native" as const,
+          executar: () => tentarGeracaoDiretaOllamaNativo(params),
+        },
+        {
+          modo: "ai_retry_generate" as const,
+          executar: () => tentarGeracaoDiretaOllamaGenerate(params),
+        },
+      ]
+    : [
+        {
+          modo: "ai_retry_native" as const,
+          executar: () => tentarGeracaoDiretaOllamaNativo(params),
+        },
+        {
+          modo: "ai_retry_generate" as const,
+          executar: () => tentarGeracaoDiretaOllamaGenerate(params),
+        },
+        {
+          modo: "ai_retry_compat" as const,
+          executar: () => tentarGeracaoDiretaOllamaOpenAICompat(params),
+        },
+      ];
 
-  const resultados = await Promise.all(
-    tentativas.map(async (tentativa) => ({
-      modo: tentativa.modo,
-      ...(await tentativa.executar()),
-    })),
-  );
+  const diagnosticos: string[] = [];
+  for (const tentativa of tentativas) {
+    const resultado = await tentativa.executar();
+    if (extrairRespostaUtil(resultado.text)) {
+      return {
+        text: extrairRespostaUtil(resultado.text),
+        modo: tentativa.modo,
+        diagnostic: resultado.diagnostic,
+      };
+    }
 
-  const sucesso = resultados.find((resultado) => extrairRespostaUtil(resultado.text));
-  if (sucesso) {
-    return {
-      text: extrairRespostaUtil(sucesso.text),
-      modo: sucesso.modo,
-      diagnostic: sucesso.diagnostic,
-    };
+    diagnosticos.push(resultado.diagnostic);
+    if (!deveTentarFallbackOllama(resultado.diagnostic)) {
+      break;
+    }
   }
 
   return {
     text: "",
-    modo: "ai_retry_native",
-    diagnostic: resultados.map((resultado) => resultado.diagnostic).join(" | "),
+    modo: tentativas[0]?.modo ?? "ai_retry_native",
+    diagnostic: diagnosticos.join(" | "),
   };
 }
 
