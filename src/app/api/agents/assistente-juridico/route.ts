@@ -28,6 +28,8 @@ type AssistenteBody = {
   historico?: Array<{ role?: "user" | "assistant"; content?: string }>;
 };
 
+type ContextoAplicado = Record<string, string | null>;
+
 function limitarTexto(valor: string, max = 2200): string {
   if (!valor) return "";
   const limpo = valor.trim().replace(/\s+/g, " ");
@@ -60,8 +62,8 @@ function sanitizarId(valor: string | undefined): string | undefined {
 async function construirResumoContexto(
   contextoEntidades: AssistenteBody["contextoEntidades"],
   contextoRota: string,
-): Promise<{ texto: string; contextoAplicado: Record<string, string | null> }> {
-  const contextoAplicado: Record<string, string | null> = {
+): Promise<{ texto: string; contextoAplicado: ContextoAplicado }> {
+  const contextoAplicado: ContextoAplicado = {
     modulo: sanitizarId(contextoEntidades?.modulo) ?? null,
     casoId: sanitizarId(contextoEntidades?.casoId) ?? null,
     pedidoId: sanitizarId(contextoEntidades?.pedidoId) ?? null,
@@ -178,6 +180,40 @@ async function construirResumoContexto(
   };
 }
 
+function extrairRespostaUtil(texto: string | undefined): string {
+  if (!texto) return "";
+  const limpo = texto.trim();
+  if (!limpo) return "";
+  if (limpo === "{}" || limpo === "[]") return "";
+  return limpo;
+}
+
+function descreverEscopoContexto(contextoAplicado: ContextoAplicado): string {
+  if (contextoAplicado.minutaId) return `minuta ${contextoAplicado.minutaId}`;
+  if (contextoAplicado.pedidoId) return `pedido ${contextoAplicado.pedidoId}`;
+  if (contextoAplicado.casoId) return `caso ${contextoAplicado.casoId}`;
+  if (contextoAplicado.modulo) return `módulo ${contextoAplicado.modulo}`;
+  return "contexto geral do hub";
+}
+
+function montarRespostaFallback(pergunta: string, contextoAplicado: ContextoAplicado): string {
+  const escopo = descreverEscopoContexto(contextoAplicado);
+  return `Entendimento:
+Sua pergunta foi recebida e vinculada ao ${escopo}, mas o modelo não retornou conteúdo textual utilizável nesta tentativa.
+
+Fundamentação inicial:
+Sem resposta gerada pelo LLM, não é seguro inferir tese fechada. Para preservar qualidade técnica, recomendo consolidar fatos, objetivo processual e restrições do caso antes da conclusão jurídica final.
+
+Próximos passos:
+1. Reenvie a pergunta com objetivo processual explícito (ex.: contestar, impugnar, recorrer, pedir tutela).
+2. Inclua 3 fatos-chave, prazo processual e pedido principal.
+3. Se houver, cite documentos relevantes e o risco jurídico imediato.
+4. Após isso, o assistente pode devolver minuta de estratégia mais assertiva.
+
+Pergunta original:
+${limitarTexto(pergunta, 600)}`;
+}
+
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
 
@@ -225,11 +261,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const { text } = await generateText({
-      model: getLLM(),
-      maxOutputTokens: 900,
-      temperature: 0.2,
-      system: `Você é um assistente jurídico brasileiro de apoio operacional interno para escritório de advocacia.
+    const systemCompleto = `Você é um assistente jurídico brasileiro de apoio operacional interno para escritório de advocacia.
 Responda em português-BR, de forma objetiva e tecnicamente correta.
 Diretrizes obrigatórias:
 - Estruture em blocos curtos: "Entendimento", "Fundamentação", "Próximos passos".
@@ -238,8 +270,9 @@ Diretrizes obrigatórias:
 - Não ofereça promessa de resultado judicial.
 - Trate a resposta como apoio técnico; decisão final sempre humana.
 - Se a pergunta for ampla, devolva estratégia prática e checklist.
-- Quando houver contexto operacional (caso/pedido/minuta), priorize esse contexto e mencione IDs quando isso ajudar a rastreabilidade.`,
-      prompt: `Contexto da tela atual: ${contextoRota || "não informado"}
+- Quando houver contexto operacional (caso/pedido/minuta), priorize esse contexto e mencione IDs quando isso ajudar a rastreabilidade.`;
+
+    const promptCompleto = `Contexto da tela atual: ${contextoRota || "não informado"}
 
 Contexto operacional validado:
 ${resumoContexto}
@@ -250,15 +283,72 @@ ${historico}
 Pergunta do usuário:
 ${pergunta}
 
-Forneça resposta jurídica prática e aplicável ao contexto de operação de um escritório.`,
-    });
+Forneça resposta jurídica prática e aplicável ao contexto de operação de um escritório.`;
+
+    const promptEnxuto = `Pergunta jurídica:
+${pergunta}
+
+Contexto operacional:
+${resumoContexto}
+
+Responda obrigatoriamente em português-BR com os blocos:
+Entendimento, Fundamentação, Próximos passos.`;
+
+    let respostaFinal = "";
+    let modoResposta: "ai" | "ai_retry" | "ai_fallback_local" = "ai";
+    let aviso: string | undefined;
+
+    try {
+      const primeira = await generateText({
+        model: getLLM(),
+        maxOutputTokens: 900,
+        temperature: 0.2,
+        system: systemCompleto,
+        prompt: promptCompleto,
+      });
+      respostaFinal = extrairRespostaUtil(primeira.text);
+    } catch (error) {
+      logApiInfo("api/agents/assistente-juridico", requestId, "primeira_tentativa_falhou", {
+        erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
+      });
+    }
+
+    if (!respostaFinal) {
+      try {
+        const segunda = await generateText({
+          model: getLLM(),
+          maxOutputTokens: 700,
+          temperature: 0.1,
+          system:
+            "Você é assistente jurídico operacional. Responda obrigatoriamente com texto objetivo em português-BR.",
+          prompt: promptEnxuto,
+        });
+        respostaFinal = extrairRespostaUtil(segunda.text);
+        if (respostaFinal) {
+          modoResposta = "ai_retry";
+        }
+      } catch (error) {
+        logApiInfo("api/agents/assistente-juridico", requestId, "segunda_tentativa_falhou", {
+          erro: error instanceof Error ? error.message.slice(0, 200) : String(error),
+        });
+      }
+    }
+
+    if (!respostaFinal) {
+      modoResposta = "ai_fallback_local";
+      aviso =
+        "Resposta gerada em fallback local porque o provedor não retornou conteúdo textual utilizável nesta chamada.";
+      respostaFinal = montarRespostaFallback(pergunta, contextoAplicado);
+      logApiInfo("api/agents/assistente-juridico", requestId, "fallback_local_aplicado", {
+        contexto: descreverEscopoContexto(contextoAplicado),
+      });
+    }
 
     return jsonWithRequestId(requestId, {
-      resposta:
-        text.trim() ||
-        "Não consegui gerar uma resposta útil com os dados atuais. Reformule a pergunta com mais fatos e objetivo processual.",
-      modo: "ai",
+      resposta: respostaFinal,
+      modo: modoResposta,
       contextoAplicado,
+      aviso,
     });
   } catch (error) {
     logApiError("api/agents/assistente-juridico", requestId, error);
