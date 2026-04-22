@@ -182,6 +182,31 @@ export function AlertTriangleIcon(props: IconProps) {
   );
 }
 
+export function ChatIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H9l-4.5 4V6.5Z" />
+    </BaseIcon>
+  );
+}
+
+export function SendIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M3 11.5 21 3 13 21l-2-7.5z" />
+    </BaseIcon>
+  );
+}
+
+export function XIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="m6 6 12 12" />
+      <path d="M18 6 6 18" />
+    </BaseIcon>
+  );
+}
+
 export function FilePlusIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>

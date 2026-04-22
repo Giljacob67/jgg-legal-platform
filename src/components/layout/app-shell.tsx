@@ -4,6 +4,7 @@ import type { Sessao, SessaoMock } from "@/modules/auth/domain/types";
 import { SideNav } from "@/components/layout/side-nav";
 import { TopBar } from "@/components/layout/top-bar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { FloatingLegalAssistant } from "@/components/assistente-juridico/floating-legal-assistant";
 
 type AppShellProps = {
   modulos: ModuloNavegacao[];
@@ -22,6 +23,7 @@ export function AppShell({ modulos, sessao, children }: AppShellProps) {
           {children}
         </main>
       </div>
+      <FloatingLegalAssistant />
     </div>
   );
 }
