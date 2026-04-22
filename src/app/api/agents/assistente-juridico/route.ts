@@ -377,6 +377,57 @@ async function tentarGeracaoDiretaOllamaNativo(params: {
   }
 }
 
+async function tentarGeracaoDiretaOllamaGenerate(params: {
+  modelId: string;
+  system: string;
+  prompt: string;
+}): Promise<{ text: string; diagnostic: string }> {
+  const baseUrl = normalizarBaseNativaOllama(process.env.OLLAMA_BASE_URL ?? "http://localhost:11434");
+  if (!baseUrl) return { text: "", diagnostic: "base_url_generate_vazia" };
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.OLLAMA_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(`${baseUrl}/generate`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: params.modelId,
+        stream: false,
+        prompt: `${params.system}\n\n${params.prompt}`,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => "");
+      return {
+        text: "",
+        diagnostic: `ollama_generate_http_${response.status}:${limitarTexto(bodyText, 180)}`,
+      };
+    }
+
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    const responseText = typeof payload?.response === "string" ? payload.response.trim() : "";
+    if (responseText) {
+      return { text: responseText, diagnostic: "ollama_generate_ok" };
+    }
+
+    return { text: "", diagnostic: "ollama_generate_sem_texto" };
+  } catch {
+    return { text: "", diagnostic: "ollama_generate_fetch_exception" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
   let perguntaParaFallback = "";
@@ -469,6 +520,7 @@ Entendimento, Fundamentação, Próximos passos.`;
     let respostaFinal = "";
     let modoResposta: "ai" | "ai_retry" | "ai_retry_compat" | "ai_retry_native" | "ai_fallback_local" = "ai";
     let aviso: string | undefined;
+    let diagnosticoFalha = "";
 
     try {
       const primeira = await generateText({
@@ -529,10 +581,23 @@ Entendimento, Fundamentação, Próximos passos.`;
             respostaFinal = nativeResult.text;
             modoResposta = "ai_retry_native";
           } else {
-            logApiInfo("api/agents/assistente-juridico", requestId, "fallback_ollama_sem_texto", {
-              compat: compatResult.diagnostic,
-              native: nativeResult.diagnostic,
+            const generateResult = await tentarGeracaoDiretaOllamaGenerate({
+              modelId: getModeloId(),
+              system:
+                "Você é assistente jurídico operacional. Responda em português-BR com Entendimento, Fundamentação e Próximos passos.",
+              prompt: promptEnxuto,
             });
+            if (generateResult.text) {
+              respostaFinal = generateResult.text;
+              modoResposta = "ai_retry_native";
+            } else {
+              diagnosticoFalha = `${compatResult.diagnostic} | ${nativeResult.diagnostic} | ${generateResult.diagnostic}`;
+              logApiInfo("api/agents/assistente-juridico", requestId, "fallback_ollama_sem_texto", {
+                compat: compatResult.diagnostic,
+                native: nativeResult.diagnostic,
+                generate: generateResult.diagnostic,
+              });
+            }
           }
         }
       }
@@ -542,9 +607,13 @@ Entendimento, Fundamentação, Próximos passos.`;
       modoResposta = "ai_fallback_local";
       aviso =
         "Resposta gerada em fallback local porque o provedor não retornou conteúdo textual utilizável nesta chamada.";
+      if (diagnosticoFalha) {
+        aviso += ` Diagnóstico técnico: ${diagnosticoFalha}.`;
+      }
       respostaFinal = montarRespostaFallback(pergunta, contextoAplicado);
       logApiInfo("api/agents/assistente-juridico", requestId, "fallback_local_aplicado", {
         contexto: descreverEscopoContexto(contextoAplicado),
+        diagnosticoFalha,
       });
     }
 
