@@ -12,6 +12,13 @@ type ChatMensagem = {
   texto: string;
 };
 
+type ContextoRota = {
+  modulo?: string;
+  casoId?: string;
+  pedidoId?: string;
+  minutaId?: string;
+};
+
 const MENSAGEM_INICIAL: ChatMensagem = {
   id: "assistente-inicial",
   papel: "assistant",
@@ -25,6 +32,53 @@ function gerarId(prefixo: string) {
   return `${prefixo}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
 
+function isEntityId(segmento?: string): boolean {
+  if (!segmento) return false;
+  return /^[A-Z]{3}-\d{4}-\d{3,}$/.test(segmento);
+}
+
+function inferirContextoDaRota(pathname: string): ContextoRota {
+  const segmentos = pathname.split("/").filter(Boolean);
+  const modulo = segmentos[0];
+  if (!modulo) return {};
+
+  const contexto: ContextoRota = { modulo };
+
+  if (modulo === "casos" && isEntityId(segmentos[1])) {
+    contexto.casoId = segmentos[1];
+    return contexto;
+  }
+
+  if (modulo !== "peticoes") {
+    return contexto;
+  }
+
+  if (segmentos[1] === "pedidos" && isEntityId(segmentos[2])) {
+    contexto.pedidoId = segmentos[2];
+    return contexto;
+  }
+
+  if (segmentos[1] === "pipeline" && isEntityId(segmentos[2])) {
+    contexto.pedidoId = segmentos[2];
+    return contexto;
+  }
+
+  if (segmentos[1] === "minutas" && isEntityId(segmentos[2])) {
+    contexto.minutaId = segmentos[2];
+    return contexto;
+  }
+
+  return contexto;
+}
+
+function formatarContextoAtivo(contexto: ContextoRota): string {
+  if (contexto.minutaId) return `Minuta ${contexto.minutaId}`;
+  if (contexto.pedidoId) return `Pedido ${contexto.pedidoId}`;
+  if (contexto.casoId) return `Caso ${contexto.casoId}`;
+  if (contexto.modulo) return `Módulo ${contexto.modulo}`;
+  return "Sem contexto específico";
+}
+
 export function FloatingLegalAssistant() {
   const pathname = usePathname();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,6 +90,8 @@ export function FloatingLegalAssistant() {
   const [mensagens, setMensagens] = useState<ChatMensagem[]>([MENSAGEM_INICIAL]);
 
   const podeEnviar = entrada.trim().length > 0 && !enviando;
+  const contextoRota = useMemo(() => inferirContextoDaRota(pathname), [pathname]);
+  const contextoAtivoLabel = useMemo(() => formatarContextoAtivo(contextoRota), [contextoRota]);
 
   const historicoApi = useMemo(
     () =>
@@ -69,7 +125,8 @@ export function FloatingLegalAssistant() {
         body: JSON.stringify({
           pergunta,
           contextoRota: pathname,
-          historico: historicoApi,
+          contextoEntidades: contextoRota,
+          historico: [...historicoApi, { role: "user", content: pergunta }],
         }),
       });
 
@@ -121,6 +178,9 @@ export function FloatingLegalAssistant() {
                 </div>
                 <p className="mt-1 text-xs text-[var(--color-muted)]">
                   Apoio técnico em dúvidas jurídicas e estratégia processual.
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-[var(--color-muted)]">
+                  Contexto ativo: {contextoAtivoLabel}
                 </p>
               </div>
               <button

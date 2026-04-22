@@ -4,6 +4,10 @@ import { auth } from "@/lib/auth";
 import { getLLM, isAIAvailable } from "@/lib/ai/provider";
 import { syncRuntimeAIConfig } from "@/lib/ai/runtime-config";
 import { verificarRateLimit } from "@/lib/rate-limit";
+import { services } from "@/services/container";
+import { listarDocumentos } from "@/modules/documentos/application/listarDocumentos";
+import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
+import { detectarPoloRepresentado } from "@/modules/casos/domain/types";
 import {
   getRequestId,
   jsonError,
@@ -15,6 +19,12 @@ import {
 type AssistenteBody = {
   pergunta?: string;
   contextoRota?: string;
+  contextoEntidades?: {
+    modulo?: string;
+    casoId?: string;
+    pedidoId?: string;
+    minutaId?: string;
+  };
   historico?: Array<{ role?: "user" | "assistant"; content?: string }>;
 };
 
@@ -37,6 +47,135 @@ function serializarHistorico(
       return `${index + 1}. ${role}: ${content || "[vazio]"}`;
     })
     .join("\n");
+}
+
+function sanitizarId(valor: string | undefined): string | undefined {
+  if (!valor) return undefined;
+  const limpo = valor.trim();
+  if (!limpo) return undefined;
+  if (!/^[A-Za-z0-9:_-]{2,80}$/.test(limpo)) return undefined;
+  return limpo;
+}
+
+async function construirResumoContexto(
+  contextoEntidades: AssistenteBody["contextoEntidades"],
+  contextoRota: string,
+): Promise<{ texto: string; contextoAplicado: Record<string, string | null> }> {
+  const contextoAplicado: Record<string, string | null> = {
+    modulo: sanitizarId(contextoEntidades?.modulo) ?? null,
+    casoId: sanitizarId(contextoEntidades?.casoId) ?? null,
+    pedidoId: sanitizarId(contextoEntidades?.pedidoId) ?? null,
+    minutaId: sanitizarId(contextoEntidades?.minutaId) ?? null,
+  };
+
+  const linhas: string[] = [];
+  if (contextoRota) {
+    linhas.push(`Rota atual: ${contextoRota}`);
+  }
+
+  let minuta = contextoAplicado.minutaId
+    ? await services.peticoesRepository.obterMinutaPorId(contextoAplicado.minutaId)
+    : undefined;
+
+  if (!contextoAplicado.pedidoId && minuta?.pedidoId) {
+    contextoAplicado.pedidoId = minuta.pedidoId;
+  }
+
+  const pedido = contextoAplicado.pedidoId
+    ? await services.peticoesRepository.obterPedidoPorId(contextoAplicado.pedidoId)
+    : undefined;
+
+  if (!minuta && pedido?.id) {
+    minuta = await services.peticoesRepository.obterMinutaPorPedidoId(pedido.id);
+    if (minuta?.id) {
+      contextoAplicado.minutaId = minuta.id;
+    }
+  }
+
+  if (!contextoAplicado.casoId && pedido?.casoId) {
+    contextoAplicado.casoId = pedido.casoId;
+  }
+
+  const caso = contextoAplicado.casoId
+    ? await services.casosRepository.obterCasoPorId(contextoAplicado.casoId)
+    : undefined;
+
+  if (pedido) {
+    linhas.push(
+      `Pedido ativo: ${pedido.id} | tipo: ${pedido.tipoPeca} | prioridade: ${pedido.prioridade} | etapa: ${pedido.etapaAtual} | prazo: ${pedido.prazoFinal}`,
+    );
+    if (pedido.intencaoProcessual) {
+      linhas.push(`Intenção processual do pedido: ${pedido.intencaoProcessual}`);
+    }
+  }
+
+  if (minuta) {
+    linhas.push(
+      `Minuta ativa: ${minuta.id} | título: ${minuta.titulo} | versões: ${minuta.versoes.length}`,
+    );
+  }
+
+  if (caso) {
+    const polo = detectarPoloRepresentado(caso);
+    linhas.push(
+      `Caso ativo: ${caso.id} | cliente: ${caso.cliente} | matéria: ${caso.materia} | tribunal: ${caso.tribunal} | status: ${caso.status} | polo representado: ${polo}`,
+    );
+    linhas.push(`Resumo do caso: ${limitarTexto(caso.resumo, 360)}`);
+  }
+
+  if (contextoAplicado.pedidoId) {
+    try {
+      const historico = await services.peticoesRepository.listarHistoricoPipeline(contextoAplicado.pedidoId);
+      if (historico.length > 0) {
+        const ultimos = historico.slice(-3).map((item) => `${item.etapa}: ${limitarTexto(item.descricao, 90)}`);
+        linhas.push(`Pipeline recente: ${ultimos.join(" | ")}`);
+      }
+    } catch {
+      // Não bloqueia resposta se falhar leitura do histórico
+    }
+
+    try {
+      const contextoJuridico = await getPeticoesOperacionalInfra()
+        .contextoJuridicoPedidoRepository
+        .obterUltimaVersao(contextoAplicado.pedidoId);
+      if (contextoJuridico?.estrategiaSugerida) {
+        linhas.push(
+          `Estratégia jurídica consolidada (v${contextoJuridico.versaoContexto}): ${limitarTexto(contextoJuridico.estrategiaSugerida, 300)}`,
+        );
+      }
+    } catch {
+      // Não bloqueia resposta se falhar leitura do contexto jurídico
+    }
+
+    try {
+      const documentosPedido = await listarDocumentos({ pedidoId: contextoAplicado.pedidoId });
+      if (documentosPedido.length > 0) {
+        linhas.push(`Documentos vinculados ao pedido: ${documentosPedido.length}`);
+      }
+    } catch {
+      // Não bloqueia resposta se falhar leitura dos documentos do pedido
+    }
+  }
+
+  if (contextoAplicado.casoId) {
+    try {
+      const documentosCaso = await listarDocumentos({ casoId: contextoAplicado.casoId });
+      if (documentosCaso.length > 0) {
+        linhas.push(`Documentos vinculados ao caso: ${documentosCaso.length}`);
+      }
+    } catch {
+      // Não bloqueia resposta se falhar leitura dos documentos do caso
+    }
+  }
+
+  if (linhas.length === 0) {
+    linhas.push("Sem entidade operacional ativa (caso/pedido/minuta) na rota atual.");
+  }
+
+  return {
+    texto: linhas.join("\n"),
+    contextoAplicado,
+  };
 }
 
 export async function POST(request: Request) {
@@ -71,12 +210,18 @@ export async function POST(request: Request) {
       contextoRota,
     });
 
+    const { texto: resumoContexto, contextoAplicado } = await construirResumoContexto(
+      body.contextoEntidades,
+      contextoRota,
+    );
+
     await syncRuntimeAIConfig();
     if (!isAIAvailable()) {
       return jsonWithRequestId(requestId, {
         resposta:
           "IA não configurada no ambiente. Acesse Administração > Configurações, configure provedor/API key e teste a conexão para habilitar respostas jurídicas automáticas.",
         modo: "mock",
+        contextoAplicado,
       });
     }
 
@@ -92,8 +237,12 @@ Diretrizes obrigatórias:
 - Não invente jurisprudência, número de processo ou dispositivo legal.
 - Não ofereça promessa de resultado judicial.
 - Trate a resposta como apoio técnico; decisão final sempre humana.
-- Se a pergunta for ampla, devolva estratégia prática e checklist.`,
+- Se a pergunta for ampla, devolva estratégia prática e checklist.
+- Quando houver contexto operacional (caso/pedido/minuta), priorize esse contexto e mencione IDs quando isso ajudar a rastreabilidade.`,
       prompt: `Contexto da tela atual: ${contextoRota || "não informado"}
+
+Contexto operacional validado:
+${resumoContexto}
 
 Histórico resumido:
 ${historico}
@@ -109,6 +258,7 @@ Forneça resposta jurídica prática e aplicável ao contexto de operação de u
         text.trim() ||
         "Não consegui gerar uma resposta útil com os dados atuais. Reformule a pergunta com mais fatos e objetivo processual.",
       modo: "ai",
+      contextoAplicado,
     });
   } catch (error) {
     logApiError("api/agents/assistente-juridico", requestId, error);
