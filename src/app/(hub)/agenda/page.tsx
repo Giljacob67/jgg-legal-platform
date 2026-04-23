@@ -5,6 +5,9 @@ import { obterConfiguracoes } from "@/modules/administracao/application";
 import { avaliarGoogleWorkspace, extrairGoogleWorkspaceConfig } from "@/modules/administracao/domain/google-workspace";
 import { listarEventosAgendaGoogle, obterStatusAgendaGoogle } from "@/modules/agenda/application/google-calendar";
 import { AgendaWorkspace } from "@/modules/agenda/ui/agenda-workspace";
+import { listarCasos } from "@/modules/casos/application/listarCasos";
+import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
+import { listarClientes } from "@/modules/clientes/application";
 
 type AgendaPageProps = {
   searchParams: Promise<{
@@ -26,12 +29,32 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     ? await obterStatusAgendaGoogle(session.user.id)
     : { conectada: false, calendarios: [], pendencia: "Sessão indisponível." };
 
-  const eventos = session?.user?.id
-    ? await listarEventosAgendaGoogle(session.user.id, calendarSelecionado, {
-        inicio: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
-        fim: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-      })
-    : [];
+  const [eventos, casos, pedidos, clientes] = session?.user?.id
+    ? await Promise.all([
+        listarEventosAgendaGoogle(session.user.id, calendarSelecionado, {
+          inicio: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+          fim: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+        }),
+        listarCasos(),
+        listarPedidosDePeca(),
+        listarClientes({ status: "ativo" }),
+      ])
+    : [[], [], [], []];
+
+  const opcoesVinculo = {
+    casos: casos.map((caso) => ({
+      id: caso.id,
+      label: `${caso.id} • ${caso.titulo}`,
+    })),
+    pedidos: pedidos.map((pedido) => ({
+      id: pedido.id,
+      label: `${pedido.id} • ${pedido.titulo}`,
+    })),
+    clientes: clientes.map((cliente) => ({
+      id: cliente.id,
+      label: `${cliente.id} • ${cliente.nome}`,
+    })),
+  };
 
   return (
     <div className="space-y-6">
@@ -55,6 +78,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         googleFeedback={params.google ?? null}
         googleDetalhe={params.detalhe ?? null}
         calendarioSelecionado={calendarSelecionado}
+        opcoesVinculo={opcoesVinculo}
       />
     </div>
   );

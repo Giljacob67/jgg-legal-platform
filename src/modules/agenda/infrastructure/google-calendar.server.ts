@@ -55,6 +55,9 @@ const MOCK_EVENTS: AgendaEvent[] = [
     calendarioResumo: "Agenda Jurídica Principal",
     linkExterno: "https://calendar.google.com",
     local: "Fórum Central",
+    vinculoTipo: "caso",
+    vinculoId: "CAS-2026-014",
+    vinculoLabel: "CAS-2026-014 • Fazenda Atlas",
   },
   {
     id: "mock-evt-002",
@@ -65,8 +68,44 @@ const MOCK_EVENTS: AgendaEvent[] = [
     calendarioId: "primary",
     calendarioResumo: "Agenda Jurídica Principal",
     linkExterno: "https://calendar.google.com",
+    vinculoTipo: "pedido",
+    vinculoId: "PED-2026-031",
+    vinculoLabel: "PED-2026-031 • réplica em execução",
   },
 ];
+
+function extrairVinculo(eventLike: {
+  extendedProperties?: {
+    private?: Record<string, string | null | undefined>;
+  } | null;
+}) {
+  const props = eventLike.extendedProperties?.private ?? {};
+  const tipo = props.jgg_entity_type as AgendaEvent["vinculoTipo"] | undefined;
+  if (tipo !== "caso" && tipo !== "pedido" && tipo !== "cliente") {
+    return {
+      vinculoTipo: undefined,
+      vinculoId: undefined,
+      vinculoLabel: undefined,
+    };
+  }
+
+  return {
+    vinculoTipo: tipo,
+    vinculoId: props.jgg_entity_id ?? undefined,
+    vinculoLabel: props.jgg_entity_label ?? undefined,
+  };
+}
+
+function montarExtendedProperties(input: Pick<CriarAgendaEventInput, "vinculoTipo" | "vinculoId" | "vinculoLabel">) {
+  if (!input.vinculoTipo || !input.vinculoId) return undefined;
+  return {
+    private: {
+      jgg_entity_type: input.vinculoTipo,
+      jgg_entity_id: input.vinculoId,
+      jgg_entity_label: input.vinculoLabel ?? "",
+    },
+  };
+}
 
 async function obterConfigGoogle() {
   const configuracoes = await obterConfiguracoes();
@@ -315,6 +354,7 @@ export async function listarEventosGoogle(
       calendarioId: effectiveCalendarId,
       calendarioResumo: undefined,
       linkExterno: item.htmlLink ?? undefined,
+      ...extrairVinculo(item),
     } satisfies AgendaEvent;
   });
 }
@@ -352,6 +392,9 @@ export async function criarEventoGoogle(userId: string, input: CriarAgendaEventI
       calendarioId,
       calendarioResumo: MOCK_CALENDARS.find((item) => item.id === calendarioId)?.resumo ?? "Agenda Jurídica Principal",
       linkExterno: "https://calendar.google.com",
+      vinculoTipo: input.vinculoTipo,
+      vinculoId: input.vinculoId,
+      vinculoLabel: input.vinculoLabel,
     };
     mockEventsByUser.set(userId, [evento, ...existente]);
     return evento;
@@ -367,6 +410,7 @@ export async function criarEventoGoogle(userId: string, input: CriarAgendaEventI
         location: input.local,
         start: { date: input.inicio.slice(0, 10) },
         end: { date: (input.fim || input.inicio).slice(0, 10) },
+        extendedProperties: montarExtendedProperties(input),
       }
     : {
         summary: input.titulo,
@@ -374,6 +418,7 @@ export async function criarEventoGoogle(userId: string, input: CriarAgendaEventI
         location: input.local,
         start: { dateTime: input.inicio },
         end: { dateTime: input.fim || new Date(new Date(input.inicio).getTime() + 60 * 60 * 1000).toISOString() },
+        extendedProperties: montarExtendedProperties(input),
       };
 
   const res = await calendar.events.insert({
@@ -397,7 +442,108 @@ export async function criarEventoGoogle(userId: string, input: CriarAgendaEventI
     calendarioId,
     calendarioResumo: undefined,
     linkExterno: item.htmlLink ?? undefined,
+    ...extrairVinculo(item),
   };
+}
+
+export async function atualizarEventoGoogle(userId: string, eventId: string, input: CriarAgendaEventInput): Promise<AgendaEvent> {
+  const connection = await obterConexaoGoogle(userId);
+  if (!connection) {
+    throw new Error("Conecte sua conta Google antes de editar compromissos.");
+  }
+
+  const calendarioId = input.calendarioId || connection.selectedCalendarId || "primary";
+
+  if (getDataMode() !== "real") {
+    const eventos = mockEventsByUser.get(userId) ?? MOCK_EVENTS;
+    const atualizados = eventos.map((evento) =>
+      evento.id === eventId
+        ? {
+            ...evento,
+            titulo: input.titulo,
+            descricao: input.descricao,
+            inicio: input.inicio,
+            fim: input.fim,
+            diaInteiro: Boolean(input.diaInteiro),
+            local: input.local,
+            calendarioId,
+            vinculoTipo: input.vinculoTipo,
+            vinculoId: input.vinculoId,
+            vinculoLabel: input.vinculoLabel,
+          }
+        : evento,
+    );
+    mockEventsByUser.set(userId, atualizados);
+    const atualizado = atualizados.find((evento) => evento.id === eventId);
+    if (!atualizado) throw new Error("Evento não encontrado.");
+    return atualizado;
+  }
+
+  const client = await garantirClientAutenticado(connection);
+  const calendar = google.calendar({ version: "v3", auth: client });
+  const requestBody = input.diaInteiro
+    ? {
+        summary: input.titulo,
+        description: input.descricao,
+        location: input.local,
+        start: { date: input.inicio.slice(0, 10) },
+        end: { date: (input.fim || input.inicio).slice(0, 10) },
+        extendedProperties: montarExtendedProperties(input),
+      }
+    : {
+        summary: input.titulo,
+        description: input.descricao,
+        location: input.local,
+        start: { dateTime: input.inicio },
+        end: { dateTime: input.fim || new Date(new Date(input.inicio).getTime() + 60 * 60 * 1000).toISOString() },
+        extendedProperties: montarExtendedProperties(input),
+      };
+
+  const res = await calendar.events.patch({
+    calendarId: calendarioId,
+    eventId,
+    requestBody,
+  });
+
+  const item = res.data;
+  return {
+    id: item.id ?? eventId,
+    titulo: item.summary ?? input.titulo,
+    descricao: item.description ?? input.descricao,
+    inicio: item.start?.dateTime ?? item.start?.date ?? input.inicio,
+    fim: item.end?.dateTime ?? item.end?.date ?? input.fim,
+    diaInteiro: Boolean(item.start?.date && !item.start?.dateTime),
+    local: item.location ?? input.local,
+    calendarioId,
+    calendarioResumo: undefined,
+    linkExterno: item.htmlLink ?? undefined,
+    ...extrairVinculo(item),
+  };
+}
+
+export async function excluirEventoGoogle(userId: string, eventId: string, calendarId?: string) {
+  const connection = await obterConexaoGoogle(userId);
+  if (!connection) {
+    throw new Error("Conecte sua conta Google antes de excluir compromissos.");
+  }
+
+  const effectiveCalendarId = calendarId || connection.selectedCalendarId || "primary";
+
+  if (getDataMode() !== "real") {
+    const eventos = mockEventsByUser.get(userId) ?? MOCK_EVENTS;
+    mockEventsByUser.set(
+      userId,
+      eventos.filter((evento) => evento.id !== eventId),
+    );
+    return;
+  }
+
+  const client = await garantirClientAutenticado(connection);
+  const calendar = google.calendar({ version: "v3", auth: client });
+  await calendar.events.delete({
+    calendarId: effectiveCalendarId,
+    eventId,
+  });
 }
 
 export async function obterStatusConexaoGoogleAgenda(userId: string): Promise<GoogleAgendaConnectionStatus> {

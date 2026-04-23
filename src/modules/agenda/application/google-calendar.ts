@@ -1,7 +1,9 @@
 import type { AgendaEvent, CriarAgendaEventInput, GoogleAgendaConnectionStatus } from "@/modules/agenda/domain/google-calendar";
 import {
+  atualizarEventoGoogle,
   criarEventoGoogle,
   criarGoogleAuthorizationUrl,
+  excluirEventoGoogle,
   listarEventosGoogle,
   obterStatusConexaoGoogleAgenda,
   removerConexaoGoogle,
@@ -49,4 +51,12 @@ export function definirCalendarioAgendaGoogle(userId: string, calendarId: string
 
 export function criarCompromissoAgendaGoogle(userId: string, input: CriarAgendaEventInput) {
   return criarEventoGoogle(userId, input);
+}
+
+export function atualizarCompromissoAgendaGoogle(userId: string, eventId: string, input: CriarAgendaEventInput) {
+  return atualizarEventoGoogle(userId, eventId, input);
+}
+
+export function excluirCompromissoAgendaGoogle(userId: string, eventId: string, calendarId?: string) {
+  return excluirEventoGoogle(userId, eventId, calendarId);
 }

@@ -10,9 +10,12 @@ import { Card } from "@/components/ui/card";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { CalendarIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { SelectInput } from "@/components/ui/select-input";
 import { TextInput } from "@/components/ui/text-input";
 import { TextareaInput } from "@/components/ui/textarea-input";
 import { cn } from "@/lib/utils";
+
+type OpcaoVinculo = { id: string; label: string };
 
 type AgendaWorkspaceProps = {
   readiness: GoogleWorkspaceReadiness;
@@ -23,6 +26,11 @@ type AgendaWorkspaceProps = {
   googleFeedback?: string | null;
   googleDetalhe?: string | null;
   calendarioSelecionado?: string | null;
+  opcoesVinculo: {
+    casos: OpcaoVinculo[];
+    pedidos: OpcaoVinculo[];
+    clientes: OpcaoVinculo[];
+  };
 };
 
 const VIEW_OPTIONS: Array<{ id: AgendaViewMode; label: string }> = [
@@ -52,6 +60,22 @@ function localDateTimeToIso(value: string) {
   return value ? new Date(value).toISOString() : "";
 }
 
+function isoToLocalDateTime(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function obterOpcoesPorTipo(
+  tipo: "caso" | "pedido" | "cliente",
+  opcoes: AgendaWorkspaceProps["opcoesVinculo"],
+) {
+  if (tipo === "caso") return opcoes.casos;
+  if (tipo === "pedido") return opcoes.pedidos;
+  return opcoes.clientes;
+}
+
 function montarMapaEventosPorDia(eventos: AgendaEvent[]) {
   const mapa = new Map<number, AgendaEvent[]>();
   for (const evento of eventos) {
@@ -72,19 +96,25 @@ export function AgendaWorkspace({
   googleFeedback,
   googleDetalhe,
   calendarioSelecionado,
+  opcoesVinculo,
 }: AgendaWorkspaceProps) {
   const [view, setView] = useState<AgendaViewMode>("semana");
   const [desconectando, startDisconnect] = useTransition();
   const [sincronizandoCalendario, startCalendarSync] = useTransition();
   const [criandoEvento, startCreateEvent] = useTransition();
+  const [salvandoEdicao, startSaveEdit] = useTransition();
+  const [excluindoEvento, startDeleteEvent] = useTransition();
   const [mensagemEvento, setMensagemEvento] = useState<string | null>(null);
   const [erroEvento, setErroEvento] = useState<string | null>(null);
+  const [eventoEmEdicaoId, setEventoEmEdicaoId] = useState<string | null>(null);
   const [novoEvento, setNovoEvento] = useState({
     titulo: "",
     descricao: "",
     inicio: "",
     fim: "",
     local: "",
+    vinculoTipo: "caso" as "caso" | "pedido" | "cliente",
+    vinculoId: "",
   });
   const router = useRouter();
 
@@ -119,6 +149,40 @@ export function AgendaWorkspace({
     setNovoEvento((atual) => ({ ...atual, [chave]: valor }));
   }
 
+  function limparFormulario() {
+    setEventoEmEdicaoId(null);
+    setNovoEvento({
+      titulo: "",
+      descricao: "",
+      inicio: "",
+      fim: "",
+      local: "",
+      vinculoTipo: "caso",
+      vinculoId: "",
+    });
+  }
+
+  function editarEvento(evento: AgendaEvent) {
+    setMensagemEvento(null);
+    setErroEvento(null);
+    setEventoEmEdicaoId(evento.id);
+    setNovoEvento({
+      titulo: evento.titulo,
+      descricao: evento.descricao ?? "",
+      inicio: isoToLocalDateTime(evento.inicio),
+      fim: isoToLocalDateTime(evento.fim),
+      local: evento.local ?? "",
+      vinculoTipo: evento.vinculoTipo ?? "caso",
+      vinculoId: evento.vinculoId ?? "",
+    });
+  }
+
+  function resolverLabelVinculo() {
+    const tipo = novoEvento.vinculoTipo;
+    const lista = obterOpcoesPorTipo(tipo, opcoesVinculo);
+    return lista.find((item) => item.id === novoEvento.vinculoId)?.label;
+  }
+
   function criarEvento() {
     setMensagemEvento(null);
     setErroEvento(null);
@@ -133,6 +197,9 @@ export function AgendaWorkspace({
           fim: novoEvento.fim ? localDateTimeToIso(novoEvento.fim) : undefined,
           local: novoEvento.local || undefined,
           calendarioId: calendarioSelecionado || connection.selectedCalendarId || calendarId,
+          vinculoTipo: novoEvento.vinculoId ? novoEvento.vinculoTipo : undefined,
+          vinculoId: novoEvento.vinculoId || undefined,
+          vinculoLabel: novoEvento.vinculoId ? resolverLabelVinculo() : undefined,
         }),
       });
 
@@ -143,13 +210,63 @@ export function AgendaWorkspace({
       }
 
       setMensagemEvento("Compromisso criado com sucesso no Google Calendar.");
-      setNovoEvento({
-        titulo: "",
-        descricao: "",
-        inicio: "",
-        fim: "",
-        local: "",
+      limparFormulario();
+      router.refresh();
+    });
+  }
+
+  function salvarEdicao() {
+    if (!eventoEmEdicaoId) return;
+
+    setMensagemEvento(null);
+    setErroEvento(null);
+    startSaveEdit(async () => {
+      const res = await fetch(`/api/agenda/eventos/${eventoEmEdicaoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: novoEvento.titulo,
+          descricao: novoEvento.descricao,
+          inicio: localDateTimeToIso(novoEvento.inicio),
+          fim: novoEvento.fim ? localDateTimeToIso(novoEvento.fim) : undefined,
+          local: novoEvento.local || undefined,
+          calendarioId: calendarioSelecionado || connection.selectedCalendarId || calendarId,
+          vinculoTipo: novoEvento.vinculoId ? novoEvento.vinculoTipo : undefined,
+          vinculoId: novoEvento.vinculoId || undefined,
+          vinculoLabel: novoEvento.vinculoId ? resolverLabelVinculo() : undefined,
+        }),
       });
+
+      const payload = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErroEvento(payload.error ?? "Falha ao atualizar compromisso.");
+        return;
+      }
+
+      setMensagemEvento("Compromisso atualizado com sucesso.");
+      limparFormulario();
+      router.refresh();
+    });
+  }
+
+  function excluirEvento(eventId: string) {
+    setMensagemEvento(null);
+    setErroEvento(null);
+    startDeleteEvent(async () => {
+      const search = new URLSearchParams();
+      search.set("calendarId", calendarioSelecionado || connection.selectedCalendarId || calendarId);
+      const res = await fetch(`/api/agenda/eventos/${eventId}?${search.toString()}`, {
+        method: "DELETE",
+      });
+      const payload = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErroEvento(payload.error ?? "Falha ao excluir compromisso.");
+        return;
+      }
+      setMensagemEvento("Compromisso excluído com sucesso.");
+      if (eventoEmEdicaoId === eventId) {
+        limparFormulario();
+      }
       router.refresh();
     });
   }
@@ -355,6 +472,20 @@ export function AgendaWorkspace({
               </p>
             ) : (
               <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[var(--color-ink)]">
+                    {eventoEmEdicaoId ? "Editar compromisso" : "Novo compromisso"}
+                  </p>
+                  {eventoEmEdicaoId ? (
+                    <button
+                      type="button"
+                      onClick={limparFormulario}
+                      className="text-xs font-semibold text-[var(--color-accent)]"
+                    >
+                      Cancelar edição
+                    </button>
+                  ) : null}
+                </div>
                 <TextInput
                   label="Título"
                   value={novoEvento.titulo}
@@ -362,6 +493,39 @@ export function AgendaWorkspace({
                   placeholder="Ex.: Audiência de conciliação • Fazenda Atlas"
                   requiredMark
                 />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <SelectInput
+                    label="Vincular a"
+                    value={novoEvento.vinculoTipo}
+                    onChange={(event) => {
+                      const tipo = event.target.value as "caso" | "pedido" | "cliente";
+                      setNovoEvento((atual) => ({
+                        ...atual,
+                        vinculoTipo: tipo,
+                        vinculoId: "",
+                      }));
+                    }}
+                    options={[
+                      { value: "caso", label: "Caso" },
+                      { value: "pedido", label: "Pedido" },
+                      { value: "cliente", label: "Cliente" },
+                    ]}
+                    helperText="Opcional, mas importante para integrar a Agenda ao fluxo jurídico."
+                  />
+                  <SelectInput
+                    label="Registro vinculado"
+                    value={novoEvento.vinculoId}
+                    onChange={(event) => atualizarNovoEvento("vinculoId", event.target.value)}
+                    options={[
+                      { value: "", label: "Sem vínculo operacional" },
+                      ...obterOpcoesPorTipo(novoEvento.vinculoTipo, opcoesVinculo).map((item) => ({
+                        value: item.id,
+                        label: item.label,
+                      })),
+                    ]}
+                    helperText="O vínculo aparecerá no evento e facilita navegação futura entre módulos."
+                  />
+                </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <TextInput
                     label="Início"
@@ -400,14 +564,32 @@ export function AgendaWorkspace({
                     {erroEvento}
                   </InlineAlert>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={criarEvento}
-                  disabled={criandoEvento || !novoEvento.titulo.trim() || !novoEvento.inicio}
-                  className="w-full rounded-2xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {criandoEvento ? "Criando..." : "Criar compromisso"}
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={eventoEmEdicaoId ? salvarEdicao : criarEvento}
+                    disabled={(criandoEvento || salvandoEdicao) || !novoEvento.titulo.trim() || !novoEvento.inicio}
+                    className="flex-1 rounded-2xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {eventoEmEdicaoId
+                      ? salvandoEdicao
+                        ? "Salvando..."
+                        : "Salvar alterações"
+                      : criandoEvento
+                        ? "Criando..."
+                        : "Criar compromisso"}
+                  </button>
+                  {eventoEmEdicaoId ? (
+                    <button
+                      type="button"
+                      onClick={() => excluirEvento(eventoEmEdicaoId)}
+                      disabled={excluindoEvento}
+                      className="rounded-2xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {excluindoEvento ? "Excluindo..." : "Excluir"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )}
           </Card>
@@ -436,18 +618,32 @@ export function AgendaWorkspace({
                           {evento.local ? (
                             <p className="mt-1 text-xs text-[var(--color-muted)]">{evento.local}</p>
                           ) : null}
+                          {evento.vinculoLabel ? (
+                            <p className="mt-1 text-xs font-medium text-[var(--color-accent)]">
+                              {evento.vinculoLabel}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
-                      {evento.linkExterno ? (
-                        <a
-                          href={evento.linkExterno}
-                          target="_blank"
-                          rel="noreferrer"
+                      <div className="flex flex-col items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editarEvento(evento)}
                           className="text-xs font-semibold text-[var(--color-accent)]"
                         >
-                          Abrir
-                        </a>
-                      ) : null}
+                          Editar
+                        </button>
+                        {evento.linkExterno ? (
+                          <a
+                            href={evento.linkExterno}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-semibold text-[var(--color-accent)]"
+                          >
+                            Abrir
+                          </a>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -458,8 +654,8 @@ export function AgendaWorkspace({
           <Card title="Próxima entrega" subtitle="O que ainda falta para a Agenda virar módulo operacional completo." eyebrow="Roadmap">
             <div className="space-y-2">
               {[
-                "Editar e remarcar compromissos já existentes.",
-                "Criar eventos a partir de casos, clientes e petições.",
+                "Criar eventos automaticamente a partir de prazos do caso.",
+                "Disparar agenda diretamente do fluxo de petições e clientes.",
                 "Sincronizar audiências e prazos com o módulo de casos.",
                 "Adicionar timeline operacional e lembretes jurídicos.",
               ].map((item) => (

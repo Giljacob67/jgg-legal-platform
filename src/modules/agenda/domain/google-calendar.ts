@@ -32,6 +32,9 @@ export interface AgendaEvent {
   calendarioId: string;
   calendarioResumo?: string;
   linkExterno?: string;
+  vinculoTipo?: "caso" | "pedido" | "cliente";
+  vinculoId?: string;
+  vinculoLabel?: string;
 }
 
 export interface CriarAgendaEventInput {
@@ -42,6 +45,9 @@ export interface CriarAgendaEventInput {
   diaInteiro?: boolean;
   local?: string;
   calendarioId?: string;
+  vinculoTipo?: "caso" | "pedido" | "cliente";
+  vinculoId?: string;
+  vinculoLabel?: string;
 }
 
 export interface GoogleAgendaConnectionStatus {

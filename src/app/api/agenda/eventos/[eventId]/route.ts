@@ -1,13 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { criarCompromissoAgendaGoogle } from "@/modules/agenda/application/google-calendar";
+import {
+  atualizarCompromissoAgendaGoogle,
+  excluirCompromissoAgendaGoogle,
+} from "@/modules/agenda/application/google-calendar";
 
-export async function POST(request: Request) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> },
+) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
+  const { eventId } = await params;
   const body = (await request.json()) as {
     titulo?: string;
     descricao?: string;
@@ -29,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Informe a data/hora inicial." }, { status: 400 });
   }
 
-  const evento = await criarCompromissoAgendaGoogle(session.user.id, {
+  const evento = await atualizarCompromissoAgendaGoogle(session.user.id, eventId, {
     titulo: body.titulo.trim(),
     descricao: body.descricao?.trim(),
     inicio: body.inicio,
@@ -43,4 +50,21 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ ok: true, evento });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  const { eventId } = await params;
+  const { searchParams } = new URL(request.url);
+  const calendarioId = searchParams.get("calendarId") || undefined;
+
+  await excluirCompromissoAgendaGoogle(session.user.id, eventId, calendarioId);
+  return NextResponse.json({ ok: true });
 }
