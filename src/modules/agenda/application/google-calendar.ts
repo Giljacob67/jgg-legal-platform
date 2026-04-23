@@ -1,10 +1,12 @@
-import type { AgendaEvent, GoogleAgendaConnectionStatus } from "@/modules/agenda/domain/google-calendar";
+import type { AgendaEvent, CriarAgendaEventInput, GoogleAgendaConnectionStatus } from "@/modules/agenda/domain/google-calendar";
 import {
+  criarEventoGoogle,
   criarGoogleAuthorizationUrl,
   listarEventosGoogle,
   obterStatusConexaoGoogleAgenda,
   removerConexaoGoogle,
   salvarConexaoGoogle,
+  selecionarCalendarioGoogle,
   trocarCodePorTokens,
 } from "@/modules/agenda/infrastructure/google-calendar.server";
 
@@ -39,4 +41,12 @@ export async function concluirConexaoGoogleAgenda(
 
 export function desconectarGoogleAgenda(userId: string) {
   return removerConexaoGoogle(userId);
+}
+
+export function definirCalendarioAgendaGoogle(userId: string, calendarId: string) {
+  return selecionarCalendarioGoogle(userId, calendarId);
+}
+
+export function criarCompromissoAgendaGoogle(userId: string, input: CriarAgendaEventInput) {
+  return criarEventoGoogle(userId, input);
 }

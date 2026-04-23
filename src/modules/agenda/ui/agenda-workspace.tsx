@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { CalendarIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { TextInput } from "@/components/ui/text-input";
+import { TextareaInput } from "@/components/ui/textarea-input";
 import { cn } from "@/lib/utils";
 
 type AgendaWorkspaceProps = {
@@ -46,6 +48,10 @@ function formatarDataCurta(iso: string) {
   });
 }
 
+function localDateTimeToIso(value: string) {
+  return value ? new Date(value).toISOString() : "";
+}
+
 function montarMapaEventosPorDia(eventos: AgendaEvent[]) {
   const mapa = new Map<number, AgendaEvent[]>();
   for (const evento of eventos) {
@@ -69,6 +75,17 @@ export function AgendaWorkspace({
 }: AgendaWorkspaceProps) {
   const [view, setView] = useState<AgendaViewMode>("semana");
   const [desconectando, startDisconnect] = useTransition();
+  const [sincronizandoCalendario, startCalendarSync] = useTransition();
+  const [criandoEvento, startCreateEvent] = useTransition();
+  const [mensagemEvento, setMensagemEvento] = useState<string | null>(null);
+  const [erroEvento, setErroEvento] = useState<string | null>(null);
+  const [novoEvento, setNovoEvento] = useState({
+    titulo: "",
+    descricao: "",
+    inicio: "",
+    fim: "",
+    local: "",
+  });
   const router = useRouter();
 
   const eventosPorDia = useMemo(() => montarMapaEventosPorDia(eventos), [eventos]);
@@ -83,6 +100,56 @@ export function AgendaWorkspace({
   function desconectarConta() {
     startDisconnect(async () => {
       await fetch("/api/integracoes/google/connection", { method: "DELETE" });
+      router.refresh();
+    });
+  }
+
+  function selecionarCalendario(calendarId: string) {
+    startCalendarSync(async () => {
+      await fetch("/api/integracoes/google/connection", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedCalendarId: calendarId }),
+      });
+      router.refresh();
+    });
+  }
+
+  function atualizarNovoEvento(chave: keyof typeof novoEvento, valor: string) {
+    setNovoEvento((atual) => ({ ...atual, [chave]: valor }));
+  }
+
+  function criarEvento() {
+    setMensagemEvento(null);
+    setErroEvento(null);
+    startCreateEvent(async () => {
+      const res = await fetch("/api/agenda/eventos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: novoEvento.titulo,
+          descricao: novoEvento.descricao,
+          inicio: localDateTimeToIso(novoEvento.inicio),
+          fim: novoEvento.fim ? localDateTimeToIso(novoEvento.fim) : undefined,
+          local: novoEvento.local || undefined,
+          calendarioId: calendarioSelecionado || connection.selectedCalendarId || calendarId,
+        }),
+      });
+
+      const payload = (await res.json()) as { error?: string; evento?: AgendaEvent };
+      if (!res.ok) {
+        setErroEvento(payload.error ?? "Falha ao criar compromisso.");
+        return;
+      }
+
+      setMensagemEvento("Compromisso criado com sucesso no Google Calendar.");
+      setNovoEvento({
+        titulo: "",
+        descricao: "",
+        inicio: "",
+        fim: "",
+        local: "",
+      });
       router.refresh();
     });
   }
@@ -250,14 +317,17 @@ export function AgendaWorkspace({
             ) : (
               <div className="space-y-3">
                 {connection.calendarios.map((calendario) => (
-                  <Link
+                  <button
                     key={calendario.id}
-                    href={`/agenda?calendarId=${encodeURIComponent(calendario.id)}`}
+                    type="button"
+                    onClick={() => selecionarCalendario(calendario.id)}
+                    disabled={sincronizandoCalendario}
                     className={cn(
-                      "block rounded-[1.2rem] border px-4 py-3 transition",
+                      "block w-full rounded-[1.2rem] border px-4 py-3 text-left transition",
                       calendario.id === (calendarioSelecionado || connection.selectedCalendarId || "primary")
                         ? "border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_8%,white)]"
                         : "border-[var(--color-border)] bg-[var(--color-surface-alt)] hover:border-[var(--color-accent)]",
+                      sincronizandoCalendario ? "cursor-wait opacity-80" : "",
                     )}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -272,8 +342,72 @@ export function AgendaWorkspace({
                         ) : null}
                       </div>
                     </div>
-                  </Link>
+                  </button>
                 ))}
+              </div>
+            )}
+          </Card>
+
+          <Card title="Novo compromisso" subtitle="Criação rápida de evento no calendário ativo." eyebrow="Operação">
+            {!connection.conectada ? (
+              <p className="text-sm text-[var(--color-muted)]">
+                Conecte sua conta Google para criar compromissos diretamente nesta agenda.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <TextInput
+                  label="Título"
+                  value={novoEvento.titulo}
+                  onChange={(event) => atualizarNovoEvento("titulo", event.target.value)}
+                  placeholder="Ex.: Audiência de conciliação • Fazenda Atlas"
+                  requiredMark
+                />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <TextInput
+                    label="Início"
+                    type="datetime-local"
+                    value={novoEvento.inicio}
+                    onChange={(event) => atualizarNovoEvento("inicio", event.target.value)}
+                    requiredMark
+                  />
+                  <TextInput
+                    label="Fim"
+                    type="datetime-local"
+                    value={novoEvento.fim}
+                    onChange={(event) => atualizarNovoEvento("fim", event.target.value)}
+                  />
+                </div>
+                <TextInput
+                  label="Local"
+                  value={novoEvento.local}
+                  onChange={(event) => atualizarNovoEvento("local", event.target.value)}
+                  placeholder="Fórum, escritório, link de videoconferência..."
+                />
+                <TextareaInput
+                  label="Descrição"
+                  value={novoEvento.descricao}
+                  onChange={(event) => atualizarNovoEvento("descricao", event.target.value)}
+                  placeholder="Contexto, participantes, processo, observações internas."
+                  rows={4}
+                />
+                {mensagemEvento ? (
+                  <InlineAlert title="Compromisso registrado" variant="success">
+                    {mensagemEvento}
+                  </InlineAlert>
+                ) : null}
+                {erroEvento ? (
+                  <InlineAlert title="Falha ao criar compromisso" variant="warning">
+                    {erroEvento}
+                  </InlineAlert>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={criarEvento}
+                  disabled={criandoEvento || !novoEvento.titulo.trim() || !novoEvento.inicio}
+                  className="w-full rounded-2xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {criandoEvento ? "Criando..." : "Criar compromisso"}
+                </button>
               </div>
             )}
           </Card>
@@ -324,8 +458,8 @@ export function AgendaWorkspace({
           <Card title="Próxima entrega" subtitle="O que ainda falta para a Agenda virar módulo operacional completo." eyebrow="Roadmap">
             <div className="space-y-2">
               {[
-                "Persistir seleção do calendário ativo por usuário.",
-                "Criar e editar eventos a partir de casos, clientes e petições.",
+                "Editar e remarcar compromissos já existentes.",
+                "Criar eventos a partir de casos, clientes e petições.",
                 "Sincronizar audiências e prazos com o módulo de casos.",
                 "Adicionar timeline operacional e lembretes jurídicos.",
               ].map((item) => (

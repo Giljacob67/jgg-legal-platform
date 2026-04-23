@@ -9,6 +9,7 @@ import { obterConfiguracoes } from "@/modules/administracao/application";
 import { extrairGoogleWorkspaceConfig } from "@/modules/administracao/domain/google-workspace";
 import type {
   AgendaEvent,
+  CriarAgendaEventInput,
   GoogleAgendaConnectionStatus,
   GoogleCalendarConnection,
   GoogleCalendarInfo,
@@ -24,6 +25,7 @@ const GOOGLE_SCOPES = [
 ];
 
 const mockConnections = new Map<string, GoogleCalendarConnection>();
+const mockEventsByUser = new Map<string, AgendaEvent[]>();
 
 const MOCK_CALENDARS: GoogleCalendarInfo[] = [
   {
@@ -130,6 +132,7 @@ async function salvarConexaoMock(connection: GoogleCalendarConnection) {
 
 async function removerConexaoMock(userId: string) {
   mockConnections.delete(userId);
+  mockEventsByUser.delete(userId);
 }
 
 export async function obterConexaoGoogle(userId: string): Promise<GoogleCalendarConnection | null> {
@@ -279,7 +282,8 @@ export async function listarEventosGoogle(
   const effectiveCalendarId = calendarId || connection.selectedCalendarId || "primary";
 
   if (getDataMode() !== "real") {
-    return MOCK_EVENTS.filter((item) => item.calendarioId === effectiveCalendarId);
+    const eventos = mockEventsByUser.get(userId) ?? MOCK_EVENTS;
+    return eventos.filter((item) => item.calendarioId === effectiveCalendarId);
   }
 
   const client = await garantirClientAutenticado(connection);
@@ -313,6 +317,87 @@ export async function listarEventosGoogle(
       linkExterno: item.htmlLink ?? undefined,
     } satisfies AgendaEvent;
   });
+}
+
+export async function selecionarCalendarioGoogle(userId: string, calendarId: string) {
+  const connection = await obterConexaoGoogle(userId);
+  if (!connection) {
+    throw new Error("Nenhuma conexão Google encontrada para o usuário.");
+  }
+
+  await salvarConexaoGoogle({
+    ...connection,
+    selectedCalendarId: calendarId,
+  });
+}
+
+export async function criarEventoGoogle(userId: string, input: CriarAgendaEventInput): Promise<AgendaEvent> {
+  const connection = await obterConexaoGoogle(userId);
+  if (!connection) {
+    throw new Error("Conecte sua conta Google antes de criar compromissos.");
+  }
+
+  const calendarioId = input.calendarioId || connection.selectedCalendarId || "primary";
+
+  if (getDataMode() !== "real") {
+    const existente = mockEventsByUser.get(userId) ?? MOCK_EVENTS;
+    const evento: AgendaEvent = {
+      id: `mock-evt-${Date.now()}`,
+      titulo: input.titulo,
+      descricao: input.descricao,
+      inicio: input.inicio,
+      fim: input.fim,
+      diaInteiro: Boolean(input.diaInteiro),
+      local: input.local,
+      calendarioId,
+      calendarioResumo: MOCK_CALENDARS.find((item) => item.id === calendarioId)?.resumo ?? "Agenda Jurídica Principal",
+      linkExterno: "https://calendar.google.com",
+    };
+    mockEventsByUser.set(userId, [evento, ...existente]);
+    return evento;
+  }
+
+  const client = await garantirClientAutenticado(connection);
+  const calendar = google.calendar({ version: "v3", auth: client });
+
+  const resource = input.diaInteiro
+    ? {
+        summary: input.titulo,
+        description: input.descricao,
+        location: input.local,
+        start: { date: input.inicio.slice(0, 10) },
+        end: { date: (input.fim || input.inicio).slice(0, 10) },
+      }
+    : {
+        summary: input.titulo,
+        description: input.descricao,
+        location: input.local,
+        start: { dateTime: input.inicio },
+        end: { dateTime: input.fim || new Date(new Date(input.inicio).getTime() + 60 * 60 * 1000).toISOString() },
+      };
+
+  const res = await calendar.events.insert({
+    calendarId: calendarioId,
+    requestBody: resource,
+  });
+
+  const item = res.data;
+  const inicio = item.start?.dateTime ?? item.start?.date ?? input.inicio;
+  const fim = item.end?.dateTime ?? item.end?.date ?? input.fim;
+  const diaInteiro = Boolean(item.start?.date && !item.start?.dateTime);
+
+  return {
+    id: item.id ?? crypto.randomUUID(),
+    titulo: item.summary ?? input.titulo,
+    descricao: item.description ?? input.descricao,
+    inicio,
+    fim: fim ?? undefined,
+    diaInteiro,
+    local: item.location ?? input.local,
+    calendarioId,
+    calendarioResumo: undefined,
+    linkExterno: item.htmlLink ?? undefined,
+  };
 }
 
 export async function obterStatusConexaoGoogleAgenda(userId: string): Promise<GoogleAgendaConnectionStatus> {

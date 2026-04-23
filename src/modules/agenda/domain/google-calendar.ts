@@ -34,6 +34,16 @@ export interface AgendaEvent {
   linkExterno?: string;
 }
 
+export interface CriarAgendaEventInput {
+  titulo: string;
+  descricao?: string;
+  inicio: string;
+  fim?: string;
+  diaInteiro?: boolean;
+  local?: string;
+  calendarioId?: string;
+}
+
 export interface GoogleAgendaConnectionStatus {
   conectada: boolean;
   emailGoogle?: string | null;
