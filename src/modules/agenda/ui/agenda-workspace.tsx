@@ -40,6 +40,15 @@ type AgendaWorkspaceProps = {
     vinculoTipo: "caso" | "pedido" | "cliente";
     vinculoId: string;
   } | null;
+  sugestoesOperacionais?: Array<{
+    id: string;
+    categoria: "prazo_caso" | "revisao_pedido";
+    titulo: string;
+    descricao: string;
+    prazoLabel: string;
+    severidade: "alta" | "media";
+    href: string;
+  }>;
 };
 
 const VIEW_OPTIONS: Array<{ id: AgendaViewMode; label: string }> = [
@@ -121,6 +130,7 @@ export function AgendaWorkspace({
   calendarioSelecionado,
   opcoesVinculo,
   novoCompromissoInicial,
+  sugestoesOperacionais = [],
 }: AgendaWorkspaceProps) {
   const [view, setView] = useState<AgendaViewMode>("semana");
   const [desconectando, startDisconnect] = useTransition();
@@ -607,6 +617,40 @@ export function AgendaWorkspace({
             )}
           </Card>
 
+          <Card title="Sugestões operacionais" subtitle="Prazos e revisões que ainda não viraram compromisso na agenda." eyebrow="Prioridades">
+            {sugestoesOperacionais.length === 0 ? (
+              <p className="text-sm text-[var(--color-muted)]">
+                Nenhuma sugestão pendente no momento. Os principais prazos e revisões já parecem cobertos nesta janela.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {sugestoesOperacionais.map((sugestao) => (
+                  <div key={sugestao.id} className="rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-[var(--color-ink)]">{sugestao.titulo}</p>
+                          <StatusBadge
+                            label={sugestao.severidade === "alta" ? "urgente" : "planejar"}
+                            variant={sugestao.severidade === "alta" ? "alerta" : "neutro"}
+                          />
+                        </div>
+                        <p className="text-xs text-[var(--color-muted)]">{sugestao.descricao}</p>
+                        <p className="text-xs font-medium text-[var(--color-accent)]">{sugestao.prazoLabel}</p>
+                      </div>
+                      <Link
+                        href={sugestao.href}
+                        className="shrink-0 rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)] transition hover:bg-[var(--color-card)]"
+                      >
+                        Preencher
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           <Card title="Próximos eventos" subtitle="Painel lateral com os compromissos reais do calendário selecionado." eyebrow="Agenda lateral">
             {eventosOrdenados.length === 0 ? (
               <p className="text-sm text-[var(--color-muted)]">
@@ -667,10 +711,10 @@ export function AgendaWorkspace({
           <Card title="Próxima entrega" subtitle="O que ainda falta para a Agenda virar módulo operacional completo." eyebrow="Roadmap">
             <div className="space-y-2">
               {[
-                "Criar eventos automaticamente a partir de prazos do caso.",
-                "Disparar agenda diretamente do fluxo de petições e clientes.",
-                "Sincronizar audiências e prazos com o módulo de casos.",
-                "Adicionar timeline operacional e lembretes jurídicos.",
+                "Criar eventos automaticamente, sem exigir confirmação manual para rotinas parametrizadas.",
+                "Sincronizar audiências e prazos estruturados do módulo de casos.",
+                "Adicionar lembretes internos por responsável e tipo de compromisso.",
+                "Exibir timeline operacional por caso, pedido e cliente dentro da agenda.",
               ].map((item) => (
                 <div key={item} className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
                   <ChevronRightIcon size={15} className="text-[var(--color-accent)]" />
