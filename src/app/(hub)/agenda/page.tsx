@@ -36,6 +36,16 @@ type SugestaoAgenda = {
   prazoLabel: string;
   severidade: "alta" | "media";
   href: string;
+  evento: {
+    titulo: string;
+    descricao: string;
+    inicio: string;
+    fim?: string;
+    local?: string;
+    vinculoTipo: "caso" | "pedido" | "cliente";
+    vinculoId: string;
+    vinculoLabel: string;
+  };
 };
 
 function formatarDataOperacional(data: string) {
@@ -113,6 +123,15 @@ function construirSugestoesAgenda(casos: Caso[], pedidos: PedidoDePeca[], evento
         inicio,
         fim,
       }),
+      evento: {
+        titulo: `Prazo do caso ${caso.id} • ${caso.titulo}`,
+        descricao: `Prazo processual vinculado ao caso ${caso.id} (${caso.titulo}). Cliente: ${caso.cliente}.`,
+        inicio,
+        fim,
+        vinculoTipo: "caso",
+        vinculoId: caso.id,
+        vinculoLabel: `${caso.id} • ${caso.titulo}`,
+      },
     });
   }
 
@@ -139,6 +158,15 @@ function construirSugestoesAgenda(casos: Caso[], pedidos: PedidoDePeca[], evento
         inicio,
         fim,
       }),
+      evento: {
+        titulo: `Revisão do pedido ${pedido.id} • ${pedido.tipoPeca}`,
+        descricao: `Compromisso operacional vinculado ao pedido ${pedido.id}. Caso ${pedido.casoId}. Etapa atual: ${pedido.etapaAtual.replaceAll("_", " ")}.`,
+        inicio,
+        fim,
+        vinculoTipo: "pedido",
+        vinculoId: pedido.id,
+        vinculoLabel: `${pedido.id} • ${pedido.titulo}`,
+      },
     });
   }
 

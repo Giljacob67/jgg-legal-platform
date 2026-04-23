@@ -48,6 +48,16 @@ type AgendaWorkspaceProps = {
     prazoLabel: string;
     severidade: "alta" | "media";
     href: string;
+    evento: {
+      titulo: string;
+      descricao: string;
+      inicio: string;
+      fim?: string;
+      local?: string;
+      vinculoTipo: "caso" | "pedido" | "cliente";
+      vinculoId: string;
+      vinculoLabel: string;
+    };
   }>;
 };
 
@@ -141,6 +151,7 @@ export function AgendaWorkspace({
   const [mensagemEvento, setMensagemEvento] = useState<string | null>(null);
   const [erroEvento, setErroEvento] = useState<string | null>(null);
   const [eventoEmEdicaoId, setEventoEmEdicaoId] = useState<string | null>(null);
+  const [sugestaoCriandoId, setSugestaoCriandoId] = useState<string | null>(null);
   const [novoEvento, setNovoEvento] = useState(() => construirRascunhoEventoInicial(novoCompromissoInicial));
   const router = useRouter();
 
@@ -285,6 +296,34 @@ export function AgendaWorkspace({
       if (eventoEmEdicaoId === eventId) {
         limparFormulario();
       }
+      router.refresh();
+    });
+  }
+
+  function criarEventoSugerido(sugestao: NonNullable<AgendaWorkspaceProps["sugestoesOperacionais"]>[number]) {
+    setMensagemEvento(null);
+    setErroEvento(null);
+    setSugestaoCriandoId(sugestao.id);
+
+    startCreateEvent(async () => {
+      const res = await fetch("/api/agenda/eventos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...sugestao.evento,
+          calendarioId: calendarioSelecionado || connection.selectedCalendarId || calendarId,
+        }),
+      });
+
+      const payload = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErroEvento(payload.error ?? "Falha ao criar compromisso sugerido.");
+        setSugestaoCriandoId(null);
+        return;
+      }
+
+      setMensagemEvento(`Compromisso criado automaticamente para ${sugestao.titulo.toLowerCase()}.`);
+      setSugestaoCriandoId(null);
       router.refresh();
     });
   }
@@ -638,12 +677,22 @@ export function AgendaWorkspace({
                         <p className="text-xs text-[var(--color-muted)]">{sugestao.descricao}</p>
                         <p className="text-xs font-medium text-[var(--color-accent)]">{sugestao.prazoLabel}</p>
                       </div>
-                      <Link
-                        href={sugestao.href}
-                        className="shrink-0 rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)] transition hover:bg-[var(--color-card)]"
-                      >
-                        Preencher
-                      </Link>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => criarEventoSugerido(sugestao)}
+                          disabled={criandoEvento || sugestaoCriandoId === sugestao.id}
+                          className="rounded-xl bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {sugestaoCriandoId === sugestao.id ? "Criando..." : "Criar direto"}
+                        </button>
+                        <Link
+                          href={sugestao.href}
+                          className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)] transition hover:bg-[var(--color-card)]"
+                        >
+                          Revisar antes
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 ))}
