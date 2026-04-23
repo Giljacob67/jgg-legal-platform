@@ -86,6 +86,18 @@ function isGoogleIntegrationTableMissing(error: unknown) {
   );
 }
 
+function isGoogleIntegrationUserIdTypeMismatch(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("google_integracoes_usuario") &&
+    (
+      message.includes("invalid input syntax for type uuid") ||
+      message.includes("uuid")
+    )
+  );
+}
+
 function extrairVinculo(eventLike: {
   extendedProperties?: {
     private?: Record<string, string | null | undefined>;
@@ -217,6 +229,9 @@ export async function obterConexaoGoogle(userId: string): Promise<GoogleCalendar
     if (isGoogleIntegrationTableMissing(error)) {
       return null;
     }
+    if (isGoogleIntegrationUserIdTypeMismatch(error)) {
+      return null;
+    }
     throw error;
   }
 }
@@ -260,6 +275,9 @@ export async function salvarConexaoGoogle(connection: GoogleCalendarConnection) 
     if (isGoogleIntegrationTableMissing(error)) {
       throw new Error("A migração da Agenda ainda não foi aplicada no banco de produção.");
     }
+    if (isGoogleIntegrationUserIdTypeMismatch(error)) {
+      throw new Error("A coluna user_id da integração Google ainda está em formato UUID. Execute a migration 0021_google_integracoes_usuario_user_id_text.sql.");
+    }
     throw error;
   }
 }
@@ -275,6 +293,9 @@ export async function removerConexaoGoogle(userId: string) {
     await db.delete(googleIntegracoesUsuario).where(eq(googleIntegracoesUsuario.userId, userId));
   } catch (error) {
     if (isGoogleIntegrationTableMissing(error)) {
+      return;
+    }
+    if (isGoogleIntegrationUserIdTypeMismatch(error)) {
       return;
     }
     throw error;
@@ -590,6 +611,13 @@ export async function obterStatusConexaoGoogleAgenda(userId: string): Promise<Go
         conectada: false,
         calendarios: [],
         pendencia: "A migration da Agenda ainda não foi aplicada no banco. Execute a migration 0020_google_integracoes_usuario.sql.",
+      };
+    }
+    if (isGoogleIntegrationUserIdTypeMismatch(error)) {
+      return {
+        conectada: false,
+        calendarios: [],
+        pendencia: "A integração Google ainda usa user_id em formato UUID no banco. Execute a migration 0021_google_integracoes_usuario_user_id_text.sql.",
       };
     }
     throw error;

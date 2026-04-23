@@ -540,9 +540,7 @@ export const googleIntegracoesUsuario = pgTable(
   "google_integracoes_usuario",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
     emailGoogle: varchar("email_google", { length: 255 }),
     accessToken: text("access_token").notNull(),
     refreshToken: text("refresh_token"),
