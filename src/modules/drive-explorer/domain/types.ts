@@ -9,6 +9,7 @@ export interface DriveExplorerItem {
   tamanhoBytes?: number;
   tamanhoLabel?: string;
   modificadoEm?: string;
+  importavel?: boolean;
 }
 
 export interface DriveExplorerBreadcrumb {

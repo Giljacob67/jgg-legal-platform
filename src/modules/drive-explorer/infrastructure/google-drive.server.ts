@@ -12,6 +12,17 @@ import type {
 } from "@/modules/drive-explorer/domain/types";
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+const GOOGLE_DOC_MIME = "application/vnd.google-apps.document";
+const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
+const GOOGLE_SLIDE_MIME = "application/vnd.google-apps.presentation";
+const MIME_TYPES_IMPORTAVEIS = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  GOOGLE_DOC_MIME,
+  GOOGLE_SHEET_MIME,
+  GOOGLE_SLIDE_MIME,
+]);
 
 function formatarBytes(bytes?: number) {
   if (!bytes || Number.isNaN(bytes) || bytes <= 0) return undefined;
@@ -125,7 +136,13 @@ function mapearItem(file: drive_v3.Schema$File): DriveExplorerItem {
     tamanhoBytes,
     tamanhoLabel: formatarBytes(tamanhoBytes),
     modificadoEm: file.modifiedTime ?? undefined,
+    importavel: file.mimeType === FOLDER_MIME ? false : MIME_TYPES_IMPORTAVEIS.has(file.mimeType ?? ""),
   };
+}
+
+function ajustarNomeExportado(nomeBase: string, extensao: string) {
+  const limpo = nomeBase.trim();
+  return limpo.toLowerCase().endsWith(`.${extensao}`) ? limpo : `${limpo}.${extensao}`;
 }
 
 export async function listarArquivosDriveExplorer(
@@ -174,5 +191,84 @@ export async function listarArquivosDriveExplorer(
     query,
     pastaRaizId,
     pastaRaizConfigurada: Boolean(pastaRaizId),
+  };
+}
+
+export async function buscarArquivosImportaveisDrive(
+  userId: string,
+  query: string,
+): Promise<DriveExplorerItem[]> {
+  const termo = query.trim();
+  if (!termo) return [];
+
+  const drive = await criarClientDriveAutenticado(userId);
+  const safeQuery = termo.replace(/'/g, "\\'");
+  const mimeQuery = [
+    "mimeType = 'application/pdf'",
+    "mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'",
+    "mimeType = 'text/plain'",
+    `mimeType = '${GOOGLE_DOC_MIME}'`,
+    `mimeType = '${GOOGLE_SHEET_MIME}'`,
+    `mimeType = '${GOOGLE_SLIDE_MIME}'`,
+  ].join(" or ");
+
+  const res = await drive.files.list({
+    q: `trashed = false and mimeType != '${FOLDER_MIME}' and name contains '${safeQuery}' and (${mimeQuery})`,
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
+    corpora: "allDrives",
+    pageSize: 20,
+    orderBy: "modifiedTime desc",
+    fields:
+      "files(id,name,mimeType,webViewLink,webContentLink,iconLink,size,modifiedTime,parents)",
+  });
+
+  return (res.data.files ?? []).map(mapearItem);
+}
+
+export async function baixarArquivoDriveParaImportacao(
+  userId: string,
+  fileId: string,
+): Promise<{ filename: string; contentType: string; bytes: Buffer; mimeTypeOrigem: string; webViewLink?: string }> {
+  const drive = await criarClientDriveAutenticado(userId);
+  const meta = await drive.files.get({
+    fileId,
+    supportsAllDrives: true,
+    fields: "id,name,mimeType,webViewLink",
+  });
+
+  const nome = meta.data.name ?? "documento";
+  const mimeTypeOrigem = meta.data.mimeType ?? "application/octet-stream";
+  const webViewLink = meta.data.webViewLink ?? undefined;
+
+  if (mimeTypeOrigem === GOOGLE_DOC_MIME || mimeTypeOrigem === GOOGLE_SHEET_MIME || mimeTypeOrigem === GOOGLE_SLIDE_MIME) {
+    const res = await drive.files.export(
+      { fileId, mimeType: "application/pdf" },
+      { responseType: "arraybuffer" },
+    );
+    return {
+      filename: ajustarNomeExportado(nome, "pdf"),
+      contentType: "application/pdf",
+      bytes: Buffer.from(res.data as ArrayBuffer),
+      mimeTypeOrigem,
+      webViewLink,
+    };
+  }
+
+  if (!MIME_TYPES_IMPORTAVEIS.has(mimeTypeOrigem)) {
+    throw new Error("Formato do Google Drive ainda não suportado para importação nesta etapa.");
+  }
+
+  const res = await drive.files.get(
+    { fileId, alt: "media", supportsAllDrives: true },
+    { responseType: "arraybuffer" },
+  );
+
+  return {
+    filename: nome,
+    contentType: mimeTypeOrigem,
+    bytes: Buffer.from(res.data as ArrayBuffer),
+    mimeTypeOrigem,
+    webViewLink,
   };
 }
