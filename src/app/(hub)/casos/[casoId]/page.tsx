@@ -20,6 +20,22 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
   }
 
   const documentos = await listarDocumentosPorCaso(caso.id);
+  const inicioPrazoAgenda = `${caso.prazoFinal}T09:00`;
+  const linkAgendarPrazo = `/agenda?${new URLSearchParams({
+    novo: "1",
+    vinculoTipo: "caso",
+    vinculoId: caso.id,
+    titulo: `Prazo do caso ${caso.id} • ${caso.titulo}`,
+    descricao: `Prazo processual vinculado ao caso ${caso.id} (${caso.titulo}). Cliente: ${caso.cliente}.`,
+    inicio: new Date(inicioPrazoAgenda).toISOString(),
+  }).toString()}`;
+  const linkAgendarCompromisso = `/agenda?${new URLSearchParams({
+    novo: "1",
+    vinculoTipo: "caso",
+    vinculoId: caso.id,
+    titulo: `Compromisso do caso ${caso.id} • ${caso.titulo}`,
+    descricao: `Compromisso operacional ou audiência vinculado ao caso ${caso.id}.`,
+  }).toString()}`;
 
   return (
     <div className="space-y-6">
@@ -93,6 +109,18 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
             className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-alt)]"
           >
             Ver documentos
+          </Link>
+          <Link
+            href={linkAgendarPrazo}
+            className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-alt)]"
+          >
+            Agendar prazo
+          </Link>
+          <Link
+            href={linkAgendarCompromisso}
+            className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-alt)]"
+          >
+            Agendar compromisso
           </Link>
         </div>
       </Card>

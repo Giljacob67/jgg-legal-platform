@@ -14,6 +14,14 @@ type AgendaPageProps = {
     google?: string;
     detalhe?: string;
     calendarId?: string;
+    novo?: string;
+    vinculoTipo?: "caso" | "pedido" | "cliente";
+    vinculoId?: string;
+    titulo?: string;
+    descricao?: string;
+    inicio?: string;
+    fim?: string;
+    local?: string;
   }>;
 };
 
@@ -71,6 +79,24 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     })),
   };
 
+  const novoCompromissoInicial = params.novo === "1"
+    ? {
+        titulo: params.titulo ?? "",
+        descricao: params.descricao ?? "",
+        inicio: params.inicio ?? "",
+        fim: params.fim ?? "",
+        local: params.local ?? "",
+        vinculoTipo: params.vinculoTipo ?? "caso",
+        vinculoId: params.vinculoId ?? "",
+      }
+    : null;
+  const workspaceKey = JSON.stringify({
+    calendarSelecionado,
+    google: params.google ?? null,
+    detalhe: detalheAgenda,
+    novoCompromissoInicial,
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -85,6 +111,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
       />
 
       <AgendaWorkspace
+        key={workspaceKey}
         readiness={readiness}
         calendarId={googleConfig.calendarPrimaryId}
         authMode={googleConfig.authMode}
@@ -94,6 +121,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         googleDetalhe={detalheAgenda}
         calendarioSelecionado={calendarSelecionado}
         opcoesVinculo={opcoesVinculo}
+        novoCompromissoInicial={novoCompromissoInicial}
       />
     </div>
   );

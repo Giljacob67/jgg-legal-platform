@@ -201,6 +201,14 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         : minuta
           ? "Continuar no editor"
           : "Abrir produção";
+  const linkAgendarPedido = `/agenda?${new URLSearchParams({
+    novo: "1",
+    vinculoTipo: "pedido",
+    vinculoId: pedido.id,
+    titulo: `Revisão do pedido ${pedido.id} • ${pedido.tipoPeca}`,
+    descricao: `Compromisso operacional vinculado ao pedido ${pedido.id}. Caso ${pedido.casoId}. Etapa atual: ${etapaAtual.replaceAll("_", " ")}.`,
+    inicio: new Date(`${pedido.prazoFinal}T09:00`).toISOString(),
+  }).toString()}`;
 
   return (
     <div className="space-y-6">
@@ -217,6 +225,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         actions={
           <>
             <ButtonLink href={hrefAcaoPrincipal} label={labelAcaoPrincipal} icon={<ScaleIcon size={16} />} />
+            <ButtonLink href={linkAgendarPedido} label="Agendar revisão" icon={<ScaleIcon size={16} />} variant="secundario" />
             <ButtonLink href={`/peticoes/pipeline/${pedido.id}`} label="Abrir pipeline" icon={<ScaleIcon size={16} />} variant="secundario" />
             {minuta ? (
               <ButtonLink href={`/peticoes/minutas/${minuta.id}/editor`} label="Abrir editor" icon={<FileIcon size={16} />} variant="secundario" />

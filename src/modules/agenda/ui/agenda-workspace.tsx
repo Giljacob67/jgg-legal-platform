@@ -31,6 +31,15 @@ type AgendaWorkspaceProps = {
     pedidos: OpcaoVinculo[];
     clientes: OpcaoVinculo[];
   };
+  novoCompromissoInicial?: {
+    titulo: string;
+    descricao: string;
+    inicio: string;
+    fim: string;
+    local: string;
+    vinculoTipo: "caso" | "pedido" | "cliente";
+    vinculoId: string;
+  } | null;
 };
 
 const VIEW_OPTIONS: Array<{ id: AgendaViewMode; label: string }> = [
@@ -67,6 +76,20 @@ function isoToLocalDateTime(value?: string) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function construirRascunhoEventoInicial(
+  origem?: AgendaWorkspaceProps["novoCompromissoInicial"],
+) {
+  return {
+    titulo: origem?.titulo ?? "",
+    descricao: origem?.descricao ?? "",
+    inicio: isoToLocalDateTime(origem?.inicio),
+    fim: isoToLocalDateTime(origem?.fim),
+    local: origem?.local ?? "",
+    vinculoTipo: origem?.vinculoTipo ?? ("caso" as const),
+    vinculoId: origem?.vinculoId ?? "",
+  };
+}
+
 function obterOpcoesPorTipo(
   tipo: "caso" | "pedido" | "cliente",
   opcoes: AgendaWorkspaceProps["opcoesVinculo"],
@@ -97,6 +120,7 @@ export function AgendaWorkspace({
   googleDetalhe,
   calendarioSelecionado,
   opcoesVinculo,
+  novoCompromissoInicial,
 }: AgendaWorkspaceProps) {
   const [view, setView] = useState<AgendaViewMode>("semana");
   const [desconectando, startDisconnect] = useTransition();
@@ -107,15 +131,7 @@ export function AgendaWorkspace({
   const [mensagemEvento, setMensagemEvento] = useState<string | null>(null);
   const [erroEvento, setErroEvento] = useState<string | null>(null);
   const [eventoEmEdicaoId, setEventoEmEdicaoId] = useState<string | null>(null);
-  const [novoEvento, setNovoEvento] = useState({
-    titulo: "",
-    descricao: "",
-    inicio: "",
-    fim: "",
-    local: "",
-    vinculoTipo: "caso" as "caso" | "pedido" | "cliente",
-    vinculoId: "",
-  });
+  const [novoEvento, setNovoEvento] = useState(() => construirRascunhoEventoInicial(novoCompromissoInicial));
   const router = useRouter();
 
   const eventosPorDia = useMemo(() => montarMapaEventosPorDia(eventos), [eventos]);
@@ -151,15 +167,7 @@ export function AgendaWorkspace({
 
   function limparFormulario() {
     setEventoEmEdicaoId(null);
-    setNovoEvento({
-      titulo: "",
-      descricao: "",
-      inicio: "",
-      fim: "",
-      local: "",
-      vinculoTipo: "caso",
-      vinculoId: "",
-    });
+    setNovoEvento(construirRascunhoEventoInicial());
   }
 
   function editarEvento(evento: AgendaEvent) {
@@ -281,6 +289,11 @@ export function AgendaWorkspace({
       {googleFeedback === "erro" ? (
         <InlineAlert title="Falha na conexão Google" variant="warning">
           {googleDetalhe || "Não foi possível concluir a autenticação com o Google."}
+        </InlineAlert>
+      ) : null}
+      {novoCompromissoInicial ? (
+        <InlineAlert title="Compromisso pré-preenchido" variant="info">
+          A Agenda recebeu contexto operacional de outro módulo. Revise os dados, ajuste o horário e confirme o registro no Google Calendar.
         </InlineAlert>
       ) : null}
 
