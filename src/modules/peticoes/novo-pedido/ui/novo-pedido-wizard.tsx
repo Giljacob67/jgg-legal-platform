@@ -242,17 +242,21 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
   }
 
   function atualizarTese(teseId: string, atualizacao: Partial<TesePreliminarNovoPedido>) {
-    setDraft((current) => ({
-      ...current,
-      teses: current.teses.map((tese) =>
-        tese.id === teseId
-          ? {
-              ...tese,
-              ...atualizacao,
-            }
-          : tese,
-      ),
-    }));
+    setDraft((current) => {
+      const baseTeses = draftAtual.teses.length > 0 ? draftAtual.teses : current.teses;
+
+      return {
+        ...current,
+        teses: baseTeses.map((tese) =>
+          tese.id === teseId
+            ? {
+                ...tese,
+                ...atualizacao,
+              }
+            : tese,
+        ),
+      };
+    });
   }
 
   function adicionarTeseManual() {
