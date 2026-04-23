@@ -3,6 +3,7 @@ import { LABEL_PERFIL, PERMISSOES_PADRAO } from "../domain/types";
 
 const MODULOS_LABEL: Record<ModuloPlataforma, string> = {
   dashboard: "Dashboard",
+  agenda: "Agenda",
   peticoes: "Petições",
   casos: "Casos",
   documentos: "Documentos",

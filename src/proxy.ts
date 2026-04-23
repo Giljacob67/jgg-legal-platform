@@ -11,6 +11,7 @@ const ROTA_PARA_MODULO: Array<[string, ModuloPlataforma]> = [
   ["/administracao", "administracao"],
   ["/bi", "bi"],
   ["/gestao", "gestao"],
+  ["/agenda", "agenda"],
   ["/peticoes", "peticoes"],
   ["/casos", "casos"],
   ["/documentos", "documentos"],

@@ -36,6 +36,7 @@ export const ORDEM_PERFIL: Record<PerfilUsuario, number> = {
 
 export type ModuloPlataforma =
   | "dashboard"
+  | "agenda"
   | "peticoes"
   | "casos"
   | "documentos"
@@ -60,6 +61,7 @@ export type MatrizPermissoes = Record<PerfilUsuario, Record<ModuloPlataforma, Ni
 export const PERMISSOES_PADRAO: MatrizPermissoes = {
   socio_direcao: {
     dashboard: "total",
+    agenda: "total",
     peticoes: "total",
     casos: "total",
     documentos: "total",
@@ -73,6 +75,7 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   },
   coordenador_juridico: {
     dashboard: "total",
+    agenda: "total",
     peticoes: "total",
     casos: "total",
     documentos: "total",
@@ -86,6 +89,7 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   },
   advogado: {
     dashboard: "leitura",
+    agenda: "edicao",
     peticoes: "total",
     casos: "edicao",
     documentos: "edicao",
@@ -99,6 +103,7 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   },
   estagiario_assistente: {
     dashboard: "leitura",
+    agenda: "leitura",
     peticoes: "leitura",
     casos: "leitura",
     documentos: "edicao",
@@ -112,6 +117,7 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   },
   operacional_admin: {
     dashboard: "leitura",
+    agenda: "edicao",
     peticoes: "sem_acesso",
     casos: "leitura",
     documentos: "edicao",
@@ -125,6 +131,7 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   },
   administrador_sistema: {
     dashboard: "total",
+    agenda: "total",
     peticoes: "leitura",
     casos: "leitura",
     documentos: "total",
@@ -217,6 +224,14 @@ export type ConfiguracaoChave =
   | "ai_ollama_api_key"
   | "ai_custom_base_url"
   | "ai_custom_api_key"
+  | "google_auth_mode"
+  | "google_oauth_client_id"
+  | "google_oauth_client_secret"
+  | "google_oauth_redirect_uri"
+  | "google_service_account_key"
+  | "google_drive_shared_folder_id"
+  | "google_calendar_primary_id"
+  | "google_calendar_sync_scope"
   | "data_mode"
   | "nome_escritorio"
   | "logo_url"

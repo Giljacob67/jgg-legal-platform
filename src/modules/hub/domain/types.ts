@@ -11,6 +11,7 @@ export const LABEL_GRUPO: Record<GrupoModulo, string> = {
 
 export type ModuloId =
   | "dashboard"
+  | "agenda"
   | "peticoes"
   | "casos"
   | "documentos"

@@ -5,6 +5,7 @@ import type { ModuloPlataforma } from "@/modules/administracao/domain/types";
 
 const LABEL_MODULO: Record<ModuloPlataforma, string> = {
   dashboard: "Dashboard",
+  agenda: "Agenda",
   peticoes: "Petições",
   casos: "Casos",
   documentos: "Documentos",

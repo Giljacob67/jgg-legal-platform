@@ -73,6 +73,15 @@ export class MockModulesRepository implements ModulesRepository {
       grupo: "gestao",
     },
     {
+      id: "agenda",
+      nome: "Agenda",
+      rota: "/agenda",
+      status: "em implantação",
+      resumo: "Calendário jurídico integrado a compromissos, prazos e audiências.",
+      icone: "🗓️",
+      grupo: "gestao",
+    },
+    {
       id: "gestao",
       nome: "Gestão",
       rota: "/gestao",

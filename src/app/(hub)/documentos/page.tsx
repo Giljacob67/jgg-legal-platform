@@ -51,6 +51,14 @@ export default async function DocumentosPage() {
       <PageHeader
         title="Documentos"
         description="Upload, leitura e rastreio documental para suportar a produção das peças."
+        actions={(
+          <Link
+            href="/documentos/drive"
+            className="rounded-2xl border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          >
+            Google Drive
+          </Link>
+        )}
         meta={
           <>
             <StatusBadge label={`${documentos.length} documentos`} variant="neutro" />

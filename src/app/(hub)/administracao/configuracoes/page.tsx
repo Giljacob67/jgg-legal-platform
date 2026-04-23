@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { ConfiguracoesIA } from "@/modules/administracao/ui/configuracoes-ia";
+import { ConfiguracoesGoogle } from "@/modules/administracao/ui/configuracoes-google";
 import { obterConfiguracoes } from "@/modules/administracao/application";
 import { MODELOS_CATALOGADOS } from "@/lib/ai/provider";
 import { auth } from "@/lib/auth";
@@ -31,11 +32,22 @@ export default async function ConfiguracoesPage() {
         />
       </Card>
 
+      <Card
+        title="Integrações Google"
+        subtitle="Base institucional para Agenda jurídica, Google Calendar e Drive Explorer."
+      >
+        <ConfiguracoesGoogle configuracoes={configuracoes} />
+      </Card>
+
       <Card title="Infraestrutura" subtitle="Configurações sensíveis e operação em produção.">
         <div className="space-y-2 text-sm text-[var(--color-muted)]">
           <p>
             As credenciais de IA (API Keys e Base URLs) podem ser gerenciadas diretamente nesta página e entram
             em vigor imediatamente.
+          </p>
+          <p>
+            A integração Google agora possui base própria para diferenciar OAuth por usuário, service account
+            institucional, Agenda e acesso operacional ao Drive.
           </p>
           <p>
             Variáveis de infraestrutura como <span className="font-mono">DATABASE_URL</span> e tokens de storage

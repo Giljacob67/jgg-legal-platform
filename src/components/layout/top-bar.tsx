@@ -8,9 +8,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 
 const labels: Record<string, string> = {
   dashboard: "Dashboard",
+  agenda: "Agenda",
   peticoes: "Petições",
   casos: "Casos",
   documentos: "Documentos",
+  drive: "Drive",
   "biblioteca-juridica": "Biblioteca Jurídica",
   contratos: "Contratos",
   jurisprudencia: "Jurisprudência",

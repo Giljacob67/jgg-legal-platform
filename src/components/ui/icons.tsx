@@ -84,6 +84,17 @@ export function ArchiveIcon(props: IconProps) {
   );
 }
 
+export function CalendarIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M7 3v3M17 3v3" />
+      <path d="M4 8.5h16" />
+      <path d="M5.5 5h13A1.5 1.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11A1.5 1.5 0 0 1 5.5 5Z" />
+      <path d="M8 12h3M13 12h3M8 16h3" />
+    </BaseIcon>
+  );
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>
@@ -269,6 +280,7 @@ export function BuildingIcon(props: IconProps) {
 
 const ICONS_BY_MODULE: Record<ModuloId, (props: IconProps) => ReactElement> = {
   dashboard: DashboardIcon,
+  agenda: CalendarIcon,
   peticoes: ScaleIcon,
   casos: FolderIcon,
   documentos: ArchiveIcon,
