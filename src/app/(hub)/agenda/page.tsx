@@ -25,12 +25,19 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const readiness = avaliarGoogleWorkspace(googleConfig);
   const calendarSelecionado = params.calendarId || googleConfig.calendarPrimaryId;
 
-  const connection = session?.user?.id
-    ? await obterStatusAgendaGoogle(session.user.id)
-    : { conectada: false, calendarios: [], pendencia: "Sessão indisponível." };
+  let connection:
+    | Awaited<ReturnType<typeof obterStatusAgendaGoogle>>
+    | { conectada: false; calendarios: []; pendencia: string } = { conectada: false, calendarios: [], pendencia: "Sessão indisponível." };
+  let eventos: Awaited<ReturnType<typeof listarEventosAgendaGoogle>> = [];
+  let casos: Awaited<ReturnType<typeof listarCasos>> = [];
+  let pedidos: Awaited<ReturnType<typeof listarPedidosDePeca>> = [];
+  let clientes: Awaited<ReturnType<typeof listarClientes>> = [];
+  let detalheAgenda = params.detalhe ?? null;
 
-  const [eventos, casos, pedidos, clientes] = session?.user?.id
-    ? await Promise.all([
+  if (session?.user?.id) {
+    try {
+      connection = await obterStatusAgendaGoogle(session.user.id);
+      [eventos, casos, pedidos, clientes] = await Promise.all([
         listarEventosAgendaGoogle(session.user.id, calendarSelecionado, {
           inicio: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
           fim: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
@@ -38,8 +45,16 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         listarCasos(),
         listarPedidosDePeca(),
         listarClientes({ status: "ativo" }),
-      ])
-    : [[], [], [], []];
+      ]);
+    } catch (error) {
+      connection = {
+        conectada: false,
+        calendarios: [],
+        pendencia: "A Agenda encontrou uma falha de infraestrutura e entrou em modo degradado.",
+      };
+      detalheAgenda = error instanceof Error ? error.message : "Falha ao carregar a Agenda.";
+    }
+  }
 
   const opcoesVinculo = {
     casos: casos.map((caso) => ({
@@ -76,7 +91,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         connection={connection}
         eventos={eventos}
         googleFeedback={params.google ?? null}
-        googleDetalhe={params.detalhe ?? null}
+        googleDetalhe={detalheAgenda}
         calendarioSelecionado={calendarSelecionado}
         opcoesVinculo={opcoesVinculo}
       />

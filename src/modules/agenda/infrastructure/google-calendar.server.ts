@@ -74,6 +74,18 @@ const MOCK_EVENTS: AgendaEvent[] = [
   },
 ];
 
+function isGoogleIntegrationTableMissing(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes("google_integracoes_usuario") &&
+    (
+      error.message.includes("does not exist") ||
+      error.message.includes("relation") ||
+      error.message.includes("undefined_table")
+    )
+  );
+}
+
 function extrairVinculo(eventLike: {
   extendedProperties?: {
     private?: Record<string, string | null | undefined>;
@@ -179,27 +191,34 @@ export async function obterConexaoGoogle(userId: string): Promise<GoogleCalendar
     return obterConexaoMock(userId);
   }
 
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(googleIntegracoesUsuario)
-    .where(eq(googleIntegracoesUsuario.userId, userId));
+  try {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(googleIntegracoesUsuario)
+      .where(eq(googleIntegracoesUsuario.userId, userId));
 
-  const row = rows[0];
-  if (!row) return null;
+    const row = rows[0];
+    if (!row) return null;
 
-  return {
-    id: row.id,
-    userId: row.userId,
-    emailGoogle: row.emailGoogle ?? null,
-    accessToken: row.accessToken,
-    refreshToken: row.refreshToken ?? null,
-    tokenType: row.tokenType ?? null,
-    scope: row.scope ?? null,
-    expiryDate: row.expiryDate?.toISOString() ?? null,
-    selectedCalendarId: row.selectedCalendarId ?? null,
-    metadata: (row.metadata as Record<string, unknown>) ?? {},
-  };
+    return {
+      id: row.id,
+      userId: row.userId,
+      emailGoogle: row.emailGoogle ?? null,
+      accessToken: row.accessToken,
+      refreshToken: row.refreshToken ?? null,
+      tokenType: row.tokenType ?? null,
+      scope: row.scope ?? null,
+      expiryDate: row.expiryDate?.toISOString() ?? null,
+      selectedCalendarId: row.selectedCalendarId ?? null,
+      metadata: (row.metadata as Record<string, unknown>) ?? {},
+    };
+  } catch (error) {
+    if (isGoogleIntegrationTableMissing(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function salvarConexaoGoogle(connection: GoogleCalendarConnection) {
@@ -208,34 +227,41 @@ export async function salvarConexaoGoogle(connection: GoogleCalendarConnection) 
     return;
   }
 
-  const db = getDb();
-  await db
-    .insert(googleIntegracoesUsuario)
-    .values({
-      userId: connection.userId,
-      emailGoogle: connection.emailGoogle ?? null,
-      accessToken: connection.accessToken,
-      refreshToken: connection.refreshToken ?? null,
-      tokenType: connection.tokenType ?? null,
-      scope: connection.scope ?? null,
-      expiryDate: connection.expiryDate ? new Date(connection.expiryDate) : null,
-      selectedCalendarId: connection.selectedCalendarId ?? null,
-      metadata: connection.metadata ?? {},
-    })
-    .onConflictDoUpdate({
-      target: googleIntegracoesUsuario.userId,
-      set: {
+  try {
+    const db = getDb();
+    await db
+      .insert(googleIntegracoesUsuario)
+      .values({
+        userId: connection.userId,
         emailGoogle: connection.emailGoogle ?? null,
         accessToken: connection.accessToken,
-        refreshToken: connection.refreshToken ?? undefined,
-        tokenType: connection.tokenType ?? undefined,
-        scope: connection.scope ?? undefined,
+        refreshToken: connection.refreshToken ?? null,
+        tokenType: connection.tokenType ?? null,
+        scope: connection.scope ?? null,
         expiryDate: connection.expiryDate ? new Date(connection.expiryDate) : null,
-        selectedCalendarId: connection.selectedCalendarId ?? undefined,
+        selectedCalendarId: connection.selectedCalendarId ?? null,
         metadata: connection.metadata ?? {},
-        updatedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: googleIntegracoesUsuario.userId,
+        set: {
+          emailGoogle: connection.emailGoogle ?? null,
+          accessToken: connection.accessToken,
+          refreshToken: connection.refreshToken ?? undefined,
+          tokenType: connection.tokenType ?? undefined,
+          scope: connection.scope ?? undefined,
+          expiryDate: connection.expiryDate ? new Date(connection.expiryDate) : null,
+          selectedCalendarId: connection.selectedCalendarId ?? undefined,
+          metadata: connection.metadata ?? {},
+          updatedAt: new Date(),
+        },
+      });
+  } catch (error) {
+    if (isGoogleIntegrationTableMissing(error)) {
+      throw new Error("A migração da Agenda ainda não foi aplicada no banco de produção.");
+    }
+    throw error;
+  }
 }
 
 export async function removerConexaoGoogle(userId: string) {
@@ -244,8 +270,15 @@ export async function removerConexaoGoogle(userId: string) {
     return;
   }
 
-  const db = getDb();
-  await db.delete(googleIntegracoesUsuario).where(eq(googleIntegracoesUsuario.userId, userId));
+  try {
+    const db = getDb();
+    await db.delete(googleIntegracoesUsuario).where(eq(googleIntegracoesUsuario.userId, userId));
+  } catch (error) {
+    if (isGoogleIntegrationTableMissing(error)) {
+      return;
+    }
+    throw error;
+  }
 }
 
 async function garantirClientAutenticado(connection: GoogleCalendarConnection) {
@@ -548,7 +581,19 @@ export async function excluirEventoGoogle(userId: string, eventId: string, calen
 
 export async function obterStatusConexaoGoogleAgenda(userId: string): Promise<GoogleAgendaConnectionStatus> {
   const config = await obterConfigGoogle();
-  const connection = await obterConexaoGoogle(userId);
+  let connection: GoogleCalendarConnection | null = null;
+  try {
+    connection = await obterConexaoGoogle(userId);
+  } catch (error) {
+    if (isGoogleIntegrationTableMissing(error)) {
+      return {
+        conectada: false,
+        calendarios: [],
+        pendencia: "A migration da Agenda ainda não foi aplicada no banco. Execute a migration 0020_google_integracoes_usuario.sql.",
+      };
+    }
+    throw error;
+  }
 
   if (!connection) {
     const pendencia =
