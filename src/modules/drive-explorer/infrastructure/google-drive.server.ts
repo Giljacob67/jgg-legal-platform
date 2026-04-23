@@ -1,0 +1,178 @@
+import "server-only";
+
+import { google } from "googleapis";
+import type { drive_v3 } from "googleapis";
+import { extrairGoogleWorkspaceConfig } from "@/modules/administracao/domain/google-workspace";
+import { obterConfiguracoes } from "@/modules/administracao/application";
+import { obterConexaoGoogle, salvarConexaoGoogle } from "@/modules/agenda/infrastructure/google-calendar.server";
+import type {
+  DriveExplorerBreadcrumb,
+  DriveExplorerItem,
+  DriveExplorerResultado,
+} from "@/modules/drive-explorer/domain/types";
+
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+function formatarBytes(bytes?: number) {
+  if (!bytes || Number.isNaN(bytes) || bytes <= 0) return undefined;
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+async function obterConfigGoogle() {
+  const configuracoes = await obterConfiguracoes();
+  return extrairGoogleWorkspaceConfig(configuracoes);
+}
+
+async function criarClientDriveAutenticado(userId: string) {
+  const connection = await obterConexaoGoogle(userId);
+  if (!connection) {
+    throw new Error("Conta Google ainda não conectada para este usuário.");
+  }
+
+  const config = await obterConfigGoogle();
+  if (!config.oauthClientId || !config.oauthClientSecret || !config.oauthRedirectUri) {
+    throw new Error("OAuth Google incompleto. Configure Client ID, Client Secret e Redirect URI.");
+  }
+
+  const client = new google.auth.OAuth2(
+    config.oauthClientId,
+    config.oauthClientSecret,
+    config.oauthRedirectUri,
+  );
+
+  client.setCredentials({
+    access_token: connection.accessToken,
+    refresh_token: connection.refreshToken ?? undefined,
+    token_type: connection.tokenType ?? undefined,
+    scope: connection.scope ?? undefined,
+    expiry_date: connection.expiryDate ? new Date(connection.expiryDate).getTime() : undefined,
+  });
+
+  const expiry = connection.expiryDate ? new Date(connection.expiryDate).getTime() : undefined;
+  const expirada = !expiry || expiry - Date.now() < 60_000;
+
+  if (expirada && connection.refreshToken) {
+    const { credentials } = await client.refreshAccessToken();
+    client.setCredentials(credentials);
+    await salvarConexaoGoogle({
+      ...connection,
+      accessToken: credentials.access_token ?? connection.accessToken,
+      refreshToken: credentials.refresh_token ?? connection.refreshToken,
+      tokenType: credentials.token_type ?? connection.tokenType,
+      scope: credentials.scope ?? connection.scope,
+      expiryDate: credentials.expiry_date
+        ? new Date(credentials.expiry_date).toISOString()
+        : connection.expiryDate,
+    });
+  }
+
+  return google.drive({ version: "v3", auth: client });
+}
+
+async function obterMetadataPasta(
+  drive: drive_v3.Drive,
+  folderId: string,
+): Promise<{ id: string; name: string; parents: string[] }> {
+  const res = await drive.files.get({
+    fileId: folderId,
+    supportsAllDrives: true,
+    fields: "id,name,parents",
+  });
+  return {
+    id: res.data.id ?? folderId,
+    name: res.data.name ?? "Pasta",
+    parents: res.data.parents ?? [],
+  };
+}
+
+async function montarBreadcrumbs(
+  drive: drive_v3.Drive,
+  pastaId: string,
+  pastaRaizId?: string,
+): Promise<DriveExplorerBreadcrumb[]> {
+  const breadcrumbs: DriveExplorerBreadcrumb[] = [];
+  let cursorId: string | undefined = pastaId;
+  let guard = 0;
+
+  while (cursorId && guard < 12) {
+    const atual = await obterMetadataPasta(drive, cursorId);
+    breadcrumbs.unshift({ id: atual.id, nome: atual.name });
+    if (!atual.parents.length || cursorId === pastaRaizId) break;
+    cursorId = atual.parents[0];
+    guard += 1;
+  }
+
+  return breadcrumbs;
+}
+
+function mapearItem(file: drive_v3.Schema$File): DriveExplorerItem {
+  const tamanhoBytes = file.size ? Number(file.size) : undefined;
+  return {
+    id: file.id ?? "",
+    nome: file.name ?? "Sem nome",
+    mimeType: file.mimeType ?? "application/octet-stream",
+    tipo: file.mimeType === FOLDER_MIME ? "pasta" : "arquivo",
+    webViewLink: file.webViewLink ?? undefined,
+    webContentLink: file.webContentLink ?? undefined,
+    iconLink: file.iconLink ?? undefined,
+    tamanhoBytes,
+    tamanhoLabel: formatarBytes(tamanhoBytes),
+    modificadoEm: file.modifiedTime ?? undefined,
+  };
+}
+
+export async function listarArquivosDriveExplorer(
+  userId: string,
+  params?: { folderId?: string; query?: string },
+): Promise<DriveExplorerResultado> {
+  const config = await obterConfigGoogle();
+  const drive = await criarClientDriveAutenticado(userId);
+  const pastaRaizId = config.driveSharedFolderId.trim() || undefined;
+  const pastaAtualId = params?.folderId || pastaRaizId || "root";
+  const query = params?.query?.trim() ?? "";
+
+  const filtros = [`trashed = false`];
+  if (query) {
+    filtros.push(`name contains '${query.replace(/'/g, "\\'")}'`);
+    filtros.push(`'${pastaAtualId}' in parents`);
+  } else {
+    filtros.push(`'${pastaAtualId}' in parents`);
+  }
+
+  const res = await drive.files.list({
+    q: filtros.join(" and "),
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
+    corpora: "allDrives",
+    pageSize: 100,
+    orderBy: "folder,name_natural",
+    fields:
+      "files(id,name,mimeType,webViewLink,webContentLink,iconLink,size,modifiedTime,parents)",
+  });
+
+  const pastaAtual =
+    pastaAtualId === "root"
+      ? { id: "root", nome: "Meu Drive" }
+      : await obterMetadataPasta(drive, pastaAtualId).then((item) => ({ id: item.id, nome: item.name }));
+
+  const breadcrumbs =
+    pastaAtualId === "root"
+      ? [{ id: "root", nome: "Meu Drive" }]
+      : await montarBreadcrumbs(drive, pastaAtualId, pastaRaizId);
+
+  return {
+    pastaAtual,
+    breadcrumbs,
+    itens: (res.data.files ?? []).map(mapearItem),
+    query,
+    pastaRaizId,
+    pastaRaizConfigurada: Boolean(pastaRaizId),
+  };
+}
