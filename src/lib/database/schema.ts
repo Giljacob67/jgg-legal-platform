@@ -534,6 +534,33 @@ export const configuracoesSistema = pgTable("configuracoes_sistema", {
 });
 
 // ─────────────────────────────────────────────────────────────
+// INTEGRAÇÕES GOOGLE POR USUÁRIO
+// ─────────────────────────────────────────────────────────────
+export const googleIntegracoesUsuario = pgTable(
+  "google_integracoes_usuario",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    emailGoogle: varchar("email_google", { length: 255 }),
+    accessToken: text("access_token").notNull(),
+    refreshToken: text("refresh_token"),
+    tokenType: varchar("token_type", { length: 50 }),
+    scope: text("scope"),
+    expiryDate: timestamp("expiry_date", { withTimezone: true }),
+    selectedCalendarId: varchar("selected_calendar_id", { length: 255 }),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("google_integracoes_usuario_user_unique").on(table.userId),
+    index("idx_google_integracoes_usuario_email").on(table.emailGoogle),
+  ],
+);
+
+// ─────────────────────────────────────────────────────────────
 // LEGACY TABLES (mantidas para compatibilidade, não adicionar novas aqui)
 // ─────────────────────────────────────────────────────────────
 
