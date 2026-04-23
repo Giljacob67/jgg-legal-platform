@@ -24,3 +24,15 @@ export interface DriveExplorerResultado {
   pastaRaizId?: string;
   pastaRaizConfigurada: boolean;
 }
+
+export interface DriveExplorerVinculo {
+  id: string;
+  driveFileId: string;
+  driveFileName: string;
+  driveMimeType?: string;
+  driveWebViewLink?: string;
+  tipoEntidade: "caso" | "pedido" | "cliente";
+  entidadeId: string;
+  entidadeLabel: string;
+  criadoEm: string;
+}

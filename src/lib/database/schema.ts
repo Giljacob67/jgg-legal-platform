@@ -558,6 +558,32 @@ export const googleIntegracoesUsuario = pgTable(
   ],
 );
 
+export const googleDriveVinculos = pgTable(
+  "google_drive_vinculos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull(),
+    driveFileId: text("drive_file_id").notNull(),
+    driveFileName: text("drive_file_name").notNull(),
+    driveMimeType: text("drive_mime_type"),
+    driveWebViewLink: text("drive_web_view_link"),
+    tipoEntidade: text("tipo_entidade").$type<"caso" | "pedido" | "cliente">().notNull(),
+    entidadeId: text("entidade_id").notNull(),
+    entidadeLabel: text("entidade_label").notNull(),
+    criadoEm: timestamp("criado_em", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_google_drive_vinculos_user_id").on(table.userId),
+    index("idx_google_drive_vinculos_drive_file_id").on(table.driveFileId),
+    uniqueIndex("idx_google_drive_vinculos_unique_link").on(
+      table.userId,
+      table.driveFileId,
+      table.tipoEntidade,
+      table.entidadeId,
+    ),
+  ],
+);
+
 // ─────────────────────────────────────────────────────────────
 // LEGACY TABLES (mantidas para compatibilidade, não adicionar novas aqui)
 // ─────────────────────────────────────────────────────────────

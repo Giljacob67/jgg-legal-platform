@@ -9,6 +9,11 @@ import { avaliarGoogleWorkspace, extrairGoogleWorkspaceConfig } from "@/modules/
 import { listarArquivosDriveExplorer } from "@/modules/drive-explorer/application/listarArquivosDriveExplorer";
 import { obterStatusAgendaGoogle } from "@/modules/agenda/application/google-calendar";
 import { formatarDataHora } from "@/lib/utils";
+import { listarVinculosDriveExplorer } from "@/modules/drive-explorer/application/vinculos";
+import { listarCasos } from "@/modules/casos/application/listarCasos";
+import { listarPedidosDePeca } from "@/modules/peticoes/application/listarPedidosDePeca";
+import { listarClientes } from "@/modules/clientes/application";
+import { DriveExplorerItemVinculos } from "@/modules/drive-explorer/ui/drive-explorer-item-vinculos";
 
 type DocumentosDrivePageProps = {
   searchParams: Promise<{
@@ -31,16 +36,32 @@ export default async function DocumentosDrivePage({ searchParams }: DocumentosDr
   let explorer:
     | Awaited<ReturnType<typeof listarArquivosDriveExplorer>>
     | null = null;
+  let vinculosPorArquivo: Record<string, Awaited<ReturnType<typeof listarVinculosDriveExplorer>>> = {};
+  let casos: Awaited<ReturnType<typeof listarCasos>> = [];
+  let pedidos: Awaited<ReturnType<typeof listarPedidosDePeca>> = [];
+  let clientes: Awaited<ReturnType<typeof listarClientes>> = [];
   let detalheErro: string | null = null;
 
   if (session?.user?.id) {
     try {
       connection = await obterStatusAgendaGoogle(session.user.id);
       if (connection.conectada && readiness.driveExplorerOk) {
-        explorer = await listarArquivosDriveExplorer(session.user.id, {
-          folderId: params.folderId,
-          query,
+        [explorer, casos, pedidos, clientes] = await Promise.all([
+          listarArquivosDriveExplorer(session.user.id, {
+            folderId: params.folderId,
+            query,
+          }),
+          listarCasos(),
+          listarPedidosDePeca(),
+          listarClientes({ status: "ativo" }),
+        ]);
+        const vinculos = await listarVinculosDriveExplorer(session.user.id, {
+          driveFileIds: explorer.itens.filter((item) => item.tipo === "arquivo").map((item) => item.id),
         });
+        vinculosPorArquivo = vinculos.reduce<Record<string, typeof vinculos>>((acc, item) => {
+          acc[item.driveFileId] = [...(acc[item.driveFileId] ?? []), item];
+          return acc;
+        }, {});
       }
     } catch (error) {
       detalheErro = error instanceof Error ? error.message : "Falha ao carregar arquivos do Google Drive.";
@@ -195,6 +216,20 @@ export default async function DocumentosDrivePage({ searchParams }: DocumentosDr
                           ) : null}
                         </div>
                       </div>
+                      {item.tipo === "arquivo" ? (
+                        <DriveExplorerItemVinculos
+                          driveFileId={item.id}
+                          driveFileName={item.nome}
+                          driveMimeType={item.mimeType}
+                          driveWebViewLink={item.webViewLink}
+                          vinculosIniciais={vinculosPorArquivo[item.id] ?? []}
+                          opcoes={{
+                            casos: casos.map((caso) => ({ id: caso.id, label: `${caso.id} • ${caso.titulo}` })),
+                            pedidos: pedidos.map((pedido) => ({ id: pedido.id, label: `${pedido.id} • ${pedido.titulo}` })),
+                            clientes: clientes.map((cliente) => ({ id: cliente.id, label: `${cliente.id} • ${cliente.nome}` })),
+                          }}
+                        />
+                      ) : null}
                     </article>
                   ))
                 )}
