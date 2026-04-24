@@ -24,6 +24,11 @@ const MIME_TYPES_IMPORTAVEIS = new Set([
   GOOGLE_SLIDE_MIME,
 ]);
 
+function ehFolderIdConfiguradoInvalido(valor?: string) {
+  const limpo = (valor ?? "").trim().toLowerCase();
+  return !limpo || limpo === "." || limpo === "/" || limpo === "root";
+}
+
 function formatarBytes(bytes?: number) {
   if (!bytes || Number.isNaN(bytes) || bytes <= 0) return undefined;
   const units = ["B", "KB", "MB", "GB"];
@@ -151,8 +156,12 @@ export async function listarArquivosDriveExplorer(
 ): Promise<DriveExplorerResultado> {
   const config = await obterConfigGoogle();
   const drive = await criarClientDriveAutenticado(userId);
-  const pastaRaizId = config.driveSharedFolderId.trim() || undefined;
-  const pastaAtualId = params?.folderId || pastaRaizId || "root";
+  const pastaRaizId = ehFolderIdConfiguradoInvalido(config.driveSharedFolderId)
+    ? undefined
+    : config.driveSharedFolderId.trim();
+  const pastaAtualId = ehFolderIdConfiguradoInvalido(params?.folderId)
+    ? pastaRaizId || "root"
+    : params?.folderId?.trim() || pastaRaizId || "root";
   const query = params?.query?.trim() ?? "";
 
   const filtros = [`trashed = false`];
@@ -163,31 +172,63 @@ export async function listarArquivosDriveExplorer(
     filtros.push(`'${pastaAtualId}' in parents`);
   }
 
-  const res = await drive.files.list({
-    q: filtros.join(" and "),
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-    corpora: "allDrives",
-    pageSize: 100,
-    orderBy: "folder,name_natural",
-    fields:
-      "files(id,name,mimeType,webViewLink,webContentLink,iconLink,size,modifiedTime,parents)",
-  });
+  let arquivos: drive_v3.Schema$File[] = [];
+  let pastaAtual: { id: string; nome: string };
+  let breadcrumbs: DriveExplorerBreadcrumb[];
 
-  const pastaAtual =
-    pastaAtualId === "root"
-      ? { id: "root", nome: "Meu Drive" }
-      : await obterMetadataPasta(drive, pastaAtualId).then((item) => ({ id: item.id, nome: item.name }));
+  try {
+    const resposta = await drive.files.list({
+      q: filtros.join(" and "),
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+      corpora: "allDrives",
+      pageSize: 100,
+      orderBy: "folder,name_natural",
+      fields:
+        "files(id,name,mimeType,webViewLink,webContentLink,iconLink,size,modifiedTime,parents)",
+    });
+    arquivos = resposta.data.files ?? [];
 
-  const breadcrumbs =
-    pastaAtualId === "root"
-      ? [{ id: "root", nome: "Meu Drive" }]
-      : await montarBreadcrumbs(drive, pastaAtualId, pastaRaizId);
+    pastaAtual =
+      pastaAtualId === "root"
+        ? { id: "root", nome: "Meu Drive" }
+        : await obterMetadataPasta(drive, pastaAtualId).then((item) => ({ id: item.id, nome: item.name }));
+
+    breadcrumbs =
+      pastaAtualId === "root"
+        ? [{ id: "root", nome: "Meu Drive" }]
+        : await montarBreadcrumbs(drive, pastaAtualId, pastaRaizId);
+  } catch (error) {
+    const codigo = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
+    const mensagem =
+      typeof error === "object" && error !== null && "message" in error ? String((error as { message?: unknown }).message) : "";
+    const precisaFallback =
+      pastaAtualId !== "root" &&
+      (codigo === "404" || mensagem.toLowerCase().includes("file not found"));
+
+    if (!precisaFallback) {
+      throw error;
+    }
+
+    const resposta = await drive.files.list({
+      q: "trashed = false and 'root' in parents",
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+      corpora: "allDrives",
+      pageSize: 100,
+      orderBy: "folder,name_natural",
+      fields:
+        "files(id,name,mimeType,webViewLink,webContentLink,iconLink,size,modifiedTime,parents)",
+    });
+    arquivos = resposta.data.files ?? [];
+    pastaAtual = { id: "root", nome: "Meu Drive" };
+    breadcrumbs = [{ id: "root", nome: "Meu Drive" }];
+  }
 
   return {
     pastaAtual,
     breadcrumbs,
-    itens: (res.data.files ?? []).map(mapearItem),
+    itens: arquivos.map(mapearItem),
     query,
     pastaRaizId,
     pastaRaizConfigurada: Boolean(pastaRaizId),

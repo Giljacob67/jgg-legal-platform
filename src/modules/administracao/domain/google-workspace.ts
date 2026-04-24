@@ -23,6 +23,14 @@ export interface GoogleWorkspaceReadiness {
   pendenciasBiblioteca: string[];
 }
 
+function normalizarDriveSharedFolderId(valor?: string) {
+  const limpo = (valor ?? "").trim();
+  if (!limpo || limpo === "." || limpo === "/" || limpo.toLowerCase() === "root") {
+    return "";
+  }
+  return limpo;
+}
+
 export function extrairGoogleWorkspaceConfig(configuracoes: ConfiguracaoSistema[]): GoogleWorkspaceConfig {
   const mapa = new Map(configuracoes.map((item) => [item.chave, item.valor]));
 
@@ -34,7 +42,7 @@ export function extrairGoogleWorkspaceConfig(configuracoes: ConfiguracaoSistema[
     oauthClientSecret: mapa.get("google_oauth_client_secret") ?? "",
     oauthRedirectUri: mapa.get("google_oauth_redirect_uri") ?? "",
     serviceAccountKey: mapa.get("google_service_account_key") ?? "",
-    driveSharedFolderId: mapa.get("google_drive_shared_folder_id") ?? "",
+    driveSharedFolderId: normalizarDriveSharedFolderId(mapa.get("google_drive_shared_folder_id")),
     calendarPrimaryId: mapa.get("google_calendar_primary_id") ?? "primary",
     calendarSyncScope: mapa.get("google_calendar_sync_scope") ?? "operacao_juridica",
   };
