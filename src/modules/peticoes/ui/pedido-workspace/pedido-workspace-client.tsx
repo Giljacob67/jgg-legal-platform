@@ -48,7 +48,7 @@ export function PedidoWorkspaceClient(props: PedidoWorkspaceClientProps) {
       )}
 
       {secaoAtiva === "fatos-provas" && (
-        <FatosProvasSection dossie={props.dossie} />
+        <FatosProvasSection dossie={props.dossie} pedido={props.pedido} />
       )}
 
       {secaoAtiva === "analise-adversa" && (
