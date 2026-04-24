@@ -14,6 +14,7 @@ const SECOES: Array<{ id: SecaoPedidoId; titulo: string; abrev?: string }> = [
   { id: "estrutura-peca", titulo: "Estrutura da Peça", abrev: "Estrutura" },
   { id: "minuta", titulo: "Minuta", abrev: "Minuta" },
   { id: "revisao-auditoria", titulo: "Revisão e Auditoria", abrev: "Revisão" },
+  { id: "assistente", titulo: "Assistente", abrev: "IA" },
 ];
 
 type PedidoWorkspaceTabsProps = {

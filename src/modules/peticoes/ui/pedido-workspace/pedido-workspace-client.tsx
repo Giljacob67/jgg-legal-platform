@@ -12,6 +12,7 @@ import { TesesSection } from "./teses-section";
 import { EstruturaPecaSection } from "./estrutura-peca-section";
 import { MinutaSection } from "./minuta-section";
 import { RevisaoAuditoriaSection } from "./revisao-auditoria-section";
+import { AssistenteSection } from "./assistente/assistente-section";
 import type { PedidoWorkspaceData, SecaoPedidoId } from "./types";
 
 type PedidoWorkspaceClientProps = PedidoWorkspaceData;
@@ -77,6 +78,15 @@ export function PedidoWorkspaceClient(props: PedidoWorkspaceClientProps) {
           prontidaoAprovacao={props.prontidaoAprovacao}
           snapshots={props.snapshots}
           etapaAtual={props.etapaAtual}
+        />
+      )}
+
+      {secaoAtiva === "assistente" && (
+        <AssistenteSection
+          pedido={props.pedido}
+          documentos={props.documentos}
+          dossie={props.dossie}
+          contextoAtual={props.contextoAtual}
         />
       )}
     </PedidoWorkspaceTabs>

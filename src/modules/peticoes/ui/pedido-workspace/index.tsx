@@ -9,4 +9,5 @@ export { TesesSection } from "./teses-section";
 export { EstruturaPecaSection } from "./estrutura-peca-section";
 export { MinutaSection } from "./minuta-section";
 export { RevisaoAuditoriaSection } from "./revisao-auditoria-section";
+export { AssistenteSection } from "./assistente/assistente-section";
 export type { PedidoWorkspaceData, SecaoPedidoId } from "./types";

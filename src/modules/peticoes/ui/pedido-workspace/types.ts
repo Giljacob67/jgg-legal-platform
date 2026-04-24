@@ -13,7 +13,8 @@ export type SecaoPedidoId =
   | "teses"
   | "estrutura-peca"
   | "minuta"
-  | "revisao-auditoria";
+  | "revisao-auditoria"
+  | "assistente";
 
 export interface SecaoPedidoMeta {
   id: SecaoPedidoId;
