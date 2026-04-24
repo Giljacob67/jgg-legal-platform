@@ -5,8 +5,10 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FileIcon, ScaleIcon } from "@/components/ui/icons";
+import { avaliarProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
+import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import {
   avaliarSlaDaEtapa,
@@ -22,6 +24,7 @@ import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
 import { PedidoWorkspaceOverview } from "@/modules/peticoes/ui/pedido-workspace-overview";
 import { DossieJuridicoPanel } from "@/modules/peticoes/ui/dossie-juridico-panel";
 import { EstruturaPecaPanel } from "@/modules/peticoes/ui/estrutura-peca-panel";
+import { AuditoriaAprovacaoPanel } from "@/modules/peticoes/ui/auditoria-aprovacao-panel";
 import { getDataMode } from "@/lib/data-mode";
 import { formatarData, formatarDataHora } from "@/lib/utils";
 import type { EtapaPipeline, SnapshotPipelineEtapa, StatusPedido } from "@/modules/peticoes/domain/types";
@@ -101,6 +104,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
 
   const minuta = await obterMinutaPorPedidoId(pedidoId);
   const pipelineOperacional = await obterPipelineDoPedido(pedido.id).catch(() => null);
+  const editorData = minuta ? await obterEditorMinutaOperacional(minuta.id).catch(() => null) : null;
   const documentosDoPedido = await listarDocumentosPorPedido(pedido.id);
   const documentos = documentosDoPedido.length > 0 ? documentosDoPedido : await listarDocumentosPorCaso(pedido.casoId);
 
@@ -117,6 +121,14 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
   const percentualConclusao = totalEtapas > 0 ? Math.round((etapasConcluidas / totalEtapas) * 100) : 0;
   const diasRestantes = calcularDiasRestantesPrazo(pedido.prazoFinal);
   const etapaAtual = pipelineOperacional?.etapaAtual ?? pedido.etapaAtual;
+  const prontidaoAprovacao =
+    pipelineOperacional?.contextoAtual || minuta
+      ? avaliarProntidaoAprovacao({
+          contextoJuridico: pipelineOperacional?.contextoAtual ?? null,
+          minuta: editorData?.minuta ?? minuta ?? null,
+          inteligenciaJuridica: editorData?.inteligenciaJuridica ?? null,
+        })
+      : undefined;
   const slaEtapaAtual = avaliarSlaDaEtapa({
     etapa: etapaAtual,
     pedidoCriadoEm: pedido.criadoEm,
@@ -180,6 +192,16 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
     });
   }
 
+  if (prontidaoAprovacao && !prontidaoAprovacao.liberado) {
+    for (const bloqueio of prontidaoAprovacao.bloqueios.slice(0, 3)) {
+      pendencias.push({
+        titulo: "Auditoria de aprovação",
+        descricao: bloqueio,
+        severidade: "alta",
+      });
+    }
+  }
+
   const proximosPassos = [
     ...PROXIMOS_PASSOS_POR_ETAPA[etapaAtual],
     ...pendencias.slice(0, 2).map((item) => item.descricao),
@@ -191,7 +213,11 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
       ? `/peticoes/pipeline/${pedido.id}`
       : pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente
         ? "#mapa-teses"
-        : minuta
+        : !minuta
+          ? "#estrutura-peca"
+          : prontidaoAprovacao && !prontidaoAprovacao.liberado
+            ? "#auditoria-aprovacao"
+            : minuta
           ? `/peticoes/minutas/${minuta.id}/editor`
           : `/peticoes/pipeline/${pedido.id}`;
   const labelAcaoPrincipal = !responsavelDefinido
@@ -200,7 +226,11 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
       ? "Consolidar contexto"
       : pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente
         ? "Validar teses"
-        : minuta
+        : !minuta
+          ? "Revisar estrutura"
+          : prontidaoAprovacao && !prontidaoAprovacao.liberado
+            ? "Fechar auditoria"
+            : minuta
           ? "Continuar no editor"
           : "Abrir produção";
   const linkAgendarPedido = `/agenda?${new URLSearchParams({
@@ -247,6 +277,7 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         pendenciasCriticas={bloqueiosCriticos}
         contextoAtual={pipelineOperacional?.contextoAtual ?? null}
         minutaId={minuta?.id}
+        prontidaoAprovacao={prontidaoAprovacao}
       />
 
       <section id="controle" className="grid gap-4 scroll-mt-24 md:grid-cols-2 xl:grid-cols-4">
@@ -361,6 +392,12 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
       <div id="estrutura-peca" className="scroll-mt-24">
         <EstruturaPecaPanel contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
       </div>
+
+      {prontidaoAprovacao ? (
+        <div id="auditoria-aprovacao" className="scroll-mt-24">
+          <AuditoriaAprovacaoPanel prontidao={prontidaoAprovacao} />
+        </div>
+      ) : null}
 
       <div id="timeline" className="scroll-mt-24">
         <Card title="Timeline do pedido" subtitle="Histórico cronológico de eventos operacionais e técnicos." eyebrow="Rastro">

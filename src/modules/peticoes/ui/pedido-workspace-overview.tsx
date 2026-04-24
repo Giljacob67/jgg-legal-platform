@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import type { ProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
 import type { ContextoJuridicoPedido, EtapaPipeline, StatusPedido } from "@/modules/peticoes/domain/types";
 
 type PedidoWorkspaceOverviewProps = {
@@ -15,6 +16,7 @@ type PedidoWorkspaceOverviewProps = {
   pendenciasCriticas: number;
   contextoAtual: ContextoJuridicoPedido | null;
   minutaId?: string;
+  prontidaoAprovacao?: ProntidaoAprovacao;
 };
 
 type MacroEtapaId = "intake" | "estrategia" | "estrutura" | "redacao" | "revisao" | "aprovacao";
@@ -122,6 +124,16 @@ function definirProximaAcao(input: PedidoWorkspaceOverviewProps) {
     };
   }
 
+  if (input.prontidaoAprovacao && !input.prontidaoAprovacao.liberado) {
+    return {
+      titulo: "Fechar bloqueios de auditoria",
+      descricao: "A minuta já existe, mas ainda não atende o mínimo jurídico-operacional para aprovação final.",
+      href: "#auditoria-aprovacao",
+      label: "Revisar auditoria",
+      variant: "primario" as const,
+    };
+  }
+
   if (input.pedidoStatus !== "aprovado") {
     return {
       titulo: "Revisar e fechar a minuta",
@@ -181,6 +193,12 @@ export function PedidoWorkspaceOverview(props: PedidoWorkspaceOverviewProps) {
             className="rounded-full border border-[var(--color-border)] bg-[var(--color-card-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
           >
             Estrutura
+          </Link>
+          <Link
+            href="#auditoria-aprovacao"
+            className="rounded-full border border-[var(--color-border)] bg-[var(--color-card-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
+          >
+            Auditoria
           </Link>
           <Link
             href="#timeline"
@@ -246,6 +264,18 @@ export function PedidoWorkspaceOverview(props: PedidoWorkspaceOverviewProps) {
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-strong)] p-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">Conclusão do pipeline</p>
               <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{props.percentualConclusao}%</p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-strong)] p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">Prontidão p/ aprovação</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">
+                {props.prontidaoAprovacao
+                  ? props.prontidaoAprovacao.liberado
+                    ? "liberada"
+                    : `${props.prontidaoAprovacao.bloqueios.length} bloqueio(s)`
+                  : props.minutaId
+                    ? "em análise"
+                    : "sem minuta"}
+              </p>
             </div>
           </div>
 
