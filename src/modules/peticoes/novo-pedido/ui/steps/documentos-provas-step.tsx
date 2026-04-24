@@ -1,12 +1,15 @@
-import type { ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 import { SelectInput } from "@/components/ui/select-input";
 import type { DocumentoSelecionadoNovoPedido, PendenciaNovoPedido } from "@/modules/peticoes/novo-pedido/domain/types";
+import { TextInput } from "@/components/ui/text-input";
+import type { DriveExplorerItem } from "@/modules/drive-explorer/domain/types";
 
 type DocumentosProvasStepProps = {
   documentos: DocumentoSelecionadoNovoPedido[];
   pendencias: PendenciaNovoPedido[];
   tipoDocumentoUpload: string;
   onSelecionarArquivos: (arquivos: File[]) => void;
+  onAdicionarArquivoDrive: (arquivo: DriveExplorerItem) => void;
   onRemoverDocumento: (documentoId: string) => void;
   onAlterarTipoDocumentoUpload: (tipo: string) => void;
 };
@@ -16,14 +19,42 @@ export function DocumentosProvasStep({
   pendencias,
   tipoDocumentoUpload,
   onSelecionarArquivos,
+  onAdicionarArquivoDrive,
   onRemoverDocumento,
   onAlterarTipoDocumentoUpload,
 }: DocumentosProvasStepProps) {
   const pendenciasDaEtapa = pendencias.filter((item) => item.etapaRelacionada === "documentos_provas");
+  const [buscaDrive, setBuscaDrive] = useState("");
+  const [buscandoDrive, setBuscandoDrive] = useState(false);
+  const [erroDrive, setErroDrive] = useState<string | null>(null);
+  const [resultadosDrive, setResultadosDrive] = useState<DriveExplorerItem[]>([]);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     onSelecionarArquivos(event.target.files ? Array.from(event.target.files) : []);
     event.target.value = "";
+  }
+
+  async function buscarNoDrive() {
+    const query = buscaDrive.trim();
+    if (!query) {
+      setResultadosDrive([]);
+      return;
+    }
+
+    setBuscandoDrive(true);
+    setErroDrive(null);
+    try {
+      const response = await fetch(`/api/documentos/drive/busca?q=${encodeURIComponent(query)}`);
+      const payload = (await response.json()) as { error?: string; itens?: DriveExplorerItem[] };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Falha ao buscar arquivos no Google Drive.");
+      }
+      setResultadosDrive(payload.itens ?? []);
+    } catch (error) {
+      setErroDrive(error instanceof Error ? error.message : "Falha ao buscar arquivos no Google Drive.");
+    } finally {
+      setBuscandoDrive(false);
+    }
   }
 
   return (
@@ -61,6 +92,74 @@ export function DocumentosProvasStep({
       </div>
 
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-[var(--color-ink)]">Importar do Google Drive</p>
+          <p className="text-sm text-[var(--color-muted)]">
+            Selecione arquivos específicos do Drive para instruir os agentes já no intake. Eles serão importados para o pedido após a criação final.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr,auto]">
+          <TextInput
+            label="Buscar no Drive"
+            value={buscaDrive}
+            onChange={(event) => setBuscaDrive(event.target.value)}
+            placeholder="Ex.: inicial, contrato, procuração, comprovante"
+            helperText="A busca retorna arquivos importáveis por nome."
+          />
+          <button
+            type="button"
+            onClick={buscarNoDrive}
+            disabled={buscandoDrive || !buscaDrive.trim()}
+            className="mt-7 rounded-2xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-semibold text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {buscandoDrive ? "Buscando..." : "Buscar no Drive"}
+          </button>
+        </div>
+
+        {erroDrive ? (
+          <p className="mt-3 text-sm text-rose-700">{erroDrive}</p>
+        ) : null}
+
+        {resultadosDrive.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {resultadosDrive.map((item) => (
+              <article key={item.id} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-ink)]">{item.nome}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      {item.mimeType}
+                      {item.tamanhoLabel ? ` • ${item.tamanhoLabel}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {item.webViewLink ? (
+                      <a
+                        href={item.webViewLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
+                      >
+                        Abrir no Drive
+                      </a>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => onAdicionarArquivoDrive(item)}
+                      className="rounded-xl bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white"
+                    >
+                      Preparar para o pedido
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
         <p className="text-sm font-semibold text-[var(--color-ink)]">Arquivos preparados</p>
         {documentos.length === 0 ? (
           <p className="mt-3 text-sm text-[var(--color-muted)]">Nenhum arquivo selecionado até agora.</p>
@@ -75,6 +174,7 @@ export function DocumentosProvasStep({
                   <p className="text-sm font-semibold text-[var(--color-ink)]">{documento.nome}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
                     {(documento.tamanhoBytes / 1024).toFixed(0)} KB • {documento.mimeType || "tipo não identificado"}
+                    {documento.origem === "google_drive" ? " • Google Drive" : " • Upload local"}
                   </p>
                 </div>
                 <button

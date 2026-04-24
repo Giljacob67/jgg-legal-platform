@@ -36,6 +36,7 @@ import type {
   SugestaoTriagemWizard,
   TesePreliminarNovoPedido,
 } from "@/modules/peticoes/novo-pedido/domain/types";
+import type { DriveExplorerItem } from "@/modules/drive-explorer/domain/types";
 
 type NovoPedidoWizardProps = {
   casos: Caso[];
@@ -54,6 +55,7 @@ function mapearArquivos(arquivos: File[]): DocumentoSelecionadoNovoPedido[] {
     nome: arquivo.name,
     tamanhoBytes: arquivo.size,
     mimeType: arquivo.type,
+    origem: "upload_local",
   }));
 }
 
@@ -61,6 +63,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
   const [draft, setDraft] = useState<NovoPedidoWizardDraft>(() => criarDraftInicial(casos));
   const [etapaAtual, setEtapaAtual] = useState<EtapaNovoPedidoWizard>("caso_contexto");
   const [arquivosSelecionados, setArquivosSelecionados] = useState<File[]>([]);
+  const [arquivosDriveSelecionados, setArquivosDriveSelecionados] = useState<DocumentoSelecionadoNovoPedido[]>([]);
   const [tipoDocumentoUpload, setTipoDocumentoUpload] = useState("Petição");
   const [sugestaoTriagem, setSugestaoTriagem] = useState<SugestaoTriagemWizard | null>(null);
   const [carregandoTriagem, setCarregandoTriagem] = useState(false);
@@ -211,14 +214,38 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
   useEffect(() => {
     setDraft((current) => ({
       ...current,
-      documentos: mapearArquivos(arquivosSelecionados),
+      documentos: [...mapearArquivos(arquivosSelecionados), ...arquivosDriveSelecionados],
     }));
-  }, [arquivosSelecionados]);
+  }, [arquivosDriveSelecionados, arquivosSelecionados]);
 
   function removerArquivo(documentoId: string) {
     setArquivosSelecionados((current) =>
       current.filter((arquivo) => `${arquivo.name}-${arquivo.size}-${arquivo.lastModified}` !== documentoId),
     );
+    setArquivosDriveSelecionados((current) =>
+      current.filter((arquivo) => arquivo.id !== documentoId),
+    );
+  }
+
+  function adicionarArquivoDrive(item: DriveExplorerItem) {
+    setArquivosDriveSelecionados((current) => {
+      if (current.some((arquivo) => arquivo.id === item.id)) {
+        return current;
+      }
+      return [
+        ...current,
+        {
+          id: item.id,
+          nome: item.nome,
+          tamanhoBytes: item.tamanhoBytes ?? 0,
+          mimeType: item.mimeType,
+          origem: "google_drive",
+          driveFileId: item.id,
+          webViewLink: item.webViewLink,
+          importavel: item.importavel,
+        },
+      ];
+    });
   }
 
   function alternarConfirmacao(valor: boolean) {
@@ -388,6 +415,30 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
       }
     }
 
+    for (const arquivo of arquivosDriveSelecionados) {
+      if (!arquivo.driveFileId) {
+        continue;
+      }
+
+      const response = await fetch("/api/documentos/drive/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          driveFileId: arquivo.driveFileId,
+          titulo: arquivo.nome.replace(/\.[^.]+$/, ""),
+          tipoDocumento: tipoDocumentoUpload,
+          vinculos: [
+            { tipoEntidade: "caso", entidadeId: draftAtual.briefing.casoId, papel: "principal" },
+            { tipoEntidade: "pedido_peca", entidadeId: pedidoId, papel: "apoio" },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        uploadEfetuado += 1;
+      }
+    }
+
     return uploadEfetuado;
   }
 
@@ -519,6 +570,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
               pendencias={draftAtual.pendencias}
               tipoDocumentoUpload={tipoDocumentoUpload}
               onSelecionarArquivos={atualizarArquivos}
+              onAdicionarArquivoDrive={adicionarArquivoDrive}
               onRemoverDocumento={removerArquivo}
               onAlterarTipoDocumentoUpload={setTipoDocumentoUpload}
             />

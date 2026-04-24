@@ -62,6 +62,10 @@ export interface DocumentoSelecionadoNovoPedido {
   nome: string;
   tamanhoBytes: number;
   mimeType: string;
+  origem?: "upload_local" | "google_drive";
+  driveFileId?: string;
+  webViewLink?: string;
+  importavel?: boolean;
 }
 
 export interface TesePreliminarNovoPedido {
