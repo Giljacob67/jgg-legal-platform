@@ -43,10 +43,138 @@ type PipelineWorkspaceProps = {
 };
 
 type ResultadoAprovacao = "aprovado" | "rejeitado" | "revisao_pendente";
+type MacroPipelineId = "intake" | "leitura" | "analise" | "estrutura" | "redacao" | "fechamento";
 
 const PIPELINE_PARA_ESTAGIO = Object.fromEntries(
   Object.entries(MAPA_ESTAGIO_PIPELINE).map(([key, value]) => [value, key as EstagioExecutavel]),
 ) as Partial<Record<EtapaPipeline, EstagioExecutavel>>;
+
+const LABEL_ACAO_ESTAGIO: Record<EstagioExecutavel, string> = {
+  triagem: "Executar triagem",
+  "extracao-fatos": "Extrair fatos e provas",
+  "analise-adversa": "Executar análise adversa",
+  estrategia: "Consolidar diagnóstico",
+  minuta: "Gerar minuta base",
+};
+
+const MACRO_PIPELINE: Array<{ id: MacroPipelineId; titulo: string; descricao: string }> = [
+  {
+    id: "intake",
+    titulo: "Intake",
+    descricao: "Triagem do pedido, objetivo processual e enquadramento inicial.",
+  },
+  {
+    id: "leitura",
+    titulo: "Leitura e fatos",
+    descricao: "Leitura documental, fatos relevantes e cobertura probatória mínima.",
+  },
+  {
+    id: "analise",
+    titulo: "Análise estratégica",
+    descricao: "Análise adversa, diagnóstico do caso e teses candidatas.",
+  },
+  {
+    id: "estrutura",
+    titulo: "Estruturação",
+    descricao: "Organização da peça, pedidos prioritários e prova de suporte.",
+  },
+  {
+    id: "redacao",
+    titulo: "Redação",
+    descricao: "Produção da minuta com base na estrutura aprovada.",
+  },
+  {
+    id: "fechamento",
+    titulo: "Fechamento",
+    descricao: "Revisão jurídica, auditoria e decisão formal de aprovação.",
+  },
+];
+
+const ETAPA_GUIA: Record<
+  EtapaPipeline,
+  {
+    macro: MacroPipelineId;
+    tituloCurto: string;
+    objetivo: string;
+    entrega: string;
+    proximaLigacao: string;
+  }
+> = {
+  classificacao: {
+    macro: "intake",
+    tituloCurto: "Triagem jurídica",
+    objetivo: "Enquadrar o pedido, o tipo de peça e o objetivo processual de saída.",
+    entrega: "Pedido classificado e pronto para leitura documental.",
+    proximaLigacao: "Abre a leitura estruturada dos documentos do caso.",
+  },
+  leitura_documental: {
+    macro: "leitura",
+    tituloCurto: "Leitura documental",
+    objetivo: "Medir cobertura documental e identificar lacunas antes da análise.",
+    entrega: "Base documental minimamente auditável para fatos e estratégia.",
+    proximaLigacao: "Alimenta a matriz de fatos e provas.",
+  },
+  extracao_de_fatos: {
+    macro: "leitura",
+    tituloCurto: "Fatos e provas",
+    objetivo: "Consolidar fatos relevantes, cronologia e lastro probatório do pedido.",
+    entrega: "Matriz factual inicial com eventos, fatos e pontos controvertidos.",
+    proximaLigacao: "Prepara a leitura crítica da tese adversa.",
+  },
+  analise_adversa: {
+    macro: "analise",
+    tituloCurto: "Análise adversa",
+    objetivo: "Antecipar ataques da parte contrária, riscos e fragilidades da nossa narrativa.",
+    entrega: "Mapa de vulnerabilidades, riscos e argumentos adversos previstos.",
+    proximaLigacao: "Refina o diagnóstico estratégico e evita teses frágeis.",
+  },
+  analise_documental_do_cliente: {
+    macro: "analise",
+    tituloCurto: "Confronto documental",
+    objetivo: "Cruzar a prova do cliente com os fatos controvertidos já mapeados.",
+    entrega: "Leitura mais defensável da prova disponível e das lacunas remanescentes.",
+    proximaLigacao: "Sustenta a escolha de teses e pedidos prioritários.",
+  },
+  estrategia_juridica: {
+    macro: "analise",
+    tituloCurto: "Diagnóstico estratégico",
+    objetivo: "Transformar leitura + fatos + análise adversa em direção estratégica do caso.",
+    entrega: "Diagnóstico e teses candidatas para validação humana.",
+    proximaLigacao: "Quando validado, destrava a estrutura da peça.",
+  },
+  pesquisa_de_apoio: {
+    macro: "analise",
+    tituloCurto: "Pesquisa de apoio",
+    objetivo: "Agregar precedentes, doutrina e repertório de suporte à tese escolhida.",
+    entrega: "Apoio argumentativo para reforço da peça final.",
+    proximaLigacao: "Enriquece fundamentos e reduz fragilidade na redação.",
+  },
+  redacao: {
+    macro: "redacao",
+    tituloCurto: "Redação da minuta",
+    objetivo: "Converter a estrutura aprovada em peça redigida com pedidos e fundamentos coerentes.",
+    entrega: "Minuta base pronta para revisão jurídica.",
+    proximaLigacao: "Entra em revisão e auditoria final.",
+  },
+  revisao: {
+    macro: "fechamento",
+    tituloCurto: "Revisão técnica",
+    objetivo: "Checar coerência, checklist obrigatório, referências e aderência à estrutura da peça.",
+    entrega: "Minuta auditada para decisão final de aprovação.",
+    proximaLigacao: "Destrava ou bloqueia a aprovação formal.",
+  },
+  aprovacao: {
+    macro: "fechamento",
+    tituloCurto: "Aprovação formal",
+    objetivo: "Registrar a decisão humana final sobre a peça e seu fechamento operacional.",
+    entrega: "Decisão auditável de aprovação, revisão pendente ou rejeição.",
+    proximaLigacao: "Fecha o ciclo da peça e prepara protocolo/baixa.",
+  },
+};
+
+function macroAtualDaEtapa(etapa: EtapaPipeline): MacroPipelineId {
+  return ETAPA_GUIA[etapa].macro;
+}
 
 function toStatus(
   etapa: EtapaPipelineInfo,
@@ -220,6 +348,7 @@ export function PipelineWorkspace({
       simuladas,
       percentual,
       proximaEtapa: proximaEtapa?.nome ?? "Fluxo concluído",
+      proximaEtapaId: proximaEtapa?.id,
     };
   }, [etapas, etapaInicial, snapshotsMap]);
 
@@ -261,6 +390,8 @@ export function PipelineWorkspace({
   );
 
   const diasRestantes = useMemo(() => calcularDiasRestantesPrazo(prazoFinal), [prazoFinal]);
+  const macroAtual = macroAtualDaEtapa(etapaInicial);
+  const macroIndex = MACRO_PIPELINE.findIndex((item) => item.id === macroAtual);
 
   const historicoOrdenado = useMemo(
     () => historico.slice().sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()),
@@ -272,9 +403,36 @@ export function PipelineWorkspace({
       <div className="space-y-6">
         <Card
           title="Andamento do pipeline"
-          subtitle="Visão operacional por etapa, com execução IA, status técnico e rastreabilidade de versão."
+          subtitle="Esteira jurídica progressiva do pedido, da triagem até a auditoria e aprovação."
           eyebrow="Execução"
         >
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            {MACRO_PIPELINE.map((macro, index) => {
+              const status =
+                index < macroIndex
+                  ? "concluída"
+                  : index === macroIndex
+                    ? "em foco"
+                    : "pendente";
+
+              return (
+                <article
+                  key={macro.id}
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-[var(--color-ink)]">{macro.titulo}</p>
+                    <StatusBadge
+                      label={status}
+                      variant={status === "concluída" ? "sucesso" : status === "em foco" ? "implantacao" : "neutro"}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">{macro.descricao}</p>
+                </article>
+              );
+            })}
+          </div>
+
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">Concluídas</p>
@@ -294,7 +452,9 @@ export function PipelineWorkspace({
             </div>
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3 md:col-span-2 xl:col-span-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">Próxima etapa</p>
-              <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{resumoPipeline.proximaEtapa}</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">
+                {resumoPipeline.proximaEtapaId ? ETAPA_GUIA[resumoPipeline.proximaEtapaId].tituloCurto : resumoPipeline.proximaEtapa}
+              </p>
             </div>
           </div>
 
@@ -306,6 +466,7 @@ export function PipelineWorkspace({
             {etapas.map((etapa, index) => {
               const snapshot = snapshotsMap.get(etapa.id);
               const status = toStatus(etapa, snapshot, etapaInicial);
+              const guia = ETAPA_GUIA[etapa.id];
               const estagioExecutavel = PIPELINE_PARA_ESTAGIO[etapa.id];
               const streamKey = estagioExecutavel as EstagioExecutavel;
               const podeExecutarEtapa = estagioExecutavel
@@ -316,10 +477,16 @@ export function PipelineWorkspace({
                 <article key={etapa.id} className="rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-[var(--color-ink)]">
-                        {index + 1}. {etapa.nome}
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                        {MACRO_PIPELINE.find((item) => item.id === guia.macro)?.titulo}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">
+                        {index + 1}. {guia.tituloCurto}
                       </p>
                       <p className="mt-1 text-xs text-[var(--color-muted)]">
+                        {guia.objetivo}
+                      </p>
+                      <p className="mt-2 text-xs text-[var(--color-muted)]">
                         {status.isMock
                           ? "Etapa em simulação controlada nesta versão."
                           : etapa.priorizadaMvp
@@ -337,6 +504,17 @@ export function PipelineWorkspace({
                   ) : null}
 
                   <p className="mt-2 text-xs text-[var(--color-muted)]">{resumirSaidaEstruturada(snapshot)}</p>
+
+                  <div className="mt-3 space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                      Entrega esperada
+                    </p>
+                    <p className="text-sm text-[var(--color-muted)]">{guia.entrega}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                      Como alimenta a próxima fase
+                    </p>
+                    <p className="text-sm text-[var(--color-muted)]">{guia.proximaLigacao}</p>
+                  </div>
 
                   {estagioExecutavel ? (
                     <div className="mt-3 space-y-2">
@@ -359,7 +537,7 @@ export function PipelineWorkspace({
                             ? "Defina o responsável para executar"
                           : streamingEstagio === estagioExecutavel
                             ? "Executando IA..."
-                            : "Executar com IA"}
+                            : LABEL_ACAO_ESTAGIO[estagioExecutavel]}
                       </button>
 
                       {streamErrors[streamKey] ? (
@@ -392,8 +570,8 @@ export function PipelineWorkspace({
                     <p className="text-sm font-semibold text-[var(--color-ink)]">{item.descricao}</p>
                     <p className="text-xs text-[var(--color-muted)]">{formatarDataHora(item.data)}</p>
                   </div>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    Etapa: {item.etapa.replaceAll("_", " ")} • Responsável: {item.responsavel}
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                    Etapa: {ETAPA_GUIA[item.etapa].tituloCurto} • Responsável: {item.responsavel}
                   </p>
                 </article>
               ))}
@@ -408,7 +586,10 @@ export function PipelineWorkspace({
         <Card title="Visão operacional" subtitle="Leitura rápida para coordenação de trabalho e destravamento de fluxo." eyebrow="Gestão">
           <div className="space-y-2 text-sm text-[var(--color-ink)]">
             <p>
-              <strong>Etapa atual:</strong> {etapaInicial.replaceAll("_", " ")}
+              <strong>Etapa atual:</strong> {ETAPA_GUIA[etapaInicial].tituloCurto}
+            </p>
+            <p>
+              <strong>Macrofase:</strong> {MACRO_PIPELINE.find((item) => item.id === macroAtual)?.titulo}
             </p>
             <p>
               <strong>Responsável:</strong> {responsavel || "não definido"}
@@ -426,7 +607,8 @@ export function PipelineWorkspace({
                   : "dentro do limite"}
             </p>
             <p>
-              <strong>Próxima etapa sugerida:</strong> {resumoPipeline.proximaEtapa}
+              <strong>Próxima etapa sugerida:</strong>{" "}
+              {resumoPipeline.proximaEtapaId ? ETAPA_GUIA[resumoPipeline.proximaEtapaId].tituloCurto : resumoPipeline.proximaEtapa}
             </p>
             <p>
               <strong>Snapshots ativos:</strong> {snapshots.length}
