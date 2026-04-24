@@ -25,3 +25,30 @@ export function validarArquivoPermitido(filename: string, contentType: string): 
     throw new Error("Formato não suportado. Utilize arquivos PDF, DOCX ou TXT.");
   }
 }
+
+export function inferirTipoDocumentoArquivo(filename: string, contentType?: string): TipoDocumento {
+  const nome = filename.toLowerCase();
+  const mime = (contentType ?? "").toLowerCase();
+
+  if (nome.includes("procur") || nome.includes("substabelec")) {
+    return "Procuração";
+  }
+
+  if (nome.includes("contrato") || nome.includes("aditivo") || nome.includes("distrato")) {
+    return "Contrato";
+  }
+
+  if (nome.includes("comprov") || nome.includes("boleto") || nome.includes("extrato") || nome.includes("recibo")) {
+    return "Comprovante";
+  }
+
+  if (nome.includes("parecer") || nome.includes("opiniao")) {
+    return "Parecer";
+  }
+
+  if (mime.includes("pdf") || mime.includes("word") || mime.includes("text")) {
+    return "Petição";
+  }
+
+  return "Petição";
+}

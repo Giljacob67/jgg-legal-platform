@@ -28,6 +28,7 @@ import { EstrategiaInicialStep } from "@/modules/peticoes/novo-pedido/ui/steps/e
 import { ObjetivoJuridicoStep } from "@/modules/peticoes/novo-pedido/ui/steps/objetivo-juridico-step";
 import { RevisaoCriacaoStep } from "@/modules/peticoes/novo-pedido/ui/steps/revisao-criacao-step";
 import { WizardStepper } from "@/modules/peticoes/novo-pedido/ui/wizard-stepper";
+import { inferirTipoDocumentoArquivo } from "@/modules/documentos/application/validation";
 import type {
   CategoriaObjetivoJuridico,
   DocumentoSelecionadoNovoPedido,
@@ -64,7 +65,6 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
   const [etapaAtual, setEtapaAtual] = useState<EtapaNovoPedidoWizard>("caso_contexto");
   const [arquivosSelecionados, setArquivosSelecionados] = useState<File[]>([]);
   const [arquivosDriveSelecionados, setArquivosDriveSelecionados] = useState<DocumentoSelecionadoNovoPedido[]>([]);
-  const [tipoDocumentoUpload, setTipoDocumentoUpload] = useState("Petição");
   const [sugestaoTriagem, setSugestaoTriagem] = useState<SugestaoTriagemWizard | null>(null);
   const [carregandoTriagem, setCarregandoTriagem] = useState(false);
   const [erroTriagem, setErroTriagem] = useState<string | null>(null);
@@ -396,7 +396,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
       const formData = new FormData();
       formData.set("file", arquivo);
       formData.set("titulo", arquivo.name.replace(/\.[^.]+$/, ""));
-      formData.set("tipoDocumento", tipoDocumentoUpload);
+      formData.set("tipoDocumento", inferirTipoDocumentoArquivo(arquivo.name, arquivo.type));
       formData.set(
         "vinculos",
         JSON.stringify([
@@ -426,7 +426,6 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
         body: JSON.stringify({
           driveFileId: arquivo.driveFileId,
           titulo: arquivo.nome.replace(/\.[^.]+$/, ""),
-          tipoDocumento: tipoDocumentoUpload,
           vinculos: [
             { tipoEntidade: "caso", entidadeId: draftAtual.briefing.casoId, papel: "principal" },
             { tipoEntidade: "pedido_peca", entidadeId: pedidoId, papel: "apoio" },
@@ -489,8 +488,8 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
   const tituloEtapaAtual: Record<EtapaNovoPedidoWizard, string> = {
     caso_contexto: "Caso e contexto",
     objetivo_juridico: "Objetivo jurídico",
-    estrategia_inicial: "Estratégia inicial",
     documentos_provas: "Documentos e provas",
+    estrategia_inicial: "Estratégia inicial",
     revisao_criacao: "Revisão e criação",
   };
 
@@ -547,6 +546,16 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
             />
           ) : null}
 
+          {etapaAtual === "documentos_provas" ? (
+            <DocumentosProvasStep
+              documentos={draftAtual.documentos}
+              pendencias={draftAtual.pendencias}
+              onSelecionarArquivos={atualizarArquivos}
+              onAdicionarArquivoDrive={adicionarArquivoDrive}
+              onRemoverDocumento={removerArquivo}
+            />
+          ) : null}
+
           {etapaAtual === "estrategia_inicial" ? (
             <EstrategiaInicialStep
               estrategia={draftAtual.estrategia}
@@ -561,18 +570,6 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
               onAtualizarTese={atualizarTese}
               onAdicionarTeseManual={adicionarTeseManual}
               onRemoverTeseManual={removerTeseManual}
-            />
-          ) : null}
-
-          {etapaAtual === "documentos_provas" ? (
-            <DocumentosProvasStep
-              documentos={draftAtual.documentos}
-              pendencias={draftAtual.pendencias}
-              tipoDocumentoUpload={tipoDocumentoUpload}
-              onSelecionarArquivos={atualizarArquivos}
-              onAdicionarArquivoDrive={adicionarArquivoDrive}
-              onRemoverDocumento={removerArquivo}
-              onAlterarTipoDocumentoUpload={setTipoDocumentoUpload}
             />
           ) : null}
 

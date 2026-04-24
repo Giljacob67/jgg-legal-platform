@@ -630,8 +630,8 @@ export function obterEtapaSeguinte(etapa: EtapaNovoPedidoWizard): EtapaNovoPedid
   const ordem: EtapaNovoPedidoWizard[] = [
     "caso_contexto",
     "objetivo_juridico",
-    "estrategia_inicial",
     "documentos_provas",
+    "estrategia_inicial",
     "revisao_criacao",
   ];
   const index = ordem.indexOf(etapa);
@@ -642,8 +642,8 @@ export function obterEtapaAnterior(etapa: EtapaNovoPedidoWizard): EtapaNovoPedid
   const ordem: EtapaNovoPedidoWizard[] = [
     "caso_contexto",
     "objetivo_juridico",
-    "estrategia_inicial",
     "documentos_provas",
+    "estrategia_inicial",
     "revisao_criacao",
   ];
   const index = ordem.indexOf(etapa);

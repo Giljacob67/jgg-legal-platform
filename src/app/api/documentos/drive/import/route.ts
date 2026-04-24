@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { requireRBAC } from "@/lib/api-auth";
 import type { TipoDocumento } from "@/modules/documentos/domain/types";
 import { uploadDocumento } from "@/modules/documentos/application/uploadDocumento";
-import { validarTipoDocumento } from "@/modules/documentos/application/validation";
+import { inferirTipoDocumentoArquivo, validarTipoDocumento } from "@/modules/documentos/application/validation";
 import { baixarArquivoDriveParaImportacao } from "@/modules/drive-explorer/application/importacao";
 
 type Body = {
@@ -31,11 +31,6 @@ export async function POST(request: Request) {
     if (!body.driveFileId?.trim()) {
       return NextResponse.json({ error: "driveFileId é obrigatório." }, { status: 400 });
     }
-    if (!body.tipoDocumento) {
-      return NextResponse.json({ error: "tipoDocumento é obrigatório." }, { status: 400 });
-    }
-    validarTipoDocumento(body.tipoDocumento);
-
     const vinculos = (body.vinculos ?? []).filter(
       (item) =>
         (item.tipoEntidade === "caso" || item.tipoEntidade === "pedido_peca") &&
@@ -48,12 +43,15 @@ export async function POST(request: Request) {
     }
 
     const arquivoDrive = await baixarArquivoDriveParaImportacao(session.user.id, body.driveFileId.trim());
+    const tipoDocumento = body.tipoDocumento
+      ? (validarTipoDocumento(body.tipoDocumento), body.tipoDocumento)
+      : inferirTipoDocumentoArquivo(arquivoDrive.filename, arquivoDrive.contentType);
     const resultado = await uploadDocumento({
       filename: arquivoDrive.filename,
       contentType: arquivoDrive.contentType,
       bytes: arquivoDrive.bytes,
       titulo: body.titulo?.trim() || arquivoDrive.filename.replace(/\.[^.]+$/, ""),
-      tipoDocumento: body.tipoDocumento,
+      tipoDocumento,
       vinculos,
     });
 

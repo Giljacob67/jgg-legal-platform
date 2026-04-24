@@ -13,14 +13,14 @@ const ETAPAS: Array<{ id: EtapaNovoPedidoWizard; titulo: string; resumo: string 
     resumo: "Direção do trabalho",
   },
   {
-    id: "estrategia_inicial",
-    titulo: "Estratégia inicial",
-    resumo: "Sugestões e ajustes",
-  },
-  {
     id: "documentos_provas",
     titulo: "Documentos e provas",
     resumo: "Material de apoio",
+  },
+  {
+    id: "estrategia_inicial",
+    titulo: "Estratégia inicial",
+    resumo: "Análise, teses e ajustes",
   },
   {
     id: "revisao_criacao",
