@@ -1,19 +1,15 @@
 import type { Metadata } from "next";
-import { Merriweather, Source_Sans_3 } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
-const fonteSerif = Merriweather({
-  variable: "--font-merriweather",
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-const fonteSans = Source_Sans_3({
-  variable: "--font-source-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
+// Fallback: em ambientes offline, next/font/google falha ao buscar fontes.
+// Usamos fontes do sistema via variáveis CSS para manter consistência visual.
+const fonteStyle = `
+  :root {
+    --font-merriweather: 'Merriweather', 'Georgia', 'Times New Roman', serif;
+    --font-source-sans: 'Source Sans 3', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  }
+`;
 
 export const metadata: Metadata = {
   title: "HUB JGG Group",
@@ -24,9 +20,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="pt-BR"
-      className={`dark ${fonteSerif.variable} ${fonteSans.variable}`}
+      className="dark"
       suppressHydrationWarning
     >
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: fonteStyle }} />
+      </head>
       <body className="min-h-screen bg-[var(--color-page)] font-sans text-[var(--color-ink)]">
         {/* Anti-flicker: executa antes da hidratação do React para evitar flash */}
         <Script id="theme-init" strategy="beforeInteractive">{`

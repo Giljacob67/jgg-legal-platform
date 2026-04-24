@@ -1,0 +1,12 @@
+export { PedidoWorkspaceTabs } from "./pedido-workspace-tabs";
+export { ResumoSection } from "./resumo-section";
+export { BriefingSection } from "./briefing-section";
+export { DocumentosSection } from "./documentos-section";
+export { FatosProvasSection } from "./fatos-provas-section";
+export { AnaliseAdversaSection } from "./analise-adversa-section";
+export { EstrategiaSection } from "./estrategia-section";
+export { TesesSection } from "./teses-section";
+export { EstruturaPecaSection } from "./estrutura-peca-section";
+export { MinutaSection } from "./minuta-section";
+export { RevisaoAuditoriaSection } from "./revisao-auditoria-section";
+export type { PedidoWorkspaceData, SecaoPedidoId } from "./types";

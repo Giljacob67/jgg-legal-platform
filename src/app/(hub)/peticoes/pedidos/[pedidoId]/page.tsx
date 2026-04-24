@@ -1,86 +1,25 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ButtonLink } from "@/components/ui/button-link";
-import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { FileIcon, ScaleIcon } from "@/components/ui/icons";
 import { avaliarProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
 import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import {
-  avaliarSlaDaEtapa,
   calcularDiasRestantesPrazo,
-  gerarAlertasGovernancaPedido,
   responsavelObrigatorioAtendido,
 } from "@/modules/peticoes/application/governanca-pedido";
 import { listarDocumentosPorPedido } from "@/modules/documentos/application/listarDocumentosPorPedido";
 import { listarDocumentosPorCaso } from "@/modules/documentos/application/listarDocumentosPorCaso";
 import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-panel";
 import { AtribuirResponsavelCard } from "@/modules/peticoes/ui/atribuir-responsavel-card";
-import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
-import { PedidoWorkspaceOverview } from "@/modules/peticoes/ui/pedido-workspace-overview";
-import { DossieJuridicoPanel } from "@/modules/peticoes/ui/dossie-juridico-panel";
-import { EstruturaPecaPanel } from "@/modules/peticoes/ui/estrutura-peca-panel";
-import { AuditoriaAprovacaoPanel } from "@/modules/peticoes/ui/auditoria-aprovacao-panel";
+import { PedidoWorkspaceClient } from "@/modules/peticoes/ui/pedido-workspace/pedido-workspace-client";
 import { getDataMode } from "@/lib/data-mode";
-import { formatarData, formatarDataHora } from "@/lib/utils";
-import type { EtapaPipeline, SnapshotPipelineEtapa, StatusPedido } from "@/modules/peticoes/domain/types";
+import type { EtapaPipeline, SnapshotPipelineEtapa } from "@/modules/peticoes/domain/types";
 
 type PedidoDetalhePageProps = {
   params: Promise<{ pedidoId: string }>;
-};
-
-const STATUS_PEDIDO_VARIANT: Record<StatusPedido, "ativo" | "implantacao" | "planejado" | "sucesso" | "alerta" | "neutro"> = {
-  "em triagem": "neutro",
-  "em produção": "implantacao",
-  "em revisão": "alerta",
-  aprovado: "sucesso",
-};
-
-const PROXIMOS_PASSOS_POR_ETAPA: Record<EtapaPipeline, string[]> = {
-  classificacao: [
-    "Confirmar objetivo processual e tipo de peça.",
-    "Definir responsável titular para saída da triagem.",
-  ],
-  leitura_documental: [
-    "Conferir cobertura documental mínima para a tese.",
-    "Identificar lacunas que exigem diligência com cliente.",
-  ],
-  extracao_de_fatos: [
-    "Validar fatos críticos e cronologia com o responsável.",
-    "Registrar inconsistências antes da estratégia jurídica.",
-  ],
-  analise_adversa: [
-    "Mapear vulnerabilidades do argumento da parte contrária.",
-    "Definir contranarrativa técnica para redação.",
-  ],
-  analise_documental_do_cliente: [
-    "Cruzar documentos do cliente com fatos controvertidos.",
-    "Anotar provas faltantes para eventual emenda.",
-  ],
-  estrategia_juridica: [
-    "Fechar tese principal e tese subsidiária.",
-    "Definir pedidos e fundamentos prioritários.",
-  ],
-  pesquisa_de_apoio: [
-    "Consolidar precedentes e doutrina de apoio.",
-    "Selecionar citações para fortalecer argumentação.",
-  ],
-  redacao: [
-    "Produzir minuta base com estrutura completa.",
-    "Garantir aderência entre fatos, fundamentos e pedidos.",
-  ],
-  revisao: [
-    "Revisar coerência jurídica e linguagem técnica.",
-    "Conferir referências documentais citadas na minuta.",
-  ],
-  aprovacao: [
-    "Registrar decisão final de aprovação.",
-    "Preparar protocolo e fechamento do ciclo do pedido.",
-  ],
 };
 
 function consolidarUltimoSnapshotPorEtapa(snapshots: SnapshotPipelineEtapa[]) {
@@ -91,6 +30,85 @@ function consolidarUltimoSnapshotPorEtapa(snapshots: SnapshotPipelineEtapa[]) {
     }
   }
   return mapa;
+}
+
+interface ProximaAcaoRecomendada {
+  titulo: string;
+  descricao: string;
+  href: string;
+  label: string;
+}
+
+function definirProximaAcaoRecomendada(input: {
+  pedidoId: string;
+  responsavelDefinido: boolean;
+  contextoAtual: import("@/modules/peticoes/domain/types").ContextoJuridicoPedido | null;
+  minutaId?: string;
+  prontidaoAprovacao?: import("@/modules/peticoes/application/avaliarProntidaoAprovacao").ProntidaoAprovacao;
+  pedidoStatus: import("@/modules/peticoes/domain/types").StatusPedido;
+}): ProximaAcaoRecomendada {
+  const { pedidoId, responsavelDefinido, contextoAtual, minutaId, prontidaoAprovacao, pedidoStatus } = input;
+
+  if (!responsavelDefinido) {
+    return {
+      titulo: "Definir responsável titular",
+      descricao: "O fluxo operacional continua bloqueado até existir um responsável formal pelo pedido.",
+      href: "#responsavel",
+      label: "Atribuir responsável",
+    };
+  }
+
+  if (!contextoAtual) {
+    return {
+      titulo: "Consolidar contexto jurídico",
+      descricao: "Ainda faltam fatos, cronologia e estratégia base para iniciar uma redação confiável.",
+      href: `/peticoes/pipeline/${pedidoId}`,
+      label: "Abrir pipeline",
+    };
+  }
+
+  if (contextoAtual.validacaoHumanaTesesPendente) {
+    return {
+      titulo: "Validar teses antes da peça final",
+      descricao: "A IA sugeriu caminhos, mas a peça só deve avançar após aprovação, ajuste ou rejeição humana das teses.",
+      href: `#mapa-teses`,
+      label: "Revisar teses",
+    };
+  }
+
+  if (!minutaId) {
+    return {
+      titulo: "Conferir estrutura da peça",
+      descricao: "A estratégia já foi validada. Antes da minuta, revise a ordem das seções, os pedidos e as provas prioritárias.",
+      href: `#estrutura-peca`,
+      label: "Revisar estrutura",
+    };
+  }
+
+  if (prontidaoAprovacao && !prontidaoAprovacao.liberado) {
+    return {
+      titulo: "Fechar bloqueios de auditoria",
+      descricao: "A minuta já existe, mas ainda não atende o mínimo jurídico-operacional para aprovação final.",
+      href: `#auditoria-aprovacao`,
+      label: "Revisar auditoria",
+    };
+  }
+
+  if (pedidoStatus !== "aprovado") {
+    return {
+      titulo: "Revisar e fechar a minuta",
+      descricao: "A peça já entrou em produção. O foco agora é coerência técnica, pedidos e rastreabilidade.",
+      href: `/peticoes/minutas/${minutaId}/editor`,
+      label: "Abrir editor",
+    };
+  }
+
+  return {
+    titulo: "Pedido aprovado",
+    descricao: "Fluxo principal encerrado. Use o editor e a timeline para registrar ajustes residuais e fechamento operacional.",
+    href: `/peticoes/minutas/${minutaId}/editor`,
+    label: "Revisar peça aprovada",
+  };
 }
 
 export default async function PedidoDetalhePage({ params }: PedidoDetalhePageProps) {
@@ -129,251 +147,41 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
           inteligenciaJuridica: editorData?.inteligenciaJuridica ?? null,
         })
       : undefined;
-  const slaEtapaAtual = avaliarSlaDaEtapa({
-    etapa: etapaAtual,
-    pedidoCriadoEm: pedido.criadoEm,
-    snapshots,
-  });
+
   const responsavelDefinido = responsavelObrigatorioAtendido(pedido.responsavel);
+  const contextoAtual = pipelineOperacional?.contextoAtual ?? null;
+  const dossie = contextoAtual?.dossieJuridico ?? null;
 
-  const pendencias: Array<{ titulo: string; descricao: string; severidade: "alta" | "media" | "baixa" }> = [];
-  const alertasGovernanca = gerarAlertasGovernancaPedido({
-    prazoFinal: pedido.prazoFinal,
-    etapaAtual,
-    pedidoCriadoEm: pedido.criadoEm,
-    responsavel: pedido.responsavel,
-    snapshots,
+  const proximaAcao = definirProximaAcaoRecomendada({
+    pedidoId: pedido.id,
+    responsavelDefinido,
+    contextoAtual,
+    minutaId: minuta?.id,
+    prontidaoAprovacao,
+    pedidoStatus: pedido.status,
   });
-
-  for (const alerta of alertasGovernanca) {
-    pendencias.push({
-      titulo: alerta.titulo,
-      descricao: alerta.descricao,
-      severidade: alerta.severidade,
-    });
-  }
-
-  if (documentos.length === 0) {
-    pendencias.push({
-      titulo: "Sem documentação vinculada",
-      descricao: "Nenhum documento foi anexado ao pedido/caso para sustentar a produção da peça.",
-      severidade: "media",
-    });
-  }
-
-  if (!pipelineOperacional?.contextoAtual) {
-    pendencias.push({
-      titulo: "Contexto jurídico não consolidado",
-      descricao: "Ainda não há consolidação estruturada de fatos, cronologia e pontos controvertidos.",
-      severidade: "media",
-    });
-  } else if (pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente) {
-    pendencias.push({
-      titulo: "Validação humana de teses pendente",
-      descricao: "Aprovação final bloqueada até aprovar, ajustar ou rejeitar as teses inferidas e/ou registrar tese manual.",
-      severidade: "alta",
-    });
-  }
-
-  const snapshotsComErro = snapshots.filter((snapshot) => snapshot.status === "erro");
-  if (snapshotsComErro.length > 0) {
-    pendencias.push({
-      titulo: "Erro em etapa do pipeline",
-      descricao: `${snapshotsComErro.length} etapa(s) registraram erro técnico e precisam de reprocessamento.`,
-      severidade: "alta",
-    });
-  }
-
-  if (!minuta && etapaAtual !== "classificacao" && etapaAtual !== "leitura_documental") {
-    pendencias.push({
-      titulo: "Minuta ainda não disponível",
-      descricao: "A peça ainda não chegou ao editor, apesar do avanço para etapas estratégicas.",
-      severidade: "media",
-    });
-  }
-
-  if (prontidaoAprovacao && !prontidaoAprovacao.liberado) {
-    for (const bloqueio of prontidaoAprovacao.bloqueios.slice(0, 3)) {
-      pendencias.push({
-        titulo: "Auditoria de aprovação",
-        descricao: bloqueio,
-        severidade: "alta",
-      });
-    }
-  }
-
-  const proximosPassos = [
-    ...PROXIMOS_PASSOS_POR_ETAPA[etapaAtual],
-    ...pendencias.slice(0, 2).map((item) => item.descricao),
-  ];
-  const bloqueiosCriticos = pendencias.filter((item) => item.severidade === "alta").length;
-  const hrefAcaoPrincipal = !responsavelDefinido
-    ? "#responsavel"
-    : !pipelineOperacional?.contextoAtual
-      ? `/peticoes/pipeline/${pedido.id}`
-      : pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente
-        ? "#mapa-teses"
-        : !minuta
-          ? "#estrutura-peca"
-          : prontidaoAprovacao && !prontidaoAprovacao.liberado
-            ? "#auditoria-aprovacao"
-            : minuta
-          ? `/peticoes/minutas/${minuta.id}/editor`
-          : `/peticoes/pipeline/${pedido.id}`;
-  const labelAcaoPrincipal = !responsavelDefinido
-    ? "Definir responsável"
-    : !pipelineOperacional?.contextoAtual
-      ? "Consolidar contexto"
-      : pipelineOperacional.contextoAtual.validacaoHumanaTesesPendente
-        ? "Validar teses"
-        : !minuta
-          ? "Revisar estrutura"
-          : prontidaoAprovacao && !prontidaoAprovacao.liberado
-            ? "Fechar auditoria"
-            : minuta
-          ? "Continuar no editor"
-          : "Abrir produção";
-  const linkAgendarPedido = `/agenda?${new URLSearchParams({
-    novo: "1",
-    vinculoTipo: "pedido",
-    vinculoId: pedido.id,
-    titulo: `Revisão do pedido ${pedido.id} • ${pedido.tipoPeca}`,
-    descricao: `Compromisso operacional vinculado ao pedido ${pedido.id}. Caso ${pedido.casoId}. Etapa atual: ${etapaAtual.replaceAll("_", " ")}.`,
-    inicio: new Date(`${pedido.prazoFinal}T09:00`).toISOString(),
-  }).toString()}`;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={pedido.titulo}
-        description={`Pedido ${pedido.id} vinculado ao caso ${pedido.casoId}`}
+        description={`${pedido.id} • ${pedido.tipoPeca} • ${pedido.casoId}`}
         meta={
-          <>
-            <StatusBadge label={pedido.status} variant={STATUS_PEDIDO_VARIANT[pedido.status]} />
-            <StatusBadge label={`prioridade ${pedido.prioridade}`} variant={pedido.prioridade === "alta" ? "alerta" : "neutro"} />
-            <StatusBadge label={`prazo ${formatarData(pedido.prazoFinal)}`} variant={diasRestantes <= 2 ? "alerta" : "neutro"} />
-          </>
-        }
-        actions={
-          <>
-            <ButtonLink href={hrefAcaoPrincipal} label={labelAcaoPrincipal} icon={<ScaleIcon size={16} />} />
-            <ButtonLink href={linkAgendarPedido} label="Agendar revisão" icon={<ScaleIcon size={16} />} variant="secundario" />
-            <ButtonLink href={`/peticoes/pipeline/${pedido.id}`} label="Abrir pipeline" icon={<ScaleIcon size={16} />} variant="secundario" />
-            {minuta ? (
-              <ButtonLink href={`/peticoes/minutas/${minuta.id}/editor`} label="Abrir editor" icon={<FileIcon size={16} />} variant="secundario" />
-            ) : null}
-          </>
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge
+              label={pedido.status}
+              variant={
+                pedido.status === "aprovado"
+                  ? "sucesso"
+                  : pedido.status === "em revisão"
+                    ? "alerta"
+                    : "implantacao"
+              }
+            />
+            <StatusBadge label={`etapa ${etapaAtual.replaceAll("_", " ")}`} variant="neutro" />
+          </div>
         }
       />
-
-      <PedidoWorkspaceOverview
-        pedidoId={pedido.id}
-        pedidoStatus={pedido.status}
-        etapaAtual={etapaAtual}
-        responsavel={pedido.responsavel}
-        responsavelDefinido={responsavelDefinido}
-        totalDocumentos={documentos.length}
-        percentualConclusao={percentualConclusao}
-        pendenciasCriticas={bloqueiosCriticos}
-        contextoAtual={pipelineOperacional?.contextoAtual ?? null}
-        minutaId={minuta?.id}
-        prontidaoAprovacao={prontidaoAprovacao}
-      />
-
-      <section id="controle" className="grid gap-4 scroll-mt-24 md:grid-cols-2 xl:grid-cols-4">
-        <Card title="Etapa atual" eyebrow="Execução">
-          <p className="font-serif text-3xl text-[var(--color-ink)]">{etapaAtual.replaceAll("_", " ")}</p>
-          <p className="text-xs text-[var(--color-muted)]">Status geral do pedido: {pedido.status}</p>
-        </Card>
-        <Card title="Progresso do pipeline" eyebrow="Andamento">
-          <p className="font-serif text-3xl text-[var(--color-ink)]">{percentualConclusao}%</p>
-          <p className="text-xs text-[var(--color-muted)]">
-            {etapasConcluidas} de {totalEtapas} etapas consolidadas.
-          </p>
-          <div className="mt-3 h-2 rounded-full bg-[var(--color-surface-alt)]">
-            <div className="h-2 rounded-full bg-[var(--color-accent)]" style={{ width: `${percentualConclusao}%` }} />
-          </div>
-        </Card>
-        <Card title="Responsável" eyebrow="Alocação">
-          <p className="font-serif text-3xl text-[var(--color-ink)]">{pedido.responsavel || "Não definido"}</p>
-          <p className="text-xs text-[var(--color-muted)]">
-            {responsavelDefinido
-              ? "Titular da condução do pedido nesta etapa."
-              : "Definição pendente. Execução e aprovação ficam bloqueadas até atribuição."}
-          </p>
-        </Card>
-        <Card title="Prazo final" eyebrow="SLA">
-          <p className="font-serif text-3xl text-[var(--color-ink)]">{formatarData(pedido.prazoFinal)}</p>
-          <p className="text-xs text-[var(--color-muted)]">
-            {diasRestantes < 0
-              ? `Vencido há ${Math.abs(diasRestantes)} dia(s).`
-              : `${diasRestantes} dia(s) restante(s) para o prazo.`}
-          </p>
-          <p className="mt-2 text-xs text-[var(--color-muted)]">
-            SLA da etapa atual: {slaEtapaAtual.diasConsumidos}/{slaEtapaAtual.diasSla} dia(s) •{" "}
-            {slaEtapaAtual.status === "estourado"
-              ? "estourado"
-              : slaEtapaAtual.status === "atencao"
-                ? "em atenção"
-                : "dentro do limite"}
-          </p>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.4fr,1fr]">
-        <Card title="Resumo executivo" subtitle="Visão consolidada para decisão jurídica e priorização da execução." eyebrow="Situação">
-          <div className="space-y-3 text-sm text-[var(--color-ink)]">
-            <p>
-              <strong>Tipo de peça:</strong> {pedido.tipoPeca}
-            </p>
-            <p>
-              <strong>Prioridade:</strong> {pedido.prioridade}
-            </p>
-            <p>
-              <strong>Documentos vinculados:</strong> {documentos.length}
-            </p>
-            <p>
-              <strong>Minuta:</strong> {minuta ? `disponível (${minuta.id})` : "não disponível"}
-            </p>
-            <p>
-              <strong>Contexto jurídico:</strong>{" "}
-              {pipelineOperacional?.contextoAtual
-                ? `v${pipelineOperacional.contextoAtual.versaoContexto}, atualizado em ${formatarDataHora(
-                    pipelineOperacional.contextoAtual.criadoEm,
-                  )}`
-                : "não consolidado"}
-            </p>
-            {pipelineOperacional?.contextoAtual?.estrategiaSugerida ? (
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-strong)]">
-                  Estratégia consolidada
-                </p>
-                <p className="mt-2 text-sm text-[var(--color-muted)]">
-                  {pipelineOperacional.contextoAtual.estrategiaSugerida}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </Card>
-
-        <Card title="Pendências operacionais" subtitle="Itens que travam prazo, qualidade ou rastreabilidade." eyebrow="Ação">
-          {pendencias.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">Sem pendências críticas no momento.</p>
-          ) : (
-            <div className="space-y-3">
-              {pendencias.map((item) => (
-                <article key={item.titulo} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-[var(--color-ink)]">{item.titulo}</p>
-                    <StatusBadge label={item.severidade} variant={item.severidade === "alta" ? "alerta" : "neutro"} />
-                  </div>
-                  <p className="mt-2 text-xs text-[var(--color-muted)]">{item.descricao}</p>
-                </article>
-              ))}
-            </div>
-          )}
-        </Card>
-      </section>
 
       {!responsavelDefinido ? (
         <div id="responsavel" className="scroll-mt-24">
@@ -381,45 +189,22 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         </div>
       ) : null}
 
-      <div id="dossie" className="scroll-mt-24">
-        <DossieJuridicoPanel contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
-      </div>
-
-      <div id="mapa-teses" className="scroll-mt-24">
-        <MapaTesesPanel pedidoId={pedido.id} contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
-      </div>
-
-      <div id="estrutura-peca" className="scroll-mt-24">
-        <EstruturaPecaPanel contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
-      </div>
-
-      {prontidaoAprovacao ? (
-        <div id="auditoria-aprovacao" className="scroll-mt-24">
-          <AuditoriaAprovacaoPanel prontidao={prontidaoAprovacao} />
-        </div>
-      ) : null}
-
-      <div id="timeline" className="scroll-mt-24">
-        <Card title="Timeline do pedido" subtitle="Histórico cronológico de eventos operacionais e técnicos." eyebrow="Rastro">
-          {historico.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">Sem eventos registrados até o momento.</p>
-          ) : (
-            <div className="space-y-3">
-              {historico.map((item) => (
-                <article key={item.id} className="rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-[var(--color-ink)]">{item.descricao}</p>
-                    <p className="text-xs text-[var(--color-muted)]">{formatarDataHora(item.data)}</p>
-                  </div>
-                  <p className="mt-2 text-xs text-[var(--color-muted)]">
-                    Etapa: {item.etapa.replaceAll("_", " ")} • Responsável: {item.responsavel}
-                  </p>
-                </article>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+      <PedidoWorkspaceClient
+        pedido={pedido}
+        minuta={minuta ?? null}
+        contextoAtual={contextoAtual}
+        dossie={dossie}
+        documentos={documentos}
+        historico={historico}
+        snapshots={snapshots}
+        etapaAtual={etapaAtual}
+        prontidaoAprovacao={prontidaoAprovacao}
+        inteligenciaJuridica={editorData?.inteligenciaJuridica ?? null}
+        percentualConclusao={percentualConclusao}
+        diasRestantes={diasRestantes}
+        responsavelDefinido={responsavelDefinido}
+        proximaAcao={proximaAcao}
+      />
 
       <DocumentoUploadPanel
         titulo="Adicionar documento ao pedido"
@@ -431,48 +216,6 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
         mostrarSeletores={false}
         modoUpload={dataMode === "real" ? "cliente_blob" : "api"}
       />
-
-      <section id="documentos" className="grid gap-6 scroll-mt-24 xl:grid-cols-[1.25fr,0.9fr]">
-        <Card title="Documentos vinculados" subtitle="Material disponível para leitura, estratégia e redação da peça." eyebrow="Documentação">
-          {documentos.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">Nenhum documento vinculado ao pedido ou caso.</p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {documentos.map((documento) => (
-                <article key={documento.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
-                  <p className="font-semibold text-[var(--color-ink)]">{documento.titulo}</p>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    {documento.tipo} • {documento.status}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    Processamento: {documento.statusProcessamento}
-                  </p>
-                </article>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card title="Próximos passos" subtitle="Ações sugeridas para avançar o pedido sem perda de prazo ou qualidade." eyebrow="Plano">
-          <div className="space-y-2">
-            {proximosPassos.map((passo) => (
-              <p key={passo} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-2 text-sm text-[var(--color-muted)]">
-                {passo}
-              </p>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link href={`/peticoes/pipeline/${pedido.id}`} className="text-sm font-semibold text-[var(--color-accent)]">
-              Ir para pipeline
-            </Link>
-            {minuta ? (
-              <Link href={`/peticoes/minutas/${minuta.id}/editor`} className="text-sm font-semibold text-[var(--color-accent)]">
-                Ir para editor
-              </Link>
-            ) : null}
-          </div>
-        </Card>
-      </section>
     </div>
   );
 }
