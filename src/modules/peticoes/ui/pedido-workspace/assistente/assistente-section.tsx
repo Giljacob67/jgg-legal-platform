@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SparkIcon, SendIcon, FileIcon } from "@/components/ui/icons";
+import { SparkIcon, SendIcon, FileIcon, ShieldCheckIcon, AlertTriangleIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { formatarDataHora } from "@/lib/utils";
 import type { PedidoWorkspaceData } from "../types";
@@ -16,6 +16,7 @@ import {
   gerarRespostaAcao,
   gerarRespostaTextoLivre,
 } from "./mock-chat";
+import { AnexoChatUploader } from "./anexo-chat-uploader";
 import type { MensagemAssistente } from "./types";
 
 type AssistenteSectionProps = Pick<
@@ -40,11 +41,28 @@ function avatarVariant(tipo: MensagemAssistente["tipo"]): { bg: string; text: st
   }
 }
 
+type DocumentoAnexoChat = {
+  id: string;
+  titulo: string;
+  tipo: string;
+  status: "existente" | "novo" | "pendente" | "analisado";
+  dataAnexo: string;
+};
+
 export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }: AssistenteSectionProps) {
   const contextoMock = gerarContextoMock(pedido);
   const [mensagens, setMensagens] = useState<MensagemAssistente[]>(() => gerarMensagensIniciais(contextoMock));
   const [inputTexto, setInputTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [anexosChat, setAnexosChat] = useState<DocumentoAnexoChat[]>(() =>
+    documentos.map((d) => ({
+      id: d.id,
+      titulo: d.titulo,
+      tipo: d.tipo,
+      status: d.status === "extraído" ? "analisado" : d.status === "lido" ? "pendente" : "existente",
+      dataAnexo: d.dataUpload,
+    })),
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,8 +112,39 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
     }, 800);
   }, [inputTexto, carregando, enviarMensagem]);
 
-  const documentosVinculados = documentos.slice(0, 5);
-  const matrizExistente = dossie?.matrizFatosEProvas ?? [];
+  const handleDocumentoAnexado = useCallback(
+    (doc: { id: string; titulo: string; tipo: string; status: string }) => {
+      setAnexosChat((prev) => [
+        ...prev,
+        {
+          id: doc.id,
+          titulo: doc.titulo,
+          tipo: doc.tipo,
+          status: "novo",
+          dataAnexo: new Date().toISOString(),
+        },
+      ]);
+
+      enviarMensagem(`Anexei o documento "${doc.titulo}" ao pedido.`, "usuario");
+
+      setTimeout(() => {
+        setMensagens((prev) => [
+          ...prev,
+          {
+            id: `msg-doc-${Date.now()}`,
+            tipo: "acao",
+            titulo: "Documento recebido",
+            conteudo: `Documento "${doc.titulo}" recebido e vinculado ao pedido. Posso analisá-lo para extrair fatos relevantes, identificar lacunas probatórias ou comparar com documentos já existentes.`,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+        setCarregando(false);
+      }, 600);
+    },
+    [enviarMensagem],
+  );
+
+    const matrizExistente = dossie?.matrizFatosEProvas ?? [];
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
@@ -108,7 +157,7 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
         >
           <div className="flex items-center gap-2">
             <StatusBadge label="modo experimental" variant="implantacao" />
-            <StatusBadge label="dados mockados" variant="neutro" />
+            <StatusBadge label="dados simulados" variant="neutro" />
           </div>
         </Card>
 
@@ -207,26 +256,34 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
             )}
           </div>
 
-          {/* Campo de entrada */}
-          <div className="mt-4 flex gap-2">
-            <input
-              type="text"
-              value={inputTexto}
-              onChange={(e) => setInputTexto(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSubmit();
-              }}
-              placeholder="Digite uma pergunta ou instrução em linguagem natural..."
-              className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)]"
+          {/* Campo de entrada + upload */}
+          <div className="mt-4 space-y-3">
+            <AnexoChatUploader
+              pedidoId={pedido.id}
+              casoId={pedido.casoId}
+              onAnexar={handleDocumentoAnexado}
             />
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={carregando || !inputTexto.trim()}
-              className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              <SendIcon size={16} />
-            </button>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputTexto}
+                onChange={(e) => setInputTexto(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSubmit();
+                }}
+                placeholder="Digite uma pergunta ou instrução em linguagem natural..."
+                className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-4 py-2.5 text-sm text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)]"
+              />
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={carregando || !inputTexto.trim()}
+                className="rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                <SendIcon size={16} />
+              </button>
+            </div>
           </div>
         </Card>
       </div>
@@ -266,20 +323,49 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
           </div>
         </Card>
 
-        <Card title="Documentos vinculados" subtitle={`${documentos.length} documento(s) no caso.`} eyebrow="Docs">
-          {documentosVinculados.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">Nenhum documento vinculado.</p>
+        <Card title="Fontes de contexto" subtitle={`${anexosChat.length} documento(s) disponível(is).`} eyebrow="Docs">
+          {anexosChat.length === 0 ? (
+            <p className="text-sm text-[var(--color-muted)]">Nenhum documento vinculado ao pedido.</p>
           ) : (
             <div className="space-y-2">
-              {documentosVinculados.map((doc) => (
+              {anexosChat.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-2"
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl border p-2",
+                    doc.status === "novo"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : doc.status === "analisado"
+                        ? "border-[var(--color-border)] bg-[var(--color-surface-alt)]"
+                        : doc.status === "pendente"
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-[var(--color-border)] bg-[var(--color-surface-alt)]",
+                  )}
                 >
                   <FileIcon size={14} className="shrink-0 text-[var(--color-muted)]" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold text-[var(--color-ink)]">{doc.titulo}</p>
-                    <p className="text-[10px] text-[var(--color-muted)]">{doc.tipo} • {doc.status}</p>
+                    <div className="mt-0.5 flex items-center gap-1">
+                      <span className="text-[10px] text-[var(--color-muted)]">{doc.tipo}</span>
+                      {doc.status === "novo" && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-medium text-emerald-700">
+                          <ShieldCheckIcon size={10} /> Novo
+                        </span>
+                      )}
+                      {doc.status === "pendente" && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-700">
+                          <AlertTriangleIcon size={10} /> Pendente
+                        </span>
+                      )}
+                      {doc.status === "analisado" && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                          <ShieldCheckIcon size={10} /> Analisado
+                        </span>
+                      )}
+                      {doc.status === "existente" && (
+                        <span className="text-[10px] text-[var(--color-muted)]">Existente</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
