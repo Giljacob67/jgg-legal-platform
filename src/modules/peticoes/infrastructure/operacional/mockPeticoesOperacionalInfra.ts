@@ -5,6 +5,7 @@ import type {
 } from "@/modules/peticoes/application/operacional/contracts";
 import type { MateriaCanonica, TipoPecaCanonica } from "@/modules/peticoes/domain/geracao-minuta";
 import type { ContextoJuridicoPedido, EtapaPipeline, SnapshotPipelineEtapa } from "@/modules/peticoes/domain/types";
+import { enriquecerContextoComDossie } from "@/modules/peticoes/domain/dossie-juridico";
 
 interface MockPeticoesOperacionalStore {
   snapshots: SnapshotPipelineEtapa[];
@@ -218,6 +219,7 @@ class MockContextoJuridicoPedidoRepository implements ContextoJuridicoPedidoRepo
     const store = getStore();
     return store.contextos
       .filter((contexto) => contexto.pedidoId === pedidoId)
+      .map((contexto) => enriquecerContextoComDossie(contexto))
       .slice()
       .sort((a, b) => b.versaoContexto - a.versaoContexto);
   }
@@ -236,7 +238,7 @@ class MockContextoJuridicoPedidoRepository implements ContextoJuridicoPedidoRepo
     };
 
     store.contextos.push(contexto);
-    return contexto;
+    return enriquecerContextoComDossie(contexto);
   }
 }
 

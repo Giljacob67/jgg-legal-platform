@@ -489,6 +489,97 @@ export interface TeseJuridicaPedido {
   confirmadaEm?: string;
 }
 
+export type GrauCoberturaFatoProva = "forte" | "moderada" | "fraca";
+
+export interface BriefingJuridicoPedido {
+  pedidoId: string;
+  casoId: string;
+  tituloPedido?: string;
+  tipoPeca?: string;
+  statusPedido?: StatusPedido;
+  prioridade?: PrioridadePedido;
+  totalDocumentos: number;
+  totalReferenciasDocumentais: number;
+  resumoExecutivo: string;
+}
+
+export interface ContextoDoCasoPedido {
+  fatosRelevantes: string[];
+  cronologia: Array<{ data: string; descricao: string; documentoId?: string }>;
+  pontosControvertidos: string[];
+}
+
+export interface LeituraDocumentalEstruturadaPedido {
+  totalDocumentos: number;
+  documentosLidos: number;
+  coberturaLeitura: number;
+  documentosChave: Array<{ documentoId: string; titulo: string; tipoDocumento: string }>;
+  referenciasDocumentais: ReferenciaDocumentalContexto[];
+  lacunasDocumentais: string[];
+}
+
+export interface MatrizFatoProvaItem {
+  id: string;
+  fato: string;
+  provasRelacionadas: Array<{ documentoId: string; titulo: string; tipoDocumento: string }>;
+  grauCobertura: GrauCoberturaFatoProva;
+  controverso: boolean;
+}
+
+export interface AnaliseAdversaEstruturadaPedido {
+  pontosFortes: string[];
+  vulnerabilidades: string[];
+  argumentosAdversos: string[];
+  riscosProcessuais: string[];
+  nivelRiscoGeral: "baixo" | "medio" | "alto" | "indefinido";
+  observacoes: string;
+}
+
+export interface DiagnosticoEstrategicoPedido {
+  resumo: string;
+  diretrizPrincipal: string;
+  alavancas: string[];
+  fragilidades: string[];
+  pendencias: string[];
+}
+
+export interface EstrategiaAprovadaPedido {
+  liberadaParaEstruturacao: boolean;
+  resumo: string;
+  tesesConfirmadas: Array<{
+    id: string;
+    titulo: string;
+    statusValidacao: Extract<StatusValidacaoTese, "aprovada" | "ajustada">;
+  }>;
+}
+
+export interface EstruturaDaPecaPedido {
+  secoesSugeridas: string[];
+  pedidosPrioritarios: string[];
+  provasPrioritarias: string[];
+  observacoesDeRedacao: string[];
+}
+
+export interface AuditoriaJuridicaPedido {
+  versaoContexto: number;
+  validacaoHumanaTesesPendente: boolean;
+  fontesSnapshot: Array<{ etapa: EtapaPipeline; versao: number }>;
+  atualizadoEm?: string;
+}
+
+export interface DossieJuridicoPedido {
+  briefingJuridico: BriefingJuridicoPedido;
+  contextoDoCaso: ContextoDoCasoPedido;
+  leituraDocumentalEstruturada: LeituraDocumentalEstruturadaPedido;
+  matrizFatosEProvas: MatrizFatoProvaItem[];
+  analiseAdversa: AnaliseAdversaEstruturadaPedido;
+  diagnosticoEstrategico: DiagnosticoEstrategicoPedido;
+  tesesCandidatas: TeseJuridicaPedido[];
+  estrategiaAprovada: EstrategiaAprovadaPedido;
+  estruturaDaPeca: EstruturaDaPecaPedido;
+  auditoria: AuditoriaJuridicaPedido;
+}
+
 export interface ContextoJuridicoPedido {
   id: string;
   pedidoId: string;
@@ -502,6 +593,7 @@ export interface ContextoJuridicoPedido {
   teses: TeseJuridicaPedido[];
   validacaoHumanaTesesPendente: boolean;
   fontesSnapshot: Array<{ etapa: EtapaPipeline; versao: number }>;
+  dossieJuridico?: DossieJuridicoPedido;
   criadoEm: string;
 }
 

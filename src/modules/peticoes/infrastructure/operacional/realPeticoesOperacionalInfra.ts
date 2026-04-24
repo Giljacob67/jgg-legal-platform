@@ -13,6 +13,7 @@ import type {
   SnapshotPipelineEtapa,
   TeseJuridicaPedido,
 } from "@/modules/peticoes/domain/types";
+import { enriquecerContextoComDossie } from "@/modules/peticoes/domain/dossie-juridico";
 
 type SnapshotRow = {
   id: string;
@@ -101,7 +102,7 @@ function mapSnapshot(row: SnapshotRow): SnapshotPipelineEtapa {
 }
 
 function mapContexto(row: ContextoRow): ContextoJuridicoPedido {
-  return {
+  const contexto: ContextoJuridicoPedido = {
     id: row.id,
     pedidoId: row.pedido_id,
     versaoContexto: row.versao_contexto,
@@ -142,6 +143,8 @@ function mapContexto(row: ContextoRow): ContextoJuridicoPedido {
     ),
     criadoEm: row.criado_em,
   };
+
+  return enriquecerContextoComDossie(contexto);
 }
 
 class RealPipelineSnapshotRepository implements PipelineSnapshotRepository {

@@ -19,6 +19,7 @@ import {
   buildMapaTesesContexto,
   existeValidacaoHumanaPendente,
 } from "@/modules/peticoes/application/teses-juridicas";
+import { buildDossieJuridicoPedido, enriquecerContextoComDossie } from "@/modules/peticoes/domain/dossie-juridico";
 
 const ETAPAS_IMPLEMENTADAS_PIPELINE: EtapaPipeline[] = [
   "classificacao",
@@ -282,6 +283,7 @@ function normalizarArrayString(value: unknown): string[] {
 
 async function salvarContextoSeMudou(input: {
   pedidoId: string;
+  pedido: Awaited<ReturnType<typeof services.peticoesRepository.obterPedidoPorId>>;
   snapshots: SnapshotPipelineEtapa[];
   documentos: DocumentoComArquivoEVinculos[];
 }): Promise<ContextoJuridicoPedido | null> {
@@ -376,6 +378,29 @@ async function salvarContextoSeMudou(input: {
     teses,
     validacaoHumanaTesesPendente,
     fontesSnapshot,
+    dossieJuridico: buildDossieJuridicoPedido({
+      pedido: input.pedido,
+      pedidoId: input.pedidoId,
+      versaoContexto: (ultimo?.versaoContexto ?? 0) + 1,
+      fatosRelevantes,
+      cronologia,
+      pontosControvertidos,
+      documentosChave,
+      referenciasDocumentais,
+      estrategiaSugerida,
+      teses,
+      validacaoHumanaTesesPendente,
+      fontesSnapshot,
+      snapshotsSaida: {
+        classificacao: toRecord(latestByStage.get("classificacao")?.saidaEstruturada),
+        leitura_documental: toRecord(latestByStage.get("leitura_documental")?.saidaEstruturada),
+        extracao_de_fatos: toRecord(latestByStage.get("extracao_de_fatos")?.saidaEstruturada),
+        analise_adversa: toRecord(latestByStage.get("analise_adversa")?.saidaEstruturada),
+        estrategia_juridica: toRecord(latestByStage.get("estrategia_juridica")?.saidaEstruturada),
+        redacao: toRecord(latestByStage.get("redacao")?.saidaEstruturada),
+        revisao: toRecord(latestByStage.get("revisao")?.saidaEstruturada),
+      },
+    }),
   };
 
   if (
@@ -390,7 +415,15 @@ async function salvarContextoSeMudou(input: {
     ultimo.validacaoHumanaTesesPendente === payload.validacaoHumanaTesesPendente &&
     serializar(ultimo.fontesSnapshot) === serializar(payload.fontesSnapshot)
   ) {
-    return ultimo;
+    return enriquecerContextoComDossie(ultimo, input.pedido, {
+      classificacao: toRecord(latestByStage.get("classificacao")?.saidaEstruturada),
+      leitura_documental: toRecord(latestByStage.get("leitura_documental")?.saidaEstruturada),
+      extracao_de_fatos: toRecord(latestByStage.get("extracao_de_fatos")?.saidaEstruturada),
+      analise_adversa: toRecord(latestByStage.get("analise_adversa")?.saidaEstruturada),
+      estrategia_juridica: toRecord(latestByStage.get("estrategia_juridica")?.saidaEstruturada),
+      redacao: toRecord(latestByStage.get("redacao")?.saidaEstruturada),
+      revisao: toRecord(latestByStage.get("revisao")?.saidaEstruturada),
+    });
   }
 
   return infra.contextoJuridicoPedidoRepository.salvarNovaVersao(payload);
@@ -545,6 +578,7 @@ export async function sincronizarPipelinePedido(pedidoId: string): Promise<{
   const snapshots = await infra.pipelineSnapshotRepository.listarPorPedido(pedido.id);
   const contextoAtual = await salvarContextoSeMudou({
     pedidoId: pedido.id,
+    pedido,
     snapshots,
     documentos,
   });
