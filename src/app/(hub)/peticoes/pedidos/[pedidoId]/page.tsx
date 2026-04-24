@@ -21,6 +21,7 @@ import { AtribuirResponsavelCard } from "@/modules/peticoes/ui/atribuir-responsa
 import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
 import { PedidoWorkspaceOverview } from "@/modules/peticoes/ui/pedido-workspace-overview";
 import { DossieJuridicoPanel } from "@/modules/peticoes/ui/dossie-juridico-panel";
+import { EstruturaPecaPanel } from "@/modules/peticoes/ui/estrutura-peca-panel";
 import { getDataMode } from "@/lib/data-mode";
 import { formatarData, formatarDataHora } from "@/lib/utils";
 import type { EtapaPipeline, SnapshotPipelineEtapa, StatusPedido } from "@/modules/peticoes/domain/types";
@@ -355,6 +356,10 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
 
       <div id="mapa-teses" className="scroll-mt-24">
         <MapaTesesPanel pedidoId={pedido.id} contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
+      </div>
+
+      <div id="estrutura-peca" className="scroll-mt-24">
+        <EstruturaPecaPanel contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
       </div>
 
       <div id="timeline" className="scroll-mt-24">

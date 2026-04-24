@@ -17,7 +17,7 @@ type PedidoWorkspaceOverviewProps = {
   minutaId?: string;
 };
 
-type MacroEtapaId = "intake" | "estrategia" | "redacao" | "revisao" | "aprovacao";
+type MacroEtapaId = "intake" | "estrategia" | "estrutura" | "redacao" | "revisao" | "aprovacao";
 
 const MACROETAPAS: Array<{ id: MacroEtapaId; titulo: string; descricao: string }> = [
   {
@@ -29,6 +29,11 @@ const MACROETAPAS: Array<{ id: MacroEtapaId; titulo: string; descricao: string }
     id: "estrategia",
     titulo: "Mapa de teses",
     descricao: "Fatos, controvérsias e validação humana da estratégia.",
+  },
+  {
+    id: "estrutura",
+    titulo: "Estrutura da peça",
+    descricao: "Ordem das seções, pedidos prioritários e provas que guiam a redação.",
   },
   {
     id: "redacao",
@@ -47,7 +52,8 @@ const MACROETAPAS: Array<{ id: MacroEtapaId; titulo: string; descricao: string }
   },
 ];
 
-function macroEtapaAtual(etapaAtual: EtapaPipeline): MacroEtapaId {
+function macroEtapaAtual(input: Pick<PedidoWorkspaceOverviewProps, "etapaAtual" | "contextoAtual" | "minutaId">): MacroEtapaId {
+  const { etapaAtual, contextoAtual, minutaId } = input;
   if (etapaAtual === "classificacao" || etapaAtual === "leitura_documental") {
     return "intake";
   }
@@ -58,6 +64,12 @@ function macroEtapaAtual(etapaAtual: EtapaPipeline): MacroEtapaId {
     etapaAtual === "estrategia_juridica" ||
     etapaAtual === "pesquisa_de_apoio"
   ) {
+    if (
+      contextoAtual?.dossieJuridico?.estrategiaAprovada.liberadaParaEstruturacao &&
+      !minutaId
+    ) {
+      return "estrutura";
+    }
     return "estrategia";
   }
   if (etapaAtual === "redacao") {
@@ -102,10 +114,10 @@ function definirProximaAcao(input: PedidoWorkspaceOverviewProps) {
 
   if (!input.minutaId) {
     return {
-      titulo: "Gerar minuta base",
-      descricao: "O caso já possui contexto e tese validada. O próximo passo é abrir a produção da peça.",
-      href: `/peticoes/pipeline/${input.pedidoId}`,
-      label: "Ir para produção",
+      titulo: "Conferir estrutura da peça",
+      descricao: "A estratégia já foi validada. Antes da minuta, revise a ordem das seções, os pedidos e as provas prioritárias.",
+      href: "#estrutura-peca",
+      label: "Revisar estrutura",
       variant: "primario" as const,
     };
   }
@@ -130,7 +142,11 @@ function definirProximaAcao(input: PedidoWorkspaceOverviewProps) {
 }
 
 export function PedidoWorkspaceOverview(props: PedidoWorkspaceOverviewProps) {
-  const macroAtual = macroEtapaAtual(props.etapaAtual);
+  const macroAtual = macroEtapaAtual({
+    etapaAtual: props.etapaAtual,
+    contextoAtual: props.contextoAtual,
+    minutaId: props.minutaId,
+  });
   const macroIndex = MACROETAPAS.findIndex((item) => item.id === macroAtual);
   const proximaAcao = definirProximaAcao(props);
 
@@ -161,6 +177,12 @@ export function PedidoWorkspaceOverview(props: PedidoWorkspaceOverviewProps) {
             Dossiê
           </Link>
           <Link
+            href="#estrutura-peca"
+            className="rounded-full border border-[var(--color-border)] bg-[var(--color-card-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
+          >
+            Estrutura
+          </Link>
+          <Link
             href="#timeline"
             className="rounded-full border border-[var(--color-border)] bg-[var(--color-card-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
           >
@@ -174,7 +196,7 @@ export function PedidoWorkspaceOverview(props: PedidoWorkspaceOverviewProps) {
           </Link>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           {MACROETAPAS.map((macro, index) => {
             const status =
               index < macroIndex || props.pedidoStatus === "aprovado"

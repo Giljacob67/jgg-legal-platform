@@ -12,6 +12,7 @@ import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minu
 import type { PainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/domain/types";
 import { PainelInteligenciaJuridicaView } from "@/modules/peticoes/inteligencia-juridica/ui/painel-inteligencia-juridica";
 import { EditorToolbar } from "@/modules/peticoes/ui/editor-toolbar";
+import { EstruturaPecaPanel } from "@/modules/peticoes/ui/estrutura-peca-panel";
 import { VersionDiff } from "@/modules/peticoes/ui/version-diff";
 import { Card } from "@/components/ui/card";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -331,6 +332,10 @@ export function EditorMinuta({
               <p>
                 <strong>Teses confirmadas:</strong> {tesesConfirmadas.length}
               </p>
+              <p>
+                <strong>Estrutura da peça:</strong>{" "}
+                {contextoJuridico.dossieJuridico?.estruturaDaPeca.secoesSugeridas.length ?? 0} seção(ões)
+              </p>
 
               {fatosRelevantes.length > 0 ? (
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">
@@ -363,6 +368,8 @@ export function EditorMinuta({
             </div>
           )}
         </Card>
+
+        <EstruturaPecaPanel contextoAtual={contextoJuridico} compact />
 
         <Card title="Rastro de geração" subtitle="Origem técnica da versão atual para auditoria e rastreabilidade." eyebrow="Rastro">
           {!rastroGeracaoAtual ? (

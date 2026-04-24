@@ -6,6 +6,7 @@ export type BlocoMinutaId =
   | "qualificacao_identificacao"
   | "sintese_fatica"
   | "fundamentos"
+  | "enfrentamento_tese_adversa"
   | "pedidos"
   | "fechamento"
   // Blocos especializados — Operação Mata-Mata e templates customizados
