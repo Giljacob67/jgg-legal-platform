@@ -3,6 +3,7 @@ import { ButtonLink } from "@/components/ui/button-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FileIcon, ScaleIcon } from "@/components/ui/icons";
+import { avaliarProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
 import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { EditorMinuta } from "@/modules/peticoes/ui/editor-minuta";
 
@@ -28,6 +29,14 @@ export default async function EditorMinutaPage({ params }: EditorMinutaPageProps
   }
 
   const minuta = editorData?.minuta;
+  const prontidaoAprovacao =
+    minuta && editorData
+      ? avaliarProntidaoAprovacao({
+          contextoJuridico: editorData.contextoJuridico,
+          minuta,
+          inteligenciaJuridica: editorData.inteligenciaJuridica,
+        })
+      : undefined;
 
   if (!minuta) {
     return (
@@ -89,6 +98,7 @@ export default async function EditorMinutaPage({ params }: EditorMinutaPageProps
         versaoContextoAtual={editorData?.versaoContextoAtual}
         rastroGeracaoAtual={editorData?.rastroGeracaoAtual}
         inteligenciaJuridica={editorData?.inteligenciaJuridica ?? null}
+        prontidaoAprovacao={prontidaoAprovacao}
       />
     </div>
   );

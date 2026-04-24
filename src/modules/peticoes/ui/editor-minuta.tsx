@@ -11,6 +11,8 @@ import type { ContextoJuridicoPedido, Minuta } from "@/modules/peticoes/domain/t
 import type { RastroGeracaoMinuta } from "@/modules/peticoes/domain/geracao-minuta";
 import type { PainelInteligenciaJuridica } from "@/modules/peticoes/inteligencia-juridica/domain/types";
 import { PainelInteligenciaJuridicaView } from "@/modules/peticoes/inteligencia-juridica/ui/painel-inteligencia-juridica";
+import type { ProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
+import { AuditoriaAprovacaoPanel } from "@/modules/peticoes/ui/auditoria-aprovacao-panel";
 import { EditorToolbar } from "@/modules/peticoes/ui/editor-toolbar";
 import { EstruturaPecaPanel } from "@/modules/peticoes/ui/estrutura-peca-panel";
 import { VersionDiff } from "@/modules/peticoes/ui/version-diff";
@@ -28,6 +30,7 @@ type EditorMinutaProps = {
   versaoContextoAtual?: number;
   rastroGeracaoAtual?: RastroGeracaoMinuta;
   inteligenciaJuridica?: PainelInteligenciaJuridica | null;
+  prontidaoAprovacao?: ProntidaoAprovacao;
   pedidoId?: string;
 };
 
@@ -41,6 +44,7 @@ export function EditorMinuta({
   versaoContextoAtual,
   rastroGeracaoAtual,
   inteligenciaJuridica = null,
+  prontidaoAprovacao,
   pedidoId,
 }: EditorMinutaProps) {
   const [versaoComparadaId, setVersaoComparadaId] = useState(
@@ -370,6 +374,8 @@ export function EditorMinuta({
         </Card>
 
         <EstruturaPecaPanel contextoAtual={contextoJuridico} compact />
+
+        {prontidaoAprovacao ? <AuditoriaAprovacaoPanel prontidao={prontidaoAprovacao} compact /> : null}
 
         <Card title="Rastro de geração" subtitle="Origem técnica da versão atual para auditoria e rastreabilidade." eyebrow="Rastro">
           {!rastroGeracaoAtual ? (

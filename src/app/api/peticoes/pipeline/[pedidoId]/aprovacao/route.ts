@@ -11,6 +11,8 @@ import {
 import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { atualizarFluxoPedido } from "@/modules/peticoes/application/atualizarFluxoPedido";
+import { avaliarProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
+import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { responsavelObrigatorioAtendido } from "@/modules/peticoes/application/governanca-pedido";
 import { perfilTemAlcadaAprovacao } from "@/modules/peticoes/domain/aprovacao";
 import {
@@ -19,6 +21,7 @@ import {
   registrarFalhaPipeline,
 } from "@/modules/peticoes/application/operacional/observabilidade-pipeline";
 import { resumirMapaTeses } from "@/modules/peticoes/application/teses-juridicas";
+import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
 
 const AprovacaoPayloadSchema = z.object({
   resultado: z.enum(["aprovado", "rejeitado", "revisao_pendente"]),
@@ -105,6 +108,39 @@ export async function POST(
     return jsonError(
       requestId,
       "Validação humana de teses pendente. Aprove, ajuste ou rejeite as teses sugeridas antes da aprovação final.",
+      422,
+    );
+  }
+
+  const minuta = await obterMinutaPorPedidoId(pedidoId);
+  if (!minuta) {
+    registrarEventoPipeline("api/pipeline/aprovacao", requestId, "aprovacao_bloqueada_sem_minuta", {
+      pedidoId,
+      ...contextoAuditoria,
+    });
+    return jsonError(
+      requestId,
+      "Minuta indisponível. Gere ou consolide a peça antes da aprovação final.",
+      422,
+    );
+  }
+
+  const editorData = await obterEditorMinutaOperacional(minuta.id).catch(() => null);
+  const prontidaoAprovacao = avaliarProntidaoAprovacao({
+    contextoJuridico: contextoAtual,
+    minuta: editorData?.minuta ?? minuta,
+    inteligenciaJuridica: editorData?.inteligenciaJuridica ?? null,
+  });
+
+  if (!prontidaoAprovacao.liberado) {
+    registrarEventoPipeline("api/pipeline/aprovacao", requestId, "aprovacao_bloqueada_auditoria", {
+      pedidoId,
+      ...contextoAuditoria,
+      bloqueios: prontidaoAprovacao.bloqueios,
+    });
+    return jsonError(
+      requestId,
+      `A auditoria jurídica ainda bloqueia a aprovação final: ${prontidaoAprovacao.bloqueios.join(" • ")}.`,
       422,
     );
   }

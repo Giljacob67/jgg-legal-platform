@@ -349,24 +349,13 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
       { params: Promise.resolve({ pedidoId }) },
     );
 
-    expect(aprovacaoResponse.status).toBe(200);
+    expect(aprovacaoResponse.status).toBe(422);
     const aprovacaoJson = (await aprovacaoResponse.json()) as {
-      resultado: string;
+      error: string;
       requestId: string;
-      snapshot: { entradaRef: Record<string, unknown> };
     };
-    expect(aprovacaoJson.resultado).toBe("aprovado");
+    expect(aprovacaoJson.error).toContain("Minuta indisponível");
     expect(aprovacaoJson.requestId).toBe("req-aprov-001");
-    expect(aprovacaoJson.snapshot.entradaRef).toMatchObject({
-      requestId: "req-aprov-001",
-      usuarioId: "usr-soc-001",
-      perfilUsuario: "socio_direcao",
-    });
-
-    const { services } = await import("@/services/container");
-    const pedidoAprovado = await services.peticoesRepository.obterPedidoPorId(pedidoId);
-    expect(pedidoAprovado?.status).toBe("aprovado");
-    expect(pedidoAprovado?.etapaAtual).toBe("aprovacao");
 
     const { sqlClient, writes } = createSqlClientScenario({
       pedidoId,
@@ -395,9 +384,10 @@ describe("Fluxo crítico de Petições (integração de rotas)", () => {
     expect(writes.updates).toBe(1);
     expect(writes.inserts).toBe(1);
 
+    const { services } = await import("@/services/container");
     const pedidoPosSalvarMinuta = await services.peticoesRepository.obterPedidoPorId(pedidoId);
-    expect(pedidoPosSalvarMinuta?.status).toBe("aprovado");
-    expect(pedidoPosSalvarMinuta?.etapaAtual).toBe("aprovacao");
+    expect(pedidoPosSalvarMinuta?.status).toBe("em revisão");
+    expect(pedidoPosSalvarMinuta?.etapaAtual).toBe("revisao");
   });
 
   it("deve retornar 409 no editor quando houver conflito de concorrência", async () => {

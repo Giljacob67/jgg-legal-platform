@@ -9,6 +9,7 @@ import type {
   HistoricoPipeline,
   SnapshotPipelineEtapa,
 } from "@/modules/peticoes/domain/types";
+import type { ProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
 import { MAPA_ESTAGIO_PIPELINE, type EstagioExecutavel } from "@/modules/peticoes/domain/types";
 import {
   avaliarSlaDaEtapa,
@@ -23,6 +24,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { formatarDataHora } from "@/lib/utils";
+import { AuditoriaAprovacaoPanel } from "@/modules/peticoes/ui/auditoria-aprovacao-panel";
 import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
 import { DossieJuridicoPanel } from "@/modules/peticoes/ui/dossie-juridico-panel";
 
@@ -37,6 +39,7 @@ type PipelineWorkspaceProps = {
   prazoFinal: string;
   pedidoCriadoEm: string;
   perfilUsuario?: string;
+  prontidaoAprovacao?: ProntidaoAprovacao;
 };
 
 type ResultadoAprovacao = "aprovado" | "rejeitado" | "revisao_pendente";
@@ -90,6 +93,7 @@ export function PipelineWorkspace({
   prazoFinal,
   pedidoCriadoEm,
   perfilUsuario,
+  prontidaoAprovacao,
 }: PipelineWorkspaceProps) {
   const router = useRouter();
   const [streamingEstagio, setStreamingEstagio] = useState<EstagioExecutavel | null>(null);
@@ -465,8 +469,16 @@ export function PipelineWorkspace({
             <InlineAlert title="Aprovação bloqueada" variant="warning">
               Valide as teses inferidas pelo sistema ou registre tese manual antes da decisão final.
             </InlineAlert>
+          ) : prontidaoAprovacao && !prontidaoAprovacao.liberado ? (
+            <div className="space-y-4">
+              <AuditoriaAprovacaoPanel prontidao={prontidaoAprovacao} compact />
+              <InlineAlert title="Aprovação bloqueada" variant="warning">
+                Corrija os itens de auditoria acima antes de registrar a decisão final.
+              </InlineAlert>
+            </div>
           ) : (
             <div className="space-y-4">
+              {prontidaoAprovacao ? <AuditoriaAprovacaoPanel prontidao={prontidaoAprovacao} compact /> : null}
               <div>
                 <label className="mb-1 block text-xs font-medium text-[var(--color-ink)]">Observações (opcional)</label>
                 <textarea

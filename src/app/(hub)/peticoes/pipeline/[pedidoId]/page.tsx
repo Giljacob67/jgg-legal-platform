@@ -3,6 +3,8 @@ import { ButtonLink } from "@/components/ui/button-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FileIcon } from "@/components/ui/icons";
+import { avaliarProntidaoAprovacao } from "@/modules/peticoes/application/avaliarProntidaoAprovacao";
+import { obterEditorMinutaOperacional } from "@/modules/peticoes/application/operacional/obterEditorMinutaOperacional";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterMinutaPorPedidoId } from "@/modules/peticoes/application/obterMinutaPorPedidoId";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
@@ -33,6 +35,15 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
 
   const perfilUsuario = resolverPerfilUsuario(session?.user?.role as string | undefined);
   const responsavelDefinido = responsavelObrigatorioAtendido(pedido.responsavel);
+  const editorData = minuta ? await obterEditorMinutaOperacional(minuta.id).catch(() => null) : null;
+  const prontidaoAprovacao =
+    minuta && editorData
+      ? avaliarProntidaoAprovacao({
+          contextoJuridico: contextoAtual,
+          minuta: editorData.minuta,
+          inteligenciaJuridica: editorData.inteligenciaJuridica,
+        })
+      : undefined;
 
   return (
     <div className="space-y-6">
@@ -70,6 +81,7 @@ export default async function PipelinePedidoPage({ params }: PipelinePedidoPageP
         prazoFinal={pedido.prazoFinal}
         pedidoCriadoEm={pedido.criadoEm}
         perfilUsuario={perfilUsuario}
+        prontidaoAprovacao={prontidaoAprovacao}
       />
     </div>
   );
