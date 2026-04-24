@@ -4,28 +4,28 @@ import type { EtapaNovoPedidoWizard } from "@/modules/peticoes/novo-pedido/domai
 const ETAPAS: Array<{ id: EtapaNovoPedidoWizard; titulo: string; resumo: string }> = [
   {
     id: "caso_contexto",
-    titulo: "Caso e contexto",
-    resumo: "Base jurídica do pedido",
+    titulo: "Briefing jurídico",
+    resumo: "Recebimento e contexto",
   },
   {
     id: "objetivo_juridico",
     titulo: "Objetivo jurídico",
-    resumo: "Direção do trabalho",
+    resumo: "Direção processual",
   },
   {
     id: "documentos_provas",
     titulo: "Documentos e provas",
-    resumo: "Material de apoio",
+    resumo: "Base documental",
   },
   {
     id: "estrategia_inicial",
-    titulo: "Estratégia inicial",
-    resumo: "Análise, teses e ajustes",
+    titulo: "Diagnóstico inicial",
+    resumo: "Preparo do dossiê",
   },
   {
     id: "revisao_criacao",
     titulo: "Revisão e criação",
-    resumo: "Confirmação humana",
+    resumo: "Abertura controlada",
   },
 ];
 

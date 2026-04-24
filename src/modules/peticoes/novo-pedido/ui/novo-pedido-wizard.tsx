@@ -11,7 +11,6 @@ import type { PrioridadePedido, TipoPeca } from "@/modules/peticoes/domain/types
 import {
   calcularPendencias,
   consolidarEstrategiaInicial,
-  consolidarTesesPreliminares,
   construirInputTriagemPreview,
   construirPayloadCriacao,
   criarDraftInicial,
@@ -35,7 +34,6 @@ import type {
   EtapaNovoPedidoWizard,
   NovoPedidoWizardDraft,
   SugestaoTriagemWizard,
-  TesePreliminarNovoPedido,
 } from "@/modules/peticoes/novo-pedido/domain/types";
 import type { DriveExplorerItem } from "@/modules/drive-explorer/domain/types";
 
@@ -98,10 +96,6 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
     const draftComEstrategia = {
       ...draft,
       estrategia: estrategiaAtual,
-      teses: consolidarTesesPreliminares({
-        draft,
-        estrategia: estrategiaAtual,
-      }),
     };
     const pendencias = calcularPendencias(draftComEstrategia);
     const revisao = montarRevisaoNovoPedido({ ...draftComEstrategia, pendencias });
@@ -265,49 +259,6 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
         ...current.confirmacao,
         observacoesFinais: valor,
       },
-    }));
-  }
-
-  function atualizarTese(teseId: string, atualizacao: Partial<TesePreliminarNovoPedido>) {
-    setDraft((current) => {
-      const baseTeses = draftAtual.teses.length > 0 ? draftAtual.teses : current.teses;
-
-      return {
-        ...current,
-        teses: baseTeses.map((tese) =>
-          tese.id === teseId
-            ? {
-                ...tese,
-                ...atualizacao,
-              }
-            : tese,
-        ),
-      };
-    });
-  }
-
-  function adicionarTeseManual() {
-    setDraft((current) => ({
-      ...current,
-      teses: [
-        ...current.teses,
-        {
-          id: `TESE-MANUAL-${Date.now().toString(36).toUpperCase()}`,
-          titulo: "",
-          descricao: "",
-          fundamentos: [],
-          origem: "manual",
-          statusValidacao: "ajustada",
-          observacoesHumanas: "",
-        },
-      ],
-    }));
-  }
-
-  function removerTeseManual(teseId: string) {
-    setDraft((current) => ({
-      ...current,
-      teses: current.teses.filter((tese) => !(tese.id === teseId && tese.origem === "manual")),
     }));
   }
 
@@ -489,7 +440,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
     caso_contexto: "Caso e contexto",
     objetivo_juridico: "Objetivo jurídico",
     documentos_provas: "Documentos e provas",
-    estrategia_inicial: "Estratégia inicial",
+    estrategia_inicial: "Diagnóstico inicial",
     revisao_criacao: "Revisão e criação",
   };
 
@@ -559,7 +510,7 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
           {etapaAtual === "estrategia_inicial" ? (
             <EstrategiaInicialStep
               estrategia={draftAtual.estrategia}
-              teses={draftAtual.teses}
+              totalDocumentos={draftAtual.documentos.length}
               tiposPeca={tiposPeca}
               triagem={sugestaoTriagem}
               carregandoTriagem={carregandoTriagem}
@@ -567,9 +518,6 @@ export function NovoPedidoWizard({ casos, tiposPeca }: NovoPedidoWizardProps) {
               onAtualizarTriagem={atualizarSugestoesTriagem}
               onConfirmarTipoPeca={confirmarTipoPeca}
               onConfirmarPrioridade={confirmarPrioridade}
-              onAtualizarTese={atualizarTese}
-              onAdicionarTeseManual={adicionarTeseManual}
-              onRemoverTeseManual={removerTeseManual}
             />
           ) : null}
 

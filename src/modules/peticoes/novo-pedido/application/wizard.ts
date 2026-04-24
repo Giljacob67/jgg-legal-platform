@@ -12,7 +12,6 @@ import type {
   PendenciaNovoPedido,
   RevisaoNovoPedido,
   SugestaoTriagemWizard,
-  TesePreliminarNovoPedido,
   UrgenciaNovoPedido,
 } from "@/modules/peticoes/novo-pedido/domain/types";
 import type { CategoriaObjetivoJuridico, EstrategiaInicialNovoPedido } from "@/modules/peticoes/novo-pedido/domain/types";
@@ -127,7 +126,7 @@ export function criarDraftInicial(casos: Caso[]): NovoPedidoWizardDraft {
       prioridadeSugerida: "média",
       prioridadeConfirmada: null,
       urgencia: urgenciaBase(casoInicial?.prazoFinal ?? ""),
-      resumoInferido: "Selecione um objetivo jurídico para gerar uma estratégia inicial sugerida.",
+      resumoInferido: "Selecione objetivo, contexto e documentos para preparar o dossiê inicial do pedido.",
       alertas: [],
       proximasProvidencias: [],
     },
@@ -202,104 +201,6 @@ function inferirTipoPeca(
   return sugestao?.tiposPecaRelacionados[0] ?? null;
 }
 
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
-}
-
-function criarIdTese(chave: string): string {
-  return `TESE-${slugify(chave) || "base"}`;
-}
-
-function construirTesesInferidas(input: {
-  caso: Caso | null;
-  objetivo: ObjetivoJuridicoNovoPedido;
-  estrategia: EstrategiaInicialNovoPedido;
-  briefing: BriefingNovoPedido;
-}): TesePreliminarNovoPedido[] {
-  const teses: TesePreliminarNovoPedido[] = [];
-  const objetivoResumo = resumirObjetivo(input.objetivo.intencaoSelecionada, input.objetivo.intencaoLivre);
-  const tipoPeca = input.estrategia.tipoPecaConfirmada ?? input.estrategia.tipoPecaSugerida ?? "peça jurídica";
-
-  if (input.briefing.contextoFatico.trim()) {
-    teses.push({
-      id: criarIdTese(`principal-${tipoPeca}-${objetivoResumo}`),
-      titulo: "Tese principal sugerida",
-      descricao: `Sustentar ${tipoPeca} com foco em ${objetivoResumo}, alinhando narrativa fática, fundamento e pedido principal.`,
-      fundamentos: [
-        input.briefing.contextoFatico.trim(),
-        `Peça atualmente indicada: ${tipoPeca}.`,
-        `Urgência classificada como ${input.estrategia.urgencia.nivel}.`,
-      ],
-      origem: "inferida",
-      statusValidacao: "pendente",
-      observacoesHumanas: "",
-    });
-  }
-
-  if (input.estrategia.alertas.length > 0) {
-    teses.push({
-      id: criarIdTese(`subsidiaria-${input.estrategia.alertas[0]}`),
-      titulo: "Tese subsidiária / cautela",
-      descricao: "Prever linha subsidiária para neutralizar lacunas de prova, urgência ou risco processual apontado na triagem.",
-      fundamentos: input.estrategia.alertas.slice(0, 3),
-      origem: "inferida",
-      statusValidacao: "pendente",
-      observacoesHumanas: "",
-    });
-  }
-
-  if (!input.caso?.prazoFinal) {
-    return teses;
-  }
-
-  return teses;
-}
-
-export function consolidarTesesPreliminares(input: {
-  draft: NovoPedidoWizardDraft;
-  estrategia: EstrategiaInicialNovoPedido;
-}): TesePreliminarNovoPedido[] {
-  const inferidas = construirTesesInferidas({
-    caso: input.draft.caso,
-    objetivo: input.draft.objetivo,
-    estrategia: input.estrategia,
-    briefing: input.draft.briefing,
-  });
-  const existentes = new Map(input.draft.teses.map((tese) => [tese.id, tese]));
-
-  const inferidasMescladas = inferidas.map((tese) => {
-    const existente = existentes.get(tese.id);
-    if (!existente) {
-      return tese;
-    }
-
-    return {
-      ...tese,
-      titulo: existente.titulo,
-      descricao: existente.descricao,
-      fundamentos: existente.fundamentos.length > 0 ? existente.fundamentos : tese.fundamentos,
-      statusValidacao: existente.statusValidacao,
-      observacoesHumanas: existente.observacoesHumanas,
-    };
-  });
-
-  const manuais = input.draft.teses.filter(
-    (tese) => tese.origem === "manual" && !inferidasMescladas.some((item) => item.id === tese.id),
-  );
-
-  return [...inferidasMescladas, ...manuais];
-}
-
-export function existeTeseValidadaNoWizard(teses: TesePreliminarNovoPedido[]): boolean {
-  return teses.some((tese) => tese.statusValidacao === "aprovada" || tese.statusValidacao === "ajustada");
-}
-
 function inferirResumoEstrategia(input: {
   caso: Caso | null;
   objetivo: ObjetivoJuridicoNovoPedido;
@@ -312,7 +213,7 @@ function inferirResumoEstrategia(input: {
 
   const objetivo = resumirObjetivo(input.objetivo.intencaoSelecionada, input.objetivo.intencaoLivre);
   const materia = input.caso?.materia ?? "matéria não definida";
-  return `Pedido em ${materia}, com foco em ${objetivo}. A urgência atual foi classificada como ${input.urgencia.nivel} e deve ser confirmada antes da abertura final.`;
+  return `Pedido em ${materia}, com foco em ${objetivo}. A urgência atual foi classificada como ${input.urgencia.nivel} e o sistema preparará leitura documental, matriz de fatos e análise estratégica após a abertura.`;
 }
 
 function inferirProvidencias(input: {
@@ -326,7 +227,7 @@ function inferirProvidencias(input: {
   if (input.documentos.length === 0) {
     providencias.add("Solicitar ou anexar documentos-base antes de iniciar a produção da peça.");
   } else {
-    providencias.add("Validar se os documentos anexados cobrem os fatos centrais e a linha de defesa/ataque.");
+    providencias.add("Validar se os documentos anexados cobrem os fatos centrais antes da leitura documental estruturada.");
   }
 
   if (input.urgencia.nivel === "critica" || input.urgencia.nivel === "alta") {
@@ -340,6 +241,8 @@ function inferirProvidencias(input: {
   if (input.objetivo.intencaoSelecionada === "redigir_peticao_inicial") {
     providencias.add("Confirmar pedidos, causa de pedir e prova mínima para ajuizamento.");
   }
+
+  providencias.add("Após a abertura, executar leitura documental, matriz de fatos e provas e diagnóstico estratégico antes das teses.");
 
   if (input.sugestaoTriagem?.responsavelSugerido) {
     providencias.add(`Responsável sugerido para primeira passada: ${input.sugestaoTriagem.responsavelSugerido}.`);
@@ -464,18 +367,8 @@ export function calcularPendencias(draft: NovoPedidoWizardDraft): PendenciaNovoP
     pendencias.push({
       codigo: "tipo_peca_nao_definido",
       titulo: "Tipo de peça ainda não está claro",
-      descricao: "Confirme uma peça final ou avance com uma orientação mais precisa.",
+      descricao: "Confirme uma peça final ou avance com uma orientação mais precisa para o dossiê inicial.",
       severidade: "media",
-      etapaRelacionada: "estrategia_inicial",
-    });
-  }
-
-  if (!existeTeseValidadaNoWizard(draft.teses)) {
-    pendencias.push({
-      codigo: "tese_nao_validada",
-      titulo: "Teses ainda não foram validadas",
-      descricao: "O sistema pode sugerir caminhos, mas o advogado deve aprovar, ajustar ou adicionar ao menos uma tese antes da criação.",
-      severidade: "alta",
       etapaRelacionada: "estrategia_inicial",
     });
   }
@@ -548,6 +441,12 @@ export function montarRevisaoNovoPedido(draft: NovoPedidoWizardDraft): RevisaoNo
     });
   }
 
+  pushRevisao(inferido, {
+    label: "Trilha jurídica posterior",
+    valor: "Leitura documental estruturada → matriz de fatos e provas → análise adversa → diagnóstico estratégico → teses candidatas.",
+    origem: "inferido",
+  });
+
   if (draft.estrategia.tipoPecaConfirmada) {
     pushRevisao(confirmado, {
       label: "Tipo de peça confirmado",
@@ -556,30 +455,11 @@ export function montarRevisaoNovoPedido(draft: NovoPedidoWizardDraft): RevisaoNo
     });
   }
 
-  if (draft.teses.length > 0) {
-    pushRevisao(inferido, {
-      label: "Teses inferidas",
-      valor: `${draft.teses.filter((tese) => tese.origem === "inferida").length} sugestão(ões) preparada(s) para validação humana.`,
-      origem: "inferido",
-    });
-  }
-
-  const tesesValidadas = draft.teses.filter(
-    (tese) => tese.statusValidacao === "aprovada" || tese.statusValidacao === "ajustada",
-  );
-  if (tesesValidadas.length > 0) {
-    pushRevisao(confirmado, {
-      label: "Teses confirmadas",
-      valor: tesesValidadas.map((tese) => tese.titulo).join(" • "),
-      origem: "confirmado",
-    });
-  } else {
-    pushRevisao(faltando, {
-      label: "Validação de teses",
-      valor: "Aprove, ajuste ou adicione ao menos uma tese antes da abertura final.",
-      origem: "faltando",
-    });
-  }
+  pushRevisao(inferido, {
+    label: "Teses candidatas",
+    valor: "Ainda não são geradas no intake. Elas serão propostas após a leitura documental e a matriz de fatos e provas.",
+    origem: "inferido",
+  });
 
   if (draft.objetivo.intencaoSelecionada) {
     pushRevisao(confirmado, {
@@ -670,9 +550,6 @@ export function validarEtapaWizard(etapa: EtapaNovoPedidoWizard, draft: NovoPedi
         !draft.estrategia.tipoPecaConfirmada && !draft.estrategia.tipoPecaSugerida
           ? "Confirme uma peça final ou aceite uma sugestão de peça."
           : "",
-        !existeTeseValidadaNoWizard(draft.teses)
-          ? "Valide ao menos uma tese sugerida ou adicione uma tese manual antes de avançar."
-          : "",
       ].filter(Boolean);
     case "documentos_provas":
       return [];
@@ -722,12 +599,7 @@ export function construirPayloadCriacao(draft: NovoPedidoWizardDraft): PayloadCr
       draft.briefing.observacoesOperacionais.trim(),
       draft.confirmacao.observacoesFinais.trim() ? `Revisão final: ${draft.confirmacao.observacoesFinais.trim()}` : "",
       `Objetivo confirmado: ${tituloObjetivo}`,
-      existeTeseValidadaNoWizard(draft.teses)
-        ? `Teses validadas no intake: ${draft.teses
-            .filter((tese) => tese.statusValidacao === "aprovada" || tese.statusValidacao === "ajustada")
-            .map((tese) => `${tese.titulo} — ${tese.descricao}`)
-            .join(" | ")}`
-        : "",
+      "Fluxo jurídico posterior previsto: leitura documental estruturada, matriz de fatos e provas, análise adversa, diagnóstico estratégico e teses candidatas para validação humana.",
     ].filter(Boolean).join("\n"),
   };
 }

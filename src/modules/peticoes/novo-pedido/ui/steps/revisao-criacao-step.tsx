@@ -106,7 +106,7 @@ export function RevisaoCriacaoStep({
               Confirmação humana explícita
             </span>
             <span className="mt-1 block text-sm text-[var(--color-muted)]">
-              Confirmo que revisei o briefing, concordo com a abertura do pedido e assumo a responsabilidade pela conferência inicial.
+              Confirmo que revisei o briefing, o objetivo, os documentos e o diagnóstico inicial. Estou ciente de que as teses e a estrutura da peça serão construídas depois da leitura documental estruturada.
             </span>
           </span>
         </label>
