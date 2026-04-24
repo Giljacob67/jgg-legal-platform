@@ -171,11 +171,12 @@ export function MapaTesesPanel({
 
   const tesesInferidas = (contextoAtual?.teses ?? []).filter((tese) => tese.origem === "ia");
   const tesesConfirmadas = (contextoAtual?.teses ?? []).filter(teseFoiValidadaHumanamente);
+  const dossie = contextoAtual?.dossieJuridico;
 
   return (
     <Card
       title="Mapa de teses"
-      subtitle="Validação humana obrigatória das teses antes da aprovação final da peça."
+      subtitle="Validação humana obrigatória das teses candidatas derivadas da análise adversa e do diagnóstico estratégico."
       eyebrow="Estratégia"
     >
       <div className="grid gap-3 md:grid-cols-3">
@@ -228,13 +229,77 @@ export function MapaTesesPanel({
         ) : null}
       </div>
 
+      {dossie ? (
+        <div className="mt-5 rounded-[1.2rem] border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[var(--color-ink)]">Base analítica desta rodada</p>
+              <p className="text-xs text-[var(--color-muted)]">
+                As teses abaixo devem ser validadas à luz do risco adverso, da diretriz estratégica e dos limites do caso.
+              </p>
+            </div>
+            <StatusBadge
+              label={`risco ${dossie.analiseAdversa.nivelRiscoGeral}`}
+              variant={
+                dossie.analiseAdversa.nivelRiscoGeral === "alto"
+                  ? "alerta"
+                  : dossie.analiseAdversa.nivelRiscoGeral === "medio"
+                    ? "implantacao"
+                    : dossie.analiseAdversa.nivelRiscoGeral === "baixo"
+                      ? "sucesso"
+                      : "neutro"
+              }
+            />
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                Argumentos adversos previstos
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                {dossie.analiseAdversa.argumentosAdversos.length > 0 ? (
+                  dossie.analiseAdversa.argumentosAdversos.slice(0, compact ? 2 : 3).map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))
+                ) : (
+                  <li>• Sem argumentos adversos detalhados nesta versão.</li>
+                )}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                Diretriz estratégica
+              </p>
+              <p className="mt-2 text-sm text-[var(--color-muted)]">
+                {dossie.diagnosticoEstrategico.diretrizPrincipal || "Sem diretriz estratégica consolidada."}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
+                Pontos a evitar
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                {(dossie.diagnosticoEstrategico.pontosAEvitar?.length ?? 0) > 0 ? (
+                  dossie.diagnosticoEstrategico.pontosAEvitar?.slice(0, compact ? 2 : 3).map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))
+                ) : (
+                  <li>• Sem restrições estratégicas detalhadas nesta versão.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {!contextoAtual ? null : (
         <div className="mt-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[var(--color-ink)]">Teses em análise</p>
               <p className="text-xs text-[var(--color-muted)]">
-                Aprove, ajuste, rejeite ou acrescente tese manual antes da aprovação final.
+                Aprove, ajuste, rejeite ou acrescente tese manual depois de confrontar a tese com o diagnóstico do caso.
               </p>
             </div>
             <button

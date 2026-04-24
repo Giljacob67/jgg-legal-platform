@@ -40,6 +40,15 @@ function toNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function toObjectArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is Record<string, unknown> =>
+          typeof item === "object" && item !== null && !Array.isArray(item),
+      )
+    : [];
+}
+
 function construirResumoExecutivo(input: BuildDossieInput, totalDocumentos: number) {
   const titulo = input.pedido?.titulo || "Pedido de peça";
   const tipoPeca = input.pedido?.tipoPeca || "peça jurídica";
@@ -111,6 +120,19 @@ export function buildDossieJuridicoPedido(input: BuildDossieInput): DossieJuridi
   );
 
   const pedidosPrioritarios = toStringArray(snapshotEstrategia.pedidos_recomendados);
+  const pontosAEvitar = toStringArray(snapshotEstrategia.pontos_a_evitar);
+  const linhaArgumentativa =
+    typeof snapshotEstrategia.linha_argumentativa === "string" &&
+    snapshotEstrategia.linha_argumentativa.trim()
+      ? snapshotEstrategia.linha_argumentativa.trim()
+      : input.estrategiaSugerida;
+  const tesesAplicaveisSnapshot = toObjectArray(snapshotEstrategia.teses_aplicaveis);
+  const tesesAplicaveisTitulos = tesesAplicaveisSnapshot
+    .map((item) => (typeof item.titulo === "string" ? item.titulo.trim() : ""))
+    .filter(Boolean);
+  const tesesAplicaveisFundamentos = tesesAplicaveisSnapshot
+    .map((item) => (typeof item.fundamento_legal === "string" ? item.fundamento_legal.trim() : ""))
+    .filter(Boolean);
   const secoesPadrao = [
     "Síntese fática",
     "Fundamentos jurídicos",
@@ -167,15 +189,24 @@ export function buildDossieJuridicoPedido(input: BuildDossieInput): DossieJuridi
         snapshotAnaliseAdversa.recomendacoes_cautela.trim()
           ? snapshotAnaliseAdversa.recomendacoes_cautela
           : "Análise adversa ainda depende de aprofundamento específico do caso.",
+      recomendacoesCautela: uniqueStrings([
+        ...toStringArray(snapshotAnaliseAdversa.recomendacoes_cautela),
+        ...(typeof snapshotAnaliseAdversa.recomendacoes_cautela === "string"
+          ? [snapshotAnaliseAdversa.recomendacoes_cautela]
+          : []),
+      ]),
     },
     diagnosticoEstrategico: {
-      resumo: input.estrategiaSugerida,
-      diretrizPrincipal: input.estrategiaSugerida,
+      resumo: linhaArgumentativa,
+      diretrizPrincipal: linhaArgumentativa,
       alavancas: uniqueStrings([
+        ...tesesAplicaveisTitulos,
         ...tesesConfirmadas.map((tese) => tese.titulo),
+        ...tesesAplicaveisFundamentos,
         ...input.fatosRelevantes.slice(0, 2),
       ]),
       fragilidades: uniqueStrings([
+        ...pontosAEvitar,
         ...input.pontosControvertidos.slice(0, 3),
         ...lacunasDocumentais,
       ]),
@@ -183,6 +214,8 @@ export function buildDossieJuridicoPedido(input: BuildDossieInput): DossieJuridi
         ...(input.validacaoHumanaTesesPendente ? ["Estratégia ainda depende de validação humana de teses."] : []),
         ...lacunasDocumentais,
       ]),
+      pontosAEvitar,
+      pedidosRecomendados: pedidosPrioritarios,
     },
     tesesCandidatas: input.teses,
     estrategiaAprovada: {

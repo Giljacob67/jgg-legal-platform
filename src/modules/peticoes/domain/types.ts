@@ -533,6 +533,7 @@ export interface AnaliseAdversaEstruturadaPedido {
   riscosProcessuais: string[];
   nivelRiscoGeral: "baixo" | "medio" | "alto" | "indefinido";
   observacoes: string;
+  recomendacoesCautela?: string[];
 }
 
 export interface DiagnosticoEstrategicoPedido {
@@ -541,6 +542,8 @@ export interface DiagnosticoEstrategicoPedido {
   alavancas: string[];
   fragilidades: string[];
   pendencias: string[];
+  pontosAEvitar?: string[];
+  pedidosRecomendados?: string[];
 }
 
 export interface EstrategiaAprovadaPedido {

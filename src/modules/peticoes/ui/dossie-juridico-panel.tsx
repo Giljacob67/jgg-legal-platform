@@ -12,6 +12,13 @@ function percentualLabel(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function riskVariant(value: "baixo" | "medio" | "alto" | "indefinido") {
+  if (value === "alto") return "alerta" as const;
+  if (value === "medio") return "implantacao" as const;
+  if (value === "baixo") return "sucesso" as const;
+  return "neutro" as const;
+}
+
 export function DossieJuridicoPanel({
   contextoAtual,
   compact = false,
@@ -104,6 +111,83 @@ export function DossieJuridicoPanel({
             </div>
 
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[var(--color-ink)]">Análise adversa</p>
+                <StatusBadge
+                  label={`risco ${dossie.analiseAdversa.nivelRiscoGeral}`}
+                  variant={riskVariant(dossie.analiseAdversa.nivelRiscoGeral)}
+                />
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                    Pontos fortes
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                    {dossie.analiseAdversa.pontosFortes.slice(0, compact ? 2 : 4).map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                    Vulnerabilidades
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                    {dossie.analiseAdversa.vulnerabilidades.slice(0, compact ? 2 : 4).map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              {(dossie.analiseAdversa.argumentosAdversos.length > 0 ||
+                dossie.analiseAdversa.riscosProcessuais.length > 0 ||
+                (dossie.analiseAdversa.recomendacoesCautela?.length ?? 0) > 0) ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {dossie.analiseAdversa.argumentosAdversos.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                        Argumentos adversos previstos
+                      </p>
+                      <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                        {dossie.analiseAdversa.argumentosAdversos.slice(0, compact ? 2 : 4).map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {dossie.analiseAdversa.riscosProcessuais.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                        Riscos processuais
+                      </p>
+                      <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                        {dossie.analiseAdversa.riscosProcessuais.slice(0, compact ? 2 : 4).map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <p className="mt-3 text-sm text-[var(--color-muted)]">{dossie.analiseAdversa.observacoes}</p>
+              {!compact && (dossie.analiseAdversa.recomendacoesCautela?.length ?? 0) > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {dossie.analiseAdversa.recomendacoesCautela?.slice(0, 4).map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1 text-xs text-[var(--color-muted)]"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
               <p className="text-sm font-semibold text-[var(--color-ink)]">Diagnóstico estratégico</p>
               <p className="mt-3 text-sm text-[var(--color-muted)]">
                 {dossie.diagnosticoEstrategico.diretrizPrincipal}
@@ -130,6 +214,73 @@ export function DossieJuridicoPanel({
                   </ul>
                 </div>
               </div>
+              {(dossie.diagnosticoEstrategico.pontosAEvitar?.length ?? 0) > 0 ? (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                    Pontos a evitar
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-[var(--color-muted)]">
+                    {dossie.diagnosticoEstrategico.pontosAEvitar?.slice(0, compact ? 2 : 4).map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {(dossie.diagnosticoEstrategico.pedidosRecomendados?.length ?? 0) > 0 ? (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-strong)]">
+                    Pedidos recomendados
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {dossie.diagnosticoEstrategico.pedidosRecomendados?.slice(0, compact ? 2 : 4).map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-3 py-1 text-xs text-[var(--color-muted)]"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <p className="text-sm font-semibold text-[var(--color-ink)]">Teses candidatas</p>
+              <p className="mt-2 text-sm text-[var(--color-muted)]">
+                Resultado atual da cadeia analítica entre leitura documental, análise adversa e diagnóstico estratégico.
+              </p>
+              {dossie.tesesCandidatas.length === 0 ? (
+                <p className="mt-3 text-sm text-[var(--color-muted)]">
+                  Nenhuma tese candidata foi derivada do contexto até o momento.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {dossie.tesesCandidatas.slice(0, compact ? 2 : 4).map((tese) => (
+                    <article
+                      key={tese.id}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-[var(--color-ink)]">{tese.titulo}</p>
+                        <StatusBadge
+                          label={tese.statusValidacao}
+                          variant={
+                            tese.statusValidacao === "aprovada"
+                              ? "sucesso"
+                              : tese.statusValidacao === "rejeitada"
+                                ? "alerta"
+                                : tese.statusValidacao === "ajustada"
+                                  ? "neutro"
+                                  : "implantacao"
+                          }
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-[var(--color-muted)]">{tese.descricao}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
