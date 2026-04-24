@@ -20,6 +20,7 @@ import { DocumentoUploadPanel } from "@/modules/documentos/ui/documento-upload-p
 import { AtribuirResponsavelCard } from "@/modules/peticoes/ui/atribuir-responsavel-card";
 import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
 import { PedidoWorkspaceOverview } from "@/modules/peticoes/ui/pedido-workspace-overview";
+import { DossieJuridicoPanel } from "@/modules/peticoes/ui/dossie-juridico-panel";
 import { getDataMode } from "@/lib/data-mode";
 import { formatarData, formatarDataHora } from "@/lib/utils";
 import type { EtapaPipeline, SnapshotPipelineEtapa, StatusPedido } from "@/modules/peticoes/domain/types";
@@ -347,6 +348,10 @@ export default async function PedidoDetalhePage({ params }: PedidoDetalhePagePro
           <AtribuirResponsavelCard pedidoId={pedido.id} responsavelAtual={pedido.responsavel} />
         </div>
       ) : null}
+
+      <div id="dossie" className="scroll-mt-24">
+        <DossieJuridicoPanel contextoAtual={pipelineOperacional?.contextoAtual ?? null} />
+      </div>
 
       <div id="mapa-teses" className="scroll-mt-24">
         <MapaTesesPanel pedidoId={pedido.id} contextoAtual={pipelineOperacional?.contextoAtual ?? null} />

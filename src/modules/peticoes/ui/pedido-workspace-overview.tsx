@@ -155,6 +155,12 @@ export function PedidoWorkspaceOverview(props: PedidoWorkspaceOverviewProps) {
             Teses
           </Link>
           <Link
+            href="#dossie"
+            className="rounded-full border border-[var(--color-border)] bg-[var(--color-card-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
+          >
+            Dossiê
+          </Link>
+          <Link
             href="#timeline"
             className="rounded-full border border-[var(--color-border)] bg-[var(--color-card-strong)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink)]"
           >

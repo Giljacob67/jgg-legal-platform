@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { formatarDataHora } from "@/lib/utils";
 import { MapaTesesPanel } from "@/modules/peticoes/ui/mapa-teses-panel";
+import { DossieJuridicoPanel } from "@/modules/peticoes/ui/dossie-juridico-panel";
 
 type PipelineWorkspaceProps = {
   pedidoId: string;
@@ -443,29 +444,7 @@ export function PipelineWorkspace({
           </div>
         </Card>
 
-        <Card title="Contexto jurídico consolidado" subtitle="Síntese estruturada para redação e revisão da minuta." eyebrow="Contexto">
-          {!contextoAtual ? (
-            <p className="text-sm text-[var(--color-muted)]">Contexto ainda não consolidado para este pedido.</p>
-          ) : (
-            <div className="space-y-3 text-sm text-[var(--color-ink)]">
-              <p className="text-xs text-[var(--color-muted)]">
-                Versão {contextoAtual.versaoContexto} • {formatarDataHora(contextoAtual.criadoEm)}
-              </p>
-              <p>
-                <strong>Estratégia sugerida:</strong> {contextoAtual.estrategiaSugerida}
-              </p>
-              <p>
-                <strong>Fatos relevantes:</strong> {contextoAtual.fatosRelevantes.length}
-              </p>
-              <p>
-                <strong>Pontos controvertidos:</strong> {contextoAtual.pontosControvertidos.length}
-              </p>
-              <p>
-                <strong>Referências documentais:</strong> {contextoAtual.referenciasDocumentais.length}
-              </p>
-            </div>
-          )}
-        </Card>
+        <DossieJuridicoPanel contextoAtual={contextoAtual} compact />
 
         <Card
           title="Aprovação da minuta"
