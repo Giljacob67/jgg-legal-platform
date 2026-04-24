@@ -28,6 +28,14 @@ function normalizarDriveSharedFolderId(valor?: string) {
   if (!limpo || limpo === "." || limpo === "/" || limpo.toLowerCase() === "root") {
     return "";
   }
+  const matchFolder = limpo.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (matchFolder?.[1]) {
+    return matchFolder[1];
+  }
+  const matchOpenId = limpo.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (matchOpenId?.[1]) {
+    return matchOpenId[1];
+  }
   return limpo;
 }
 
