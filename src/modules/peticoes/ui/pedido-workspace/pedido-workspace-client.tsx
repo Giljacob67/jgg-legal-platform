@@ -18,7 +18,7 @@ import type { PedidoWorkspaceData, SecaoPedidoId } from "./types";
 type PedidoWorkspaceClientProps = PedidoWorkspaceData;
 
 export function PedidoWorkspaceClient(props: PedidoWorkspaceClientProps) {
-  const [secaoAtiva, setSecaoAtiva] = useState<SecaoPedidoId>("resumo");
+  const [secaoAtiva, setSecaoAtiva] = useState<SecaoPedidoId>("assistente");
 
   return (
     <PedidoWorkspaceTabs secaoAtiva={secaoAtiva} onSelecionarSecao={setSecaoAtiva}>

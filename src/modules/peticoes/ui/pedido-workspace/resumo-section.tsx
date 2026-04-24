@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { ButtonLink } from "@/components/ui/button-link";
 import { formatarData } from "@/lib/utils";
+import { DestaqueAssistente } from "./destaque-assistente";
 import type { PedidoWorkspaceData } from "./types";
 
 type ResumoSectionProps = Pick<
@@ -36,6 +37,7 @@ export function ResumoSection({
 
   return (
     <div className="space-y-6">
+      <DestaqueAssistente />
       <Card title="Resumo do pedido" subtitle="Dados essenciais do caso e do pedido de peça." eyebrow="Intake">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-3">

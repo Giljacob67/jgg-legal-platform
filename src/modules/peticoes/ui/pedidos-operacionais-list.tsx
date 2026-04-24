@@ -307,6 +307,9 @@ export function PedidosOperacionaisList({ pedidos }: PedidosOperacionaisListProp
                     <Link href={`/peticoes/pipeline/${pedido.id}`} className="text-sm font-semibold text-[var(--color-accent)]">
                       Abrir pipeline
                     </Link>
+                    <Link href={`/peticoes/pedidos/${pedido.id}`} className="text-sm font-semibold text-[var(--color-accent)]">
+                      Abrir assistente
+                    </Link>
                   </div>
                 </article>
               );
