@@ -4,6 +4,7 @@ import { getRequestId, jsonError } from "@/lib/api-response";
 import { obterPedidoDePeca } from "@/modules/peticoes/application/obterPedidoDePeca";
 import { obterPipelineDoPedido } from "@/modules/peticoes/application/obterPipelineDoPedido";
 import { sincronizarPipelinePedido } from "@/modules/peticoes/application/operacional/sincronizarPipelinePedido";
+import { getPeticoesOperacionalInfra } from "@/modules/peticoes/infrastructure/operacional/provider.server";
 import { isAIAvailable } from "@/lib/ai/provider";
 import { generateObject } from "ai";
 import { getLLM } from "@/lib/ai/provider";
@@ -19,7 +20,10 @@ import {
 
 export const maxDuration = 120;
 
-/** Fallback de modelos em ordem de preferência */
+/** Tempo de cache do diagn\u00f3stico em ms (5 minutos) */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** Fallback de modelos em ordem de prefer\u00eancia */
 const FALLBACK_MODELS = [
   "anthropic/claude-sonnet-4-5",
   "gpt-4o-mini",
@@ -92,7 +96,7 @@ function montarFallbackParcial(params: {
       fatosExtraidos: d.resumo ? [d.resumo] : undefined,
     })),
     tipoAcaoProvavel: `A\u00e7\u00e3o relacionada a ${tipoPecaDesc}`,
-    parteProvavelmenteRepresentada: "Indefinido — requer análise do contrato e do polo processual.",
+    parteProvavelmenteRepresentada: "Indefinido \u2014 requer an\u00e1lise do contrato e do polo processual.",
     pecaCabivelSugerida: tipoPecaDesc,
     fatosRelevantes: fatos.length > 0 ? fatos : ["Nenhum fato estruturado dispon\u00edvel. Execute o pipeline de extra\u00e7\u00e3o de fatos."],
     pontosControvertidos: controvertidos.length > 0
@@ -192,6 +196,128 @@ async function gerarDiagnosticoComIA(params: {
   });
 }
 
+/** Gera uma assinatura simples dos documentos para invalida\u00e7\u00e3o de cache */
+function assinaturaDocumentos(documentos: DocumentoListItem[]): string {
+  return documentos
+    .map((d) => `${d.id}:${d.status}`)
+    .sort()
+    .join("|");
+}
+
+/** Tenta recuperar diagn\u00f3stico v\u00e1lido do cache/snapshot */
+async function tentarRecuperarDiagnosticoCache(params: {
+  pedidoId: string;
+  documentos: DocumentoListItem[];
+}): Promise<
+  | {
+      diagnostico: DiagnosticoDocumental;
+      fonteCache: "snapshot" | "reutilizado";
+      criadoEm: string;
+    }
+  | undefined
+> {
+  try {
+    const infra = getPeticoesOperacionalInfra();
+    const ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+      params.pedidoId,
+      "analise_documental_do_cliente",
+    );
+
+    if (!ultimo) return undefined;
+
+    // Verifica se o cache ainda \u00e9 recente (5 minutos)
+    const executadoEm = new Date(ultimo.executadoEm).getTime();
+    const agora = Date.now();
+    if (agora - executadoEm > CACHE_TTL_MS) {
+      console.log(`[analisar-documentos] cache expirado para ${params.pedidoId}`);
+      return undefined;
+    }
+
+    // Verifica se os documentos mudaram desde o \u00faltimo snapshot
+    const entradaAnterior = (ultimo.entradaRef?.documentosAssinatura as string) ?? "";
+    const assinaturaAtual = assinaturaDocumentos(params.documentos);
+    if (entradaAnterior !== assinaturaAtual) {
+      console.log(
+        `[analisar-documentos] documentos mudaram para ${params.pedidoId}: reprocessando`,
+      );
+      return undefined;
+    }
+
+    // Recupera o diagn\u00f3stico do snapshot
+    const saida = ultimo.saidaEstruturada as Partial<DiagnosticoDocumental>;
+    const diagnostico = DiagnosticoDocumentalAssistenteSchema.safeParse(saida);
+
+    if (!diagnostico.success) {
+      console.warn(`[analisar-documentos] snapshot inv\u00e1lido para ${params.pedidoId}`);
+      return undefined;
+    }
+
+    return {
+      diagnostico: {
+        ...diagnostico.data,
+        fonte: diagnostico.data.fonte === "real" ? "real" : "parcial",
+        observacoes:
+          diagnostico.data.observacoes ?? "Diagn\u00f3stico reutilizado do cache/snapshot.",
+      },
+      fonteCache: "snapshot",
+      criadoEm: ultimo.executadoEm,
+    };
+  } catch (err) {
+    console.warn(`[analisar-documentos] falha ao recuperar cache para ${params.pedidoId}:`, err);
+    return undefined;
+  }
+}
+
+/** Persiste o diagn\u00f3stico como snapshot do pipeline */
+async function persistirDiagnosticoSnapshot(params: {
+  pedidoId: string;
+  documentos: DocumentoListItem[];
+  diagnostico: DiagnosticoDocumental;
+  modeloUsado?: string;
+}): Promise<void> {
+  try {
+    const infra = getPeticoesOperacionalInfra();
+    const ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+      params.pedidoId,
+      "analise_documental_do_cliente",
+    );
+
+    const entradaRef = {
+      documentosAssinatura: assinaturaDocumentos(params.documentos),
+      totalDocumentos: params.documentos.length,
+      modeloUsado: params.modeloUsado ?? "n\u00e3o informado",
+    };
+
+    const saidaEstruturada = { ...params.diagnostico } as Record<string, unknown>;
+
+    // Verifica se mudou desde o \u00faltimo snapshot
+    const serializar = (v: unknown): string => JSON.stringify(v, Object.keys(v as object).sort());
+    const mudou =
+      !ultimo ||
+      serializar(ultimo.entradaRef) !== serializar(entradaRef) ||
+      serializar(ultimo.saidaEstruturada) !== serializar(saidaEstruturada) ||
+      ultimo.status !== "concluido";
+
+    if (!mudou) {
+      console.log(`[analisar-documentos] snapshot n\u00e3o mudou para ${params.pedidoId}, pulando persist\u00eancia`);
+      return;
+    }
+
+    await infra.pipelineSnapshotRepository.salvarNovaVersao({
+      pedidoId: params.pedidoId,
+      etapa: "analise_documental_do_cliente",
+      entradaRef,
+      saidaEstruturada,
+      status: "concluido",
+      tentativa: (ultimo?.tentativa ?? 0) + 1,
+    });
+
+    console.log(`[analisar-documentos] snapshot persistido para ${params.pedidoId}`);
+  } catch (err) {
+    console.warn(`[analisar-documentos] falha ao persistir snapshot para ${params.pedidoId}:`, err);
+  }
+}
+
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ pedidoId: string }> },
@@ -236,21 +362,29 @@ export async function POST(
       }
     }
 
-    const diagnostico = await gerarDiagnosticoComIA({ pedidoId, pedido, documentos, contexto });
+    // Tenta recuperar do cache primeiro
+    const cache = await tentarRecuperarDiagnosticoCache({ pedidoId, documentos });
 
-    // Persist\u00eancia como snapshot do pipeline (preparada, pode ser ativada quando seguro)
-    // try {
-    //   const infra = await import("@/modules/peticoes/application/operacional/sincronizarPipelinePedido");
-    //   // TODO: usar pipelineSnapshotRepository.salvarNovaVersao com etapa "analise_documental_assistente"
-    // } catch {
-    //   // Ignora falha de persist\u00eancia
-    // }
+    let diagnostico: DiagnosticoDocumental;
+    let reutilizado = false;
+    let criadoEm = new Date().toISOString();
+
+    if (cache) {
+      diagnostico = cache.diagnostico;
+      reutilizado = true;
+      criadoEm = cache.criadoEm;
+    } else {
+      diagnostico = await gerarDiagnosticoComIA({ pedidoId, pedido, documentos, contexto });
+      await persistirDiagnosticoSnapshot({ pedidoId, documentos, diagnostico });
+    }
 
     return NextResponse.json({
       requestId,
       pedidoId,
       diagnostico,
       totalDocumentos: documentos.length,
+      reutilizado,
+      criadoEm,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

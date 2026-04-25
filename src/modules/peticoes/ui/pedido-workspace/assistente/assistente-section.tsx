@@ -85,6 +85,8 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
     perguntasMinimas: string[];
     proximaAcaoRecomendada: string;
   } | null>(null);
+  const [analiseReutilizada, setAnaliseReutilizada] = useState(false);
+  const [dataAnalise, setDataAnalise] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -151,6 +153,8 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               perguntasMinimas: string[];
               proximaAcaoRecomendada: string;
             };
+            reutilizado: boolean;
+            criadoEm: string;
           };
 
           if (!res.ok) {
@@ -159,6 +163,8 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
 
           const diag = data.diagnostico;
           setDiagnosticoDocumental(diag);
+          setAnaliseReutilizada(data.reutilizado ?? false);
+          setDataAnalise(data.criadoEm ?? new Date().toISOString());
 
           setAnexosChat((prev) =>
             prev.map((doc) => {
@@ -223,6 +229,8 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               },
             ];
           });
+          setAnaliseReutilizada(false);
+          setDataAnalise(null);
           const respostas = gerarRespostaAcao(acaoId, contextoMock);
           setMensagens((prev) => [...prev, ...respostas]);
         } finally {
@@ -553,10 +561,16 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
 
         {diagnosticoDocumental ? (
           <Card
-            title="Diagnóstico da análise"
-            subtitle={`Fonte: ${diagnosticoDocumental.fonte} • Confiança: ${diagnosticoDocumental.nivelConfianca.toUpperCase()}`}
+            title={analiseReutilizada ? "Diagnóstico reutilizado" : "Diagnóstico da análise"}
+            subtitle={`Fonte: ${diagnosticoDocumental.fonte} • Confiança: ${diagnosticoDocumental.nivelConfianca.toUpperCase()}${analiseReutilizada ? " • Reutilizado" : ""}`}
             eyebrow="Análise"
           >
+            {dataAnalise ? (
+              <p className="mb-2 text-[10px] text-[var(--color-muted)]">
+                {analiseReutilizada ? "Última análise: " : "Analisado em: "}
+                {formatarDataHora(dataAnalise)}
+              </p>
+            ) : null}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
                 <span className="text-[var(--color-muted)]">Ação provável</span>
@@ -571,7 +585,7 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
                 <span className="font-semibold text-[var(--color-ink)]">{diagnosticoDocumental.pecaCabivelSugerida}</span>
               </div>
               <div className="mt-3 space-y-1">
-                <p className="text-xs font-semibold text-[var(--color-ink)]">Documentos analisados</p>
+                <p className="text-xs font-semibold text-[var(--color-ink)]">Documentos analisados ({diagnosticoDocumental.documentosAnalisados.length})</p>
                 {diagnosticoDocumental.documentosAnalisados.map((d) => (
                   <p key={d.id} className="text-xs text-[var(--color-muted)]">• {d.titulo}</p>
                 ))}
