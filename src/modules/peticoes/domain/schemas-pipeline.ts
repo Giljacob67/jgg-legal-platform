@@ -184,3 +184,34 @@ export const AprovacaoSchema = z.object({
 });
 
 export type AprovacaoOutput = z.infer<typeof AprovacaoSchema>;
+// ── Diagnóstico Documental do Assistente ──────────────────────────────────────
+
+/**
+ * Schema de saída para o diagnóstico documental do Assistente de Petição.
+ * Usado na ação rápida "Analisar documentos" com generateObject + Zod.
+ */
+export const DiagnosticoDocumentalAssistenteSchema = z.object({
+  documentosAnalisados: z.array(
+    z.object({
+      id: z.string(),
+      titulo: z.string(),
+      tipo: z.string(),
+      status: z.string(),
+      fatosExtraidos: z.array(z.string()).optional(),
+    }),
+  ).describe("Documentos processados com fatos extraídos"),
+  tipoAcaoProvavel: z.string().describe("Tipo de ação judicial ou medida mais provável"),
+  parteProvavelmenteRepresentada: z.string().describe("Polo ativo, passivo ou indefinido com justificativa"),
+  pecaCabivelSugerida: z.string().describe("Nome da peça jurídica mais adequada"),
+  fatosRelevantes: z.array(z.string()).describe("Fatos relevantes extraídos dos documentos"),
+  pontosControvertidos: z.array(z.string()).describe("Pontos controvertidos identificados"),
+  riscosFragilidades: z.array(z.string()).describe("Riscos ou fragilidades do caso"),
+  documentosFatosFaltantes: z.array(z.string()).describe("Documentos ou fatos ainda faltantes"),
+  perguntasMinimas: z.array(z.string()).describe("Perguntas mínimas para o advogado responder"),
+  proximaAcaoRecomendada: z.string().describe("Próxima ação operacional recomendada"),
+  nivelConfianca: z.enum(["alta", "media", "baixa"]).describe("Nível geral de confiança do diagnóstico"),
+  fonte: z.enum(["real", "parcial", "simulado"]).describe("Fonte do diagnóstico"),
+  observacoes: z.string().optional().describe("Observações sobre limitações ou fonte dos dados"),
+});
+
+export type DiagnosticoDocumentalAssistenteOutput = z.infer<typeof DiagnosticoDocumentalAssistenteSchema>;

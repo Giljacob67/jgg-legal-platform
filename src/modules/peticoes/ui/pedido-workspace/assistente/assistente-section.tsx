@@ -66,7 +66,8 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
 
   const [diagnosticoDocumental, setDiagnosticoDocumental] = useState<{
     fonte: "real" | "parcial" | "simulado";
-    observacao?: string;
+    observacoes?: string;
+    nivelConfianca: "alta" | "media" | "baixa";
     documentosAnalisados: Array<{
       id: string;
       titulo: string;
@@ -75,13 +76,13 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
       fatosExtraidos?: string[];
     }>;
     tipoAcaoProvavel: string;
-    parteRepresentada: string;
+    parteProvavelmenteRepresentada: string;
     pecaCabivelSugerida: string;
     fatosRelevantes: string[];
     pontosControvertidos: string[];
     riscosFragilidades: string[];
-    documentosFaltantes: string[];
-    perguntasMinimasAdvogado: string[];
+    documentosFatosFaltantes: string[];
+    perguntasMinimas: string[];
     proximaAcaoRecomendada: string;
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -131,7 +132,8 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
           const data = (await res.json()) as {
             diagnostico: {
               fonte: "real" | "parcial" | "simulado";
-              observacao?: string;
+              observacoes?: string;
+              nivelConfianca: "alta" | "media" | "baixa";
               documentosAnalisados: Array<{
                 id: string;
                 titulo: string;
@@ -140,13 +142,13 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
                 fatosExtraidos?: string[];
               }>;
               tipoAcaoProvavel: string;
-              parteRepresentada: string;
+              parteProvavelmenteRepresentada: string;
               pecaCabivelSugerida: string;
               fatosRelevantes: string[];
               pontosControvertidos: string[];
               riscosFragilidades: string[];
-              documentosFaltantes: string[];
-              perguntasMinimasAdvogado: string[];
+              documentosFatosFaltantes: string[];
+              perguntasMinimas: string[];
               proximaAcaoRecomendada: string;
             };
           };
@@ -172,7 +174,7 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
             const filtered = prev.filter((m) => m.id !== loadingId);
             const lines = [
               `Tipo de ação provável: ${diag.tipoAcaoProvavel}`,
-              `Parte representada: ${diag.parteRepresentada}`,
+              `Parte representada: ${diag.parteProvavelmenteRepresentada}`,
               `Peça cabível sugerida: ${diag.pecaCabivelSugerida}`,
               "",
               "Fatos relevantes extraídos:",
@@ -185,16 +187,15 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               ...diag.riscosFragilidades.map((f) => `• ${f}`),
               "",
               "Documentos/fatos faltantes:",
-              ...diag.documentosFaltantes.map((f) => `• ${f}`),
+              ...diag.documentosFatosFaltantes.map((f) => `• ${f}`),
               "",
               "Perguntas mínimas para o advogado:",
-              ...diag.perguntasMinimasAdvogado.map((f) => `• ${f}`),
+              ...diag.perguntasMinimas.map((f) => `• ${f}`),
               "",
               `Próxima ação recomendada: ${diag.proximaAcaoRecomendada}`,
             ];
-            if (diag.fonte !== "real") {
-              lines.push("", `Fonte: ${diag.fonte}${diag.observacao ? ` — ${diag.observacao}` : ""}`);
-            }
+            lines.push("", `Nível de confiança: ${diag.nivelConfianca.toUpperCase()}`);
+            lines.push(`Fonte: ${diag.fonte}${diag.observacoes ? ` — ${diag.observacoes}` : ""}`);
             const newMessages: MensagemAssistente[] = [
               {
                 id: `msg-${acaoId}-result-${Date.now()}`,
@@ -553,7 +554,7 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
         {diagnosticoDocumental ? (
           <Card
             title="Diagnóstico da análise"
-            subtitle={`Fonte: ${diagnosticoDocumental.fonte}`}
+            subtitle={`Fonte: ${diagnosticoDocumental.fonte} • Confiança: ${diagnosticoDocumental.nivelConfianca.toUpperCase()}`}
             eyebrow="Análise"
           >
             <div className="space-y-2 text-sm">
@@ -563,7 +564,7 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               </div>
               <div className="flex justify-between gap-2">
                 <span className="text-[var(--color-muted)]">Parte</span>
-                <span className="font-semibold text-[var(--color-ink)]">{diagnosticoDocumental.parteRepresentada}</span>
+                <span className="font-semibold text-[var(--color-ink)]">{diagnosticoDocumental.parteProvavelmenteRepresentada}</span>
               </div>
               <div className="flex justify-between gap-2">
                 <span className="text-[var(--color-muted)]">Peça sugerida</span>
