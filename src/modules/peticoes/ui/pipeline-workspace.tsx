@@ -199,6 +199,13 @@ const ETAPA_GUIA: Record<
     entrega: "Rascunho de minuta para revisão humana.",
     proximaLigacao: "Entra em revisão técnica do pipeline.",
   },
+  assistente_confirmacao_estrategia: {
+    macro: "analise",
+    tituloCurto: "Confirmação de estratégia (IA)",
+    objetivo: "Permitir que o advogado confirme, ajuste ou ressalve a estratégia antes da redação.",
+    entrega: "Estratégia validada ou com ressalvas registradas.",
+    proximaLigacao: "Libera redação de minuta quando aprovada.",
+  },
 };
 
 function macroAtualDaEtapa(etapa: EtapaPipeline): MacroPipelineId {

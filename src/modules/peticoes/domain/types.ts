@@ -405,7 +405,8 @@ export type EtapaPipeline =
   | "assistente_analise_documental"
   | "assistente_identificacao_peca"
   | "assistente_estrategia"
-  | "assistente_minuta";
+  | "assistente_minuta"
+  | "assistente_confirmacao_estrategia";
 
 // Estágios executáveis via IA no pipeline
 export type EstagioExecutavel =

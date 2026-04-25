@@ -282,3 +282,28 @@ export const EstrategiaAssistenteSchema = z.object({
 });
 
 export type EstrategiaAssistenteOutput = z.infer<typeof EstrategiaAssistenteSchema>;
+
+// ── Confirmação de Estratégia do Assistente ─────────────────────────────────
+
+/**
+ * Schema de saída para a confirmação de estratégia pelo advogado.
+ * Registra aprovação, rejeição, ajustes e ressalvas.
+ */
+export const ConfirmacaoEstrategiaAssistenteSchema = z.object({
+  estrategiaAprovada: z.boolean().describe("Se a estratégia foi aprovada pelo advogado"),
+  parteRepresentadaConfirmada: z.string().describe("Parte representada confirmada ou ajustada"),
+  pecaCabivelConfirmada: z.string().describe("Peça cabível confirmada ou ajustada"),
+  tesesAprovadas: z.array(z.string()).describe("Teses aprovadas para a peça"),
+  tesesRejeitadas: z.array(z.string()).describe("Teses rejeitadas pelo advogado"),
+  pedidosObrigatorios: z.array(z.string()).describe("Pedidos que devem constar na peça"),
+  pedidosRemovidos: z.array(z.string()).describe("Pedidos removidos pelo advogado"),
+  riscosAceitos: z.array(z.string()).describe("Riscos aceitos pelo advogado"),
+  ressalvasDoAdvogado: z.array(z.string()).describe("Ressalvas ou observações do advogado"),
+  informacoesPendentesIgnoradas: z.array(z.string()).describe("Informações pendentes que o advogado resolveu ignorar"),
+  observacoes: z.string().optional().describe("Observações gerais"),
+  podeAvancarParaMinuta: z.boolean().describe("Se é seguro avançar para redação de minuta"),
+  confirmadoEm: z.string().describe("ISO timestamp da confirmação"),
+  fonte: z.enum(["real", "parcial", "simulado"]).describe("Fonte da confirmação"),
+});
+
+export type ConfirmacaoEstrategiaAssistenteOutput = z.infer<typeof ConfirmacaoEstrategiaAssistenteSchema>;

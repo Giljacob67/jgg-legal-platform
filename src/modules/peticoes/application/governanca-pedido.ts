@@ -44,6 +44,7 @@ export const SLA_DIAS_POR_ETAPA: Record<EtapaPipeline, number> = {
   assistente_identificacao_peca: 0,
   assistente_estrategia: 0,
   assistente_minuta: 0,
+  assistente_confirmacao_estrategia: 0,
 };
 
 function normalizarDataDia(value: string): Date | null {

@@ -124,6 +124,23 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
   } | null>(null);
   const [estrategiaReutilizada, setEstrategiaReutilizada] = useState(false);
   const [dataEstrategia, setDataEstrategia] = useState<string | null>(null);
+  const [confirmacaoEstrategia, setConfirmacaoEstrategia] = useState<{
+    estrategiaAprovada: boolean;
+    parteRepresentadaConfirmada: string;
+    pecaCabivelConfirmada: string;
+    tesesAprovadas: string[];
+    tesesRejeitadas: string[];
+    pedidosObrigatorios: string[];
+    pedidosRemovidos: string[];
+    riscosAceitos: string[];
+    ressalvasDoAdvogado: string[];
+    informacoesPendentesIgnoradas: string[];
+    observacoes?: string;
+    podeAvancarParaMinuta: boolean;
+    confirmadoEm: string;
+    fonte: "real" | "parcial" | "simulado";
+  } | null>(null);
+  const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -494,7 +511,19 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
                 acaoId,
                 timestamp: new Date().toISOString(),
               },
+              {
+                id: `msg-${acaoId}-confirm-prompt-${Date.now()}`,
+                tipo: "sistema",
+                titulo: "Confirmação necessária",
+                conteudo:
+                  est.podeAvancarParaMinuta
+                    ? `A estratégia está fundamentada. Você pode aprovar, ajustar ou ressalvar. Digite sua resposta (ex: "aprovo", "rejeito a tese X", "inclua pedido Y").`
+                    : `Há pendências ou incertezas. Responda antes de avançar (ex: "confirme o polo", "ignore a falta do documento").`,
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
             ];
+            setAguardandoConfirmacao(true);
             return [...filtered, ...newMessages];
           });
         } catch (err) {
@@ -531,19 +560,119 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
     [contextoMock, enviarMensagem, pedido.id],
   );
 
-  const handleSubmit = useCallback(() => {
-    if (!inputTexto.trim() || carregando) return;
-    const texto = inputTexto.trim();
-    setInputTexto("");
-    enviarMensagem(texto, "usuario");
+  const handleSubmit = useCallback(
+    async () => {
+      if (!inputTexto.trim() || carregando) return;
+      const texto = inputTexto.trim();
+      setInputTexto("");
+      enviarMensagem(texto, "usuario");
 
-    setCarregando(true);
-    setTimeout(() => {
-      const resposta = gerarRespostaTextoLivre(texto);
-      setMensagens((prev) => [...prev, resposta]);
-      setCarregando(false);
-    }, 800);
-  }, [inputTexto, carregando, enviarMensagem]);
+      // Se houver estratégia pendente de confirmação, envia para API de confirmação
+      if (aguardandoConfirmacao && estrategia) {
+        setCarregando(true);
+        try {
+          const res = await fetch(`/api/peticoes/pipeline/${pedido.id}/confirmar-estrategia`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ respostaAdvogado: texto }),
+          });
+          const data = (await res.json()) as {
+            confirmacao: {
+              estrategiaAprovada: boolean;
+              parteRepresentadaConfirmada: string;
+              pecaCabivelConfirmada: string;
+              tesesAprovadas: string[];
+              tesesRejeitadas: string[];
+              pedidosObrigatorios: string[];
+              pedidosRemovidos: string[];
+              riscosAceitos: string[];
+              ressalvasDoAdvogado: string[];
+              informacoesPendentesIgnoradas: string[];
+              observacoes?: string;
+              podeAvancarParaMinuta: boolean;
+              confirmadoEm: string;
+              fonte: "real" | "parcial" | "simulado";
+            } | null;
+            mensagem?: string;
+          };
+
+          if (!res.ok || !data.confirmacao) {
+            setMensagens((prev) => [
+              ...prev,
+              {
+                id: `msg-confirm-error-${Date.now()}`,
+                tipo: "alerta",
+                titulo: "Erro na confirmação",
+                conteudo: data.mensagem ?? "Não foi possível processar a confirmação.",
+                timestamp: new Date().toISOString(),
+              },
+            ]);
+            setCarregando(false);
+            return;
+          }
+
+          const conf = data.confirmacao;
+          setConfirmacaoEstrategia(conf);
+          setAguardandoConfirmacao(false);
+
+          const lines = [
+            conf.estrategiaAprovada
+              ? "\u2705 Estratégia aprovada pelo advogado"
+              : "\u26a0\ufe0f Estratégia não aprovada ou com ressalvas",
+            `Parte confirmada: ${conf.parteRepresentadaConfirmada}`,
+            `Peça confirmada: ${conf.pecaCabivelConfirmada}`,
+            "",
+            "Teses aprovadas:",
+            ...conf.tesesAprovadas.map((t) => `• ${t}`),
+            "",
+            "Ressalvas:",
+            ...conf.ressalvasDoAdvogado.map((r) => `• ${r}`),
+            "",
+            conf.podeAvancarParaMinuta
+              ? "\u2705 Pode avançar para minuta"
+              : "\u26a0\ufe0f Não avance para minuta sem resolver pendências",
+            `Próxima ação: ${conf.podeAvancarParaMinuta ? "Redigir minuta" : "Resolver pendências e reconfirmar"}`,
+          ];
+          if (conf.observacoes) {
+            lines.push("", `Observações: ${conf.observacoes}`);
+          }
+
+          setMensagens((prev) => [
+            ...prev,
+            {
+              id: `msg-confirm-result-${Date.now()}`,
+              tipo: conf.estrategiaAprovada ? "acao" : "alerta",
+              titulo: conf.estrategiaAprovada ? "Confirmação registrada" : "Confirmação com ressalvas",
+              conteudo: lines.join("\n"),
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        } catch (err) {
+          setMensagens((prev) => [
+            ...prev,
+            {
+              id: `msg-confirm-error-${Date.now()}`,
+              tipo: "alerta",
+              titulo: "Erro na confirmação",
+              conteudo: err instanceof Error ? err.message : "Erro de conexão.",
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        } finally {
+          setCarregando(false);
+        }
+        return;
+      }
+
+      setCarregando(true);
+      setTimeout(() => {
+        const resposta = gerarRespostaTextoLivre(texto);
+        setMensagens((prev) => [...prev, resposta]);
+        setCarregando(false);
+      }, 800);
+    },
+    [inputTexto, carregando, enviarMensagem, aguardandoConfirmacao, estrategia, pedido.id],
+  );
 
   const handleDocumentoAnexado = useCallback(
     (doc: { id: string; titulo: string; tipo: string; status: string }) => {
@@ -838,6 +967,49 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               {contextoAtual.dossieJuridico.diagnosticoEstrategico.alavancas.slice(0, 3).map((a) => (
                 <p key={a} className="text-xs text-[var(--color-muted)]">• {a}</p>
               ))}
+            </div>
+          </Card>
+        ) : null}
+
+        {confirmacaoEstrategia ? (
+          <Card
+            title={confirmacaoEstrategia.estrategiaAprovada ? "Estratégia aprovada" : "Estratégia com ressalvas"}
+            subtitle={`${confirmacaoEstrategia.podeAvancarParaMinuta ? "\u2705 Pode avançar" : "\u26a0\ufe0f Pendente"} • ${formatarDataHora(confirmacaoEstrategia.confirmadoEm)}`}
+            eyebrow="Confirmação"
+          >
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Parte</span>
+                <span className="text-right font-semibold text-[var(--color-ink)]">{confirmacaoEstrategia.parteRepresentadaConfirmada}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Peça</span>
+                <span className="font-semibold text-[var(--color-ink)]">{confirmacaoEstrategia.pecaCabivelConfirmada}</span>
+              </div>
+              {confirmacaoEstrategia.tesesAprovadas.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-emerald-700">Teses aprovadas</p>
+                  {confirmacaoEstrategia.tesesAprovadas.slice(0, 3).map((t, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {t}</p>
+                  ))}
+                </div>
+              )}
+              {confirmacaoEstrategia.ressalvasDoAdvogado.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-amber-700">Ressalvas</p>
+                  {confirmacaoEstrategia.ressalvasDoAdvogado.slice(0, 3).map((r, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {r}</p>
+                  ))}
+                </div>
+              )}
+              {confirmacaoEstrategia.pedidosRemovidos.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-rose-700">Removidos</p>
+                  {confirmacaoEstrategia.pedidosRemovidos.slice(0, 3).map((p, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {p}</p>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         ) : null}
