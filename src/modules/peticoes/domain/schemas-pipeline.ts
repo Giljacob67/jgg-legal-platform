@@ -240,3 +240,45 @@ export const IdentificacaoPecaAssistenteSchema = z.object({
 });
 
 export type IdentificacaoPecaAssistenteOutput = z.infer<typeof IdentificacaoPecaAssistenteSchema>;
+
+// ── Estratégia do Assistente ──────────────────────────────────────────────────
+
+/**
+ * Schema de saída para a ação rápida "Sugerir estratégia" do Assistente.
+ * Usado com generateObject + Zod.
+ */
+export const EstrategiaAssistenteSchema = z.object({
+  estrategiaRecomendada: z.string().describe("Síntese da estratégia recomendada"),
+  objetivoProcessual: z.string().describe("Objetivo processual central da peça"),
+  linhaArgumentativaPrincipal: z.string().describe("Linha argumentativa principal em uma frase"),
+  tesesPrincipais: z
+    .array(
+      z.object({
+        titulo: z.string(),
+        fundamentoLegal: z.string(),
+        prioridade: z.enum(["principal", "secundaria"]),
+      }),
+    )
+    .describe("Teses principais e subsidiárias"),
+  tesesSubsidiarias: z
+    .array(
+      z.object({
+        titulo: z.string(),
+        fundamentoLegal: z.string(),
+      }),
+    )
+    .describe("Teses subsidiárias"),
+  pedidosRecomendados: z.array(z.string()).describe("Pedidos recomendados na peça"),
+  pedidosArriscados: z.array(z.string()).describe("Pedidos considerados arriscados ou contraindicados"),
+  riscosEFragilidades: z.array(z.string()).describe("Riscos e fragilidades estratégicas"),
+  pontosAEvitar: z.array(z.string()).describe("Pontos a evitar na argumentação"),
+  provasEDocumentosDeApoio: z.array(z.string()).describe("Provas e documentos de apoio recomendados"),
+  perguntasPendentes: z.array(z.string()).describe("Perguntas pendentes para o advogado"),
+  nivelConfianca: z.enum(["alta", "media", "baixa"]).describe("Nível de confiança da estratégia"),
+  podeAvancarParaMinuta: z.boolean().describe("Se é seguro avançar para redação de minuta"),
+  proximaAcaoRecomendada: z.string().describe("Próxima ação operacional recomendada"),
+  fonte: z.enum(["real", "parcial", "simulado"]).describe("Fonte da estratégia"),
+  observacoes: z.string().optional().describe("Observações sobre limitações"),
+});
+
+export type EstrategiaAssistenteOutput = z.infer<typeof EstrategiaAssistenteSchema>;

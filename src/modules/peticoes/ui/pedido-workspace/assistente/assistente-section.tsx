@@ -104,6 +104,26 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
   } | null>(null);
   const [identificacaoReutilizada, setIdentificacaoReutilizada] = useState(false);
   const [dataIdentificacao, setDataIdentificacao] = useState<string | null>(null);
+  const [estrategia, setEstrategia] = useState<{
+    estrategiaRecomendada: string;
+    objetivoProcessual: string;
+    linhaArgumentativaPrincipal: string;
+    tesesPrincipais: Array<{ titulo: string; fundamentoLegal: string; prioridade: string }>;
+    tesesSubsidiarias: Array<{ titulo: string; fundamentoLegal: string }>;
+    pedidosRecomendados: string[];
+    pedidosArriscados: string[];
+    riscosEFragilidades: string[];
+    pontosAEvitar: string[];
+    provasEDocumentosDeApoio: string[];
+    perguntasPendentes: string[];
+    nivelConfianca: "alta" | "media" | "baixa";
+    podeAvancarParaMinuta: boolean;
+    proximaAcaoRecomendada: string;
+    fonte: "real" | "parcial" | "simulado";
+    observacoes?: string;
+  } | null>(null);
+  const [estrategiaReutilizada, setEstrategiaReutilizada] = useState(false);
+  const [dataEstrategia, setDataEstrategia] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -357,6 +377,143 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
           });
           setIdentificacaoReutilizada(false);
           setDataIdentificacao(null);
+          const respostas = gerarRespostaAcao(acaoId, contextoMock);
+          setMensagens((prev) => [...prev, ...respostas]);
+        } finally {
+          setCarregando(false);
+        }
+        return;
+      }
+
+      if (acaoId === "sugerir-estrategia") {
+        const loadingId = `msg-${acaoId}-loading-${Date.now()}`;
+        setMensagens((prev) => [
+          ...prev,
+          {
+            id: loadingId,
+            tipo: "sistema",
+            titulo: "Sugerindo estratégia",
+            conteudo: "Recuperando diagnóstico, identificação de peça e elaborando estratégia jurídica. Aguarde...",
+            acaoId,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+
+        try {
+          const res = await fetch(`/api/peticoes/pipeline/${pedido.id}/sugerir-estrategia`, {
+            method: "POST",
+          });
+          const data = (await res.json()) as {
+            estrategia: {
+              estrategiaRecomendada: string;
+              objetivoProcessual: string;
+              linhaArgumentativaPrincipal: string;
+              tesesPrincipais: Array<{ titulo: string; fundamentoLegal: string; prioridade: string }>;
+              tesesSubsidiarias: Array<{ titulo: string; fundamentoLegal: string }>;
+              pedidosRecomendados: string[];
+              pedidosArriscados: string[];
+              riscosEFragilidades: string[];
+              pontosAEvitar: string[];
+              provasEDocumentosDeApoio: string[];
+              perguntasPendentes: string[];
+              nivelConfianca: "alta" | "media" | "baixa";
+              podeAvancarParaMinuta: boolean;
+              proximaAcaoRecomendada: string;
+              fonte: "real" | "parcial" | "simulado";
+              observacoes?: string;
+            } | null;
+            reutilizado: boolean;
+            criadoEm: string;
+            mensagem?: string;
+            dependenciasFaltantes?: string[];
+          };
+
+          if (!res.ok) {
+            throw new Error("Falha na sugestão de estratégia");
+          }
+
+          if (!data.estrategia) {
+            setMensagens((prev) => {
+              const filtered = prev.filter((m) => m.id !== loadingId);
+              return [
+                ...filtered,
+                {
+                  id: `msg-${acaoId}-deps-${Date.now()}`,
+                  tipo: "alerta",
+                  titulo: "Dependências pendentes",
+                  conteudo: data.mensagem ?? "É necessário executar etapas anteriores antes de sugerir estratégia.",
+                  acaoId,
+                  timestamp: new Date().toISOString(),
+                },
+              ];
+            });
+            setCarregando(false);
+            return;
+          }
+
+          const est = data.estrategia;
+          setEstrategia(est);
+          setEstrategiaReutilizada(data.reutilizado ?? false);
+          setDataEstrategia(data.criadoEm ?? new Date().toISOString());
+
+          setMensagens((prev) => {
+            const filtered = prev.filter((m) => m.id !== loadingId);
+            const lines = [
+              `Estratégia: ${est.estrategiaRecomendada}`,
+              `Objetivo: ${est.objetivoProcessual}`,
+              `Linha argumentativa: ${est.linhaArgumentativaPrincipal}`,
+              "",
+              "Teses principais:",
+              ...est.tesesPrincipais.map((t) => `• ${t.titulo} (${t.prioridade}) — ${t.fundamentoLegal}`),
+              "",
+              "Teses subsidiárias:",
+              ...est.tesesSubsidiarias.map((t) => `• ${t.titulo} — ${t.fundamentoLegal}`),
+              "",
+              "Pedidos recomendados:",
+              ...est.pedidosRecomendados.map((p) => `• ${p}`),
+              "",
+              "Riscos:",
+              ...est.riscosEFragilidades.map((r) => `• ${r}`),
+              "",
+              "Pontos a evitar:",
+              ...est.pontosAEvitar.map((p) => `• ${p}`),
+              "",
+              `Próxima ação: ${est.proximaAcaoRecomendada}`,
+              est.podeAvancarParaMinuta
+                ? "\u2705 Pode avançar para minuta (com revisão humana)"
+                : "\u26a0\ufe0f Não avance para minuta sem confirmação",
+            ];
+            lines.push("", `Nível de confiança: ${est.nivelConfianca.toUpperCase()}`);
+            lines.push(`Fonte: ${est.fonte}${est.observacoes ? ` — ${est.observacoes}` : ""}`);
+            const newMessages: MensagemAssistente[] = [
+              {
+                id: `msg-${acaoId}-result-${Date.now()}`,
+                tipo: "acao",
+                titulo: "Estratégia sugerida",
+                conteudo: lines.join("\n"),
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+            return [...filtered, ...newMessages];
+          });
+        } catch (err) {
+          setMensagens((prev) => {
+            const filtered = prev.filter((m) => m.id !== loadingId);
+            return [
+              ...filtered,
+              {
+                id: `msg-${acaoId}-error-${Date.now()}`,
+                tipo: "alerta",
+                titulo: "Erro na sugestão de estratégia",
+                conteudo: err instanceof Error ? err.message : "Não foi possível sugerir estratégia. Tente novamente.",
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+          });
+          setEstrategiaReutilizada(false);
+          setDataEstrategia(null);
           const respostas = gerarRespostaAcao(acaoId, contextoMock);
           setMensagens((prev) => [...prev, ...respostas]);
         } finally {
@@ -681,6 +838,54 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               {contextoAtual.dossieJuridico.diagnosticoEstrategico.alavancas.slice(0, 3).map((a) => (
                 <p key={a} className="text-xs text-[var(--color-muted)]">• {a}</p>
               ))}
+            </div>
+          </Card>
+        ) : null}
+
+        {estrategia ? (
+          <Card
+            title={estrategiaReutilizada ? "Estratégia reutilizada" : "Estratégia sugerida"}
+            subtitle={`Confiança: ${estrategia.nivelConfianca.toUpperCase()}${estrategiaReutilizada ? " • Reutilizado" : ""}`}
+            eyebrow="Estratégia"
+          >
+            {dataEstrategia ? (
+              <p className="mb-2 text-[10px] text-[var(--color-muted)]">
+                {estrategiaReutilizada ? "Última sugestão: " : "Sugerido em: "}
+                {formatarDataHora(dataEstrategia)}
+              </p>
+            ) : null}
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Objetivo</span>
+                <span className="text-right font-semibold text-[var(--color-ink)]">{estrategia.objetivoProcessual}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Linha</span>
+                <span className="font-semibold text-[var(--color-ink)]">{estrategia.linhaArgumentativaPrincipal}</span>
+              </div>
+              {estrategia.tesesPrincipais.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-[var(--color-ink)]">Teses principais</p>
+                  {estrategia.tesesPrincipais.slice(0, 2).map((t, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {t.titulo}</p>
+                  ))}
+                </div>
+              )}
+              {estrategia.riscosEFragilidades.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-amber-700">Riscos</p>
+                  {estrategia.riscosEFragilidades.slice(0, 3).map((f, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {f}</p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex items-center gap-1">
+                {estrategia.podeAvancarParaMinuta ? (
+                  <span className="text-[10px] font-medium text-emerald-700">\u2705 Pode avançar para minuta</span>
+                ) : (
+                  <span className="text-[10px] font-medium text-amber-700">\u26a0\ufe0f Aguardando confirmação</span>
+                )}
+              </div>
             </div>
           </Card>
         ) : null}
