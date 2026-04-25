@@ -305,7 +305,7 @@ async function persistirDiagnosticoSnapshot(params: {
 
     await infra.pipelineSnapshotRepository.salvarNovaVersao({
       pedidoId: params.pedidoId,
-      etapa: "analise_documental_do_cliente",
+      etapa: "assistente_analise_documental",
       entradaRef,
       saidaEstruturada,
       status: "concluido",

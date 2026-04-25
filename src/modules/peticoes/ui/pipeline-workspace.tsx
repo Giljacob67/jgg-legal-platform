@@ -170,6 +170,35 @@ const ETAPA_GUIA: Record<
     entrega: "Decisão auditável de aprovação, revisão pendente ou rejeição.",
     proximaLigacao: "Fecha o ciclo da peça e prepara protocolo/baixa.",
   },
+  // Etapas do Assistente Jurídico (não fazem parte do pipeline principal)
+  assistente_analise_documental: {
+    macro: "analise",
+    tituloCurto: "Análise documental (IA)",
+    objetivo: "Análise conversacional dos documentos pelo Assistente Jurídico.",
+    entrega: "Diagnóstico documental estruturado via chat.",
+    proximaLigacao: "Alimenta a identificação de peça cabível.",
+  },
+  assistente_identificacao_peca: {
+    macro: "analise",
+    tituloCurto: "Identificação de peça (IA)",
+    objetivo: "Inferir peça cabível, polo e fase processual pelo Assistente.",
+    entrega: "Identificação estruturada com confiança e pendências.",
+    proximaLigacao: "Prepara estratégia quando confirmado pelo advogado.",
+  },
+  assistente_estrategia: {
+    macro: "analise",
+    tituloCurto: "Estratégia (IA)",
+    objetivo: "Sugerir teses e estratégia pelo Assistente Jurídico.",
+    entrega: "Estratégia candidata com fundamentação.",
+    proximaLigacao: "Avança para estrutura da peça quando validada.",
+  },
+  assistente_minuta: {
+    macro: "redacao",
+    tituloCurto: "Minuta (IA)",
+    objetivo: "Redigir minuta pelo Assistente Jurídico.",
+    entrega: "Rascunho de minuta para revisão humana.",
+    proximaLigacao: "Entra em revisão técnica do pipeline.",
+  },
 };
 
 function macroAtualDaEtapa(etapa: EtapaPipeline): MacroPipelineId {

@@ -50,10 +50,18 @@ async function tentarRecuperarIdentificacaoCache(params: {
 > {
   try {
     const infra = getPeticoesOperacionalInfra();
-    const ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+    let ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
       params.pedidoId,
-      "classificacao",
+      "assistente_identificacao_peca",
     );
+
+    // Fallback: tenta etapa antiga para compatibilidade com snapshots legados
+    if (!ultimo) {
+      ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+        params.pedidoId,
+        "classificacao",
+      );
+    }
 
     if (!ultimo) return undefined;
 
@@ -104,7 +112,7 @@ async function persistirIdentificacaoSnapshot(params: {
     const infra = getPeticoesOperacionalInfra();
     const ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
       params.pedidoId,
-      "classificacao",
+      "assistente_identificacao_peca",
     );
 
     const entradaRef = {
@@ -129,7 +137,7 @@ async function persistirIdentificacaoSnapshot(params: {
 
     await infra.pipelineSnapshotRepository.salvarNovaVersao({
       pedidoId: params.pedidoId,
-      etapa: "classificacao",
+      etapa: "assistente_identificacao_peca",
       entradaRef,
       saidaEstruturada,
       status: "concluido",
@@ -148,10 +156,18 @@ async function recuperarDiagnosticoDocumental(pedidoId: string): Promise<{
 }> {
   try {
     const infra = getPeticoesOperacionalInfra();
-    const ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+    let ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
       pedidoId,
-      "analise_documental_do_cliente",
+      "assistente_analise_documental",
     );
+
+    // Fallback: tenta etapa antiga para compatibilidade com snapshots legados
+    if (!ultimo) {
+      ultimo = await infra.pipelineSnapshotRepository.obterUltimoPorEtapa(
+        pedidoId,
+        "analise_documental_do_cliente",
+      );
+    }
 
     if (!ultimo) return { diagnostico: null, fonte: "nenhum" };
 
@@ -249,7 +265,7 @@ async function gerarIdentificacaoComIA(params: {
   contexto: ContextoJuridicoPedido | null;
   diagnostico: Record<string, unknown> | null;
 }): Promise<IdentificacaoPeca> {
-  const { pedido, documentos, contexto: _contexto, diagnostico } = params; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { pedido, documentos, contexto, diagnostico } = params;
 
   if (!isAIAvailable()) {
     return montarFallbackParcial({

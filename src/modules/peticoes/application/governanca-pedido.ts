@@ -39,6 +39,11 @@ export const SLA_DIAS_POR_ETAPA: Record<EtapaPipeline, number> = {
   redacao: 3,
   revisao: 2,
   aprovacao: 1,
+  // Etapas do Assistente (não têm SLA operacional)
+  assistente_analise_documental: 0,
+  assistente_identificacao_peca: 0,
+  assistente_estrategia: 0,
+  assistente_minuta: 0,
 };
 
 function normalizarDataDia(value: string): Date | null {

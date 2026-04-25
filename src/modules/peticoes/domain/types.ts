@@ -400,7 +400,12 @@ export type EtapaPipeline =
   | "pesquisa_de_apoio"
   | "redacao"
   | "revisao"
-  | "aprovacao";
+  | "aprovacao"
+  // Etapas específicas do Assistente Jurídico (namespace separado)
+  | "assistente_analise_documental"
+  | "assistente_identificacao_peca"
+  | "assistente_estrategia"
+  | "assistente_minuta";
 
 // Estágios executáveis via IA no pipeline
 export type EstagioExecutavel =
