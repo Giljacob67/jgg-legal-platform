@@ -63,6 +63,27 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
       dataAnexo: d.dataUpload,
     })),
   );
+
+  const [diagnosticoDocumental, setDiagnosticoDocumental] = useState<{
+    fonte: "real" | "parcial" | "simulado";
+    observacao?: string;
+    documentosAnalisados: Array<{
+      id: string;
+      titulo: string;
+      tipo: string;
+      status: string;
+      fatosExtraidos?: string[];
+    }>;
+    tipoAcaoProvavel: string;
+    parteRepresentada: string;
+    pecaCabivelSugerida: string;
+    fatosRelevantes: string[];
+    pontosControvertidos: string[];
+    riscosFragilidades: string[];
+    documentosFaltantes: string[];
+    perguntasMinimasAdvogado: string[];
+    proximaAcaoRecomendada: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,9 +106,129 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
   );
 
   const executarAcao = useCallback(
-    (acaoId: string) => {
+    async (acaoId: string) => {
       setCarregando(true);
       enviarMensagem(`Executando ação: ${ACOES_RAPIDAS.find((a) => a.id === acaoId)?.titulo ?? acaoId}...`, "usuario");
+
+      if (acaoId === "analisar-documentos") {
+        const loadingId = `msg-${acaoId}-loading-${Date.now()}`;
+        setMensagens((prev) => [
+          ...prev,
+          {
+            id: loadingId,
+            tipo: "sistema",
+            titulo: "Análise documental em andamento",
+            conteudo: "Sincronizando pipeline, processando documentos vinculados e gerando diagnóstico estruturado. Aguarde...",
+            acaoId,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+
+        try {
+          const res = await fetch(`/api/peticoes/pipeline/${pedido.id}/analisar-documentos`, {
+            method: "POST",
+          });
+          const data = (await res.json()) as {
+            diagnostico: {
+              fonte: "real" | "parcial" | "simulado";
+              observacao?: string;
+              documentosAnalisados: Array<{
+                id: string;
+                titulo: string;
+                tipo: string;
+                status: string;
+                fatosExtraidos?: string[];
+              }>;
+              tipoAcaoProvavel: string;
+              parteRepresentada: string;
+              pecaCabivelSugerida: string;
+              fatosRelevantes: string[];
+              pontosControvertidos: string[];
+              riscosFragilidades: string[];
+              documentosFaltantes: string[];
+              perguntasMinimasAdvogado: string[];
+              proximaAcaoRecomendada: string;
+            };
+          };
+
+          if (!res.ok) {
+            throw new Error("Falha na análise documental");
+          }
+
+          const diag = data.diagnostico;
+          setDiagnosticoDocumental(diag);
+
+          setAnexosChat((prev) =>
+            prev.map((doc) => {
+              const analisado = diag.documentosAnalisados.find((d) => d.id === doc.id);
+              if (analisado) {
+                return { ...doc, status: "analisado" as const };
+              }
+              return doc;
+            }),
+          );
+
+          setMensagens((prev) => {
+            const filtered = prev.filter((m) => m.id !== loadingId);
+            const lines = [
+              `Tipo de ação provável: ${diag.tipoAcaoProvavel}`,
+              `Parte representada: ${diag.parteRepresentada}`,
+              `Peça cabível sugerida: ${diag.pecaCabivelSugerida}`,
+              "",
+              "Fatos relevantes extraídos:",
+              ...diag.fatosRelevantes.map((f) => `• ${f}`),
+              "",
+              "Pontos controvertidos:",
+              ...diag.pontosControvertidos.map((f) => `• ${f}`),
+              "",
+              "Riscos ou fragilidades:",
+              ...diag.riscosFragilidades.map((f) => `• ${f}`),
+              "",
+              "Documentos/fatos faltantes:",
+              ...diag.documentosFaltantes.map((f) => `• ${f}`),
+              "",
+              "Perguntas mínimas para o advogado:",
+              ...diag.perguntasMinimasAdvogado.map((f) => `• ${f}`),
+              "",
+              `Próxima ação recomendada: ${diag.proximaAcaoRecomendada}`,
+            ];
+            if (diag.fonte !== "real") {
+              lines.push("", `Fonte: ${diag.fonte}${diag.observacao ? ` — ${diag.observacao}` : ""}`);
+            }
+            const newMessages: MensagemAssistente[] = [
+              {
+                id: `msg-${acaoId}-result-${Date.now()}`,
+                tipo: "diagnostico",
+                titulo: "Diagnóstico Documental",
+                conteudo: lines.join("\n"),
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+            return [...filtered, ...newMessages];
+          });
+        } catch (err) {
+          setMensagens((prev) => {
+            const filtered = prev.filter((m) => m.id !== loadingId);
+            return [
+              ...filtered,
+              {
+                id: `msg-${acaoId}-error-${Date.now()}`,
+                tipo: "alerta",
+                titulo: "Erro na análise documental",
+                conteudo: err instanceof Error ? err.message : "Não foi possível concluir a análise. Tente novamente ou use o pipeline técnico.",
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+          });
+          const respostas = gerarRespostaAcao(acaoId, contextoMock);
+          setMensagens((prev) => [...prev, ...respostas]);
+        } finally {
+          setCarregando(false);
+        }
+        return;
+      }
 
       setTimeout(() => {
         const respostas = gerarRespostaAcao(acaoId, contextoMock);
@@ -95,7 +236,7 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
         setCarregando(false);
       }, 1200);
     },
-    [contextoMock, enviarMensagem],
+    [contextoMock, enviarMensagem, pedido.id],
   );
 
   const handleSubmit = useCallback(() => {
@@ -405,6 +546,51 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               {contextoAtual.dossieJuridico.diagnosticoEstrategico.alavancas.slice(0, 3).map((a) => (
                 <p key={a} className="text-xs text-[var(--color-muted)]">• {a}</p>
               ))}
+            </div>
+          </Card>
+        ) : null}
+
+        {diagnosticoDocumental ? (
+          <Card
+            title="Diagnóstico da análise"
+            subtitle={`Fonte: ${diagnosticoDocumental.fonte}`}
+            eyebrow="Análise"
+          >
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Ação provável</span>
+                <span className="text-right font-semibold text-[var(--color-ink)]">{diagnosticoDocumental.tipoAcaoProvavel}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Parte</span>
+                <span className="font-semibold text-[var(--color-ink)]">{diagnosticoDocumental.parteRepresentada}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Peça sugerida</span>
+                <span className="font-semibold text-[var(--color-ink)]">{diagnosticoDocumental.pecaCabivelSugerida}</span>
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-xs font-semibold text-[var(--color-ink)]">Documentos analisados</p>
+                {diagnosticoDocumental.documentosAnalisados.map((d) => (
+                  <p key={d.id} className="text-xs text-[var(--color-muted)]">• {d.titulo}</p>
+                ))}
+              </div>
+              {diagnosticoDocumental.fatosRelevantes.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-[var(--color-ink)]">Fatos extraídos</p>
+                  {diagnosticoDocumental.fatosRelevantes.slice(0, 3).map((f, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {f}</p>
+                  ))}
+                </div>
+              )}
+              {diagnosticoDocumental.riscosFragilidades.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-[var(--color-ink)]">Riscos</p>
+                  {diagnosticoDocumental.riscosFragilidades.slice(0, 3).map((f, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {f}</p>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         ) : null}

@@ -87,11 +87,11 @@ export function gerarRespostaAcao(acaoId: string, contexto: ContextoCasoAssisten
     case "analisar-documentos":
       return [
         {
-          id: `msg-${acaoId}-1`,
-          tipo: "acao",
-          titulo: "Análise documental concluída",
+          id: `msg-${acaoId}-loading`,
+          tipo: "sistema",
+          titulo: "Análise documental em andamento",
           conteudo:
-            "Foram identificados 4 documentos relevantes: contrato de prestação de serviços, notificações extrajudiciais, contestação da parte contrária e nota fiscal. A cobertura probatória é moderada. Há 1 lacuna: o e-mail de comunicação prévia de rescisão não foi localizado.",
+            "Sincronizando pipeline, processando documentos vinculados e gerando diagnóstico estruturado. Aguarde...",
           acaoId,
           timestamp: new Date().toISOString(),
         },
