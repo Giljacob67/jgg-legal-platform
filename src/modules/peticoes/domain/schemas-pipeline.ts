@@ -215,3 +215,28 @@ export const DiagnosticoDocumentalAssistenteSchema = z.object({
 });
 
 export type DiagnosticoDocumentalAssistenteOutput = z.infer<typeof DiagnosticoDocumentalAssistenteSchema>;
+
+// ── Identificação de Peça Cabível do Assistente ──────────────────────────────
+
+/**
+ * Schema de saída para identificação de peça cabível do Assistente.
+ * Usado na ação rápida "Identificar peça cabível" com generateObject + Zod.
+ */
+export const IdentificacaoPecaAssistenteSchema = z.object({
+  pecaCabivel: z.string().describe("Nome da peça jurídica mais adequada"),
+  tipoAcaoProvavel: z.string().describe("Tipo de ação judicial ou medida mais provável"),
+  faseProcessualProvavel: z.string().describe("Fase processual provável do caso"),
+  parteProvavelmenteRepresentada: z.string().describe("Polo ativo, passivo ou indefinido com justificativa"),
+  poloProvavel: z.enum(["ativo", "passivo", "indefinido"]).describe("Polo processual provável"),
+  grauConfianca: z.enum(["alta", "media", "baixa"]).describe("Nível de confiança da identificação"),
+  fundamentosDaInferencia: z.array(z.string()).describe("Fundamentos que levaram à identificação"),
+  documentosConsiderados: z.array(z.string()).describe("Documentos considerados na inferência"),
+  pontosDeIncerteza: z.array(z.string()).describe("Pontos que ainda geram incerteza"),
+  perguntasDeConfirmacao: z.array(z.string()).describe("Perguntas mínimas para o advogado confirmar"),
+  proximaAcaoRecomendada: z.string().describe("Próxima ação operacional recomendada"),
+  podeAvancarParaEstrategia: z.boolean().describe("Se é seguro avançar para estratégia"),
+  fonte: z.enum(["real", "parcial", "simulado"]).describe("Fonte da identificação"),
+  observacoes: z.string().optional().describe("Observações sobre limitações ou fonte dos dados"),
+});
+
+export type IdentificacaoPecaAssistenteOutput = z.infer<typeof IdentificacaoPecaAssistenteSchema>;

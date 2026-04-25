@@ -87,6 +87,23 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
   } | null>(null);
   const [analiseReutilizada, setAnaliseReutilizada] = useState(false);
   const [dataAnalise, setDataAnalise] = useState<string | null>(null);
+  const [identificacaoPeca, setIdentificacaoPeca] = useState<{
+    pecaCabivel: string;
+    tipoAcaoProvavel: string;
+    faseProcessualProvavel: string;
+    parteProvavelmenteRepresentada: string;
+    poloProvavel: "ativo" | "passivo" | "indefinido";
+    grauConfianca: "alta" | "media" | "baixa";
+    fundamentosDaInferencia: string[];
+    pontosDeIncerteza: string[];
+    perguntasDeConfirmacao: string[];
+    proximaAcaoRecomendada: string;
+    podeAvancarParaEstrategia: boolean;
+    fonte: "real" | "parcial" | "simulado";
+    observacoes?: string;
+  } | null>(null);
+  const [identificacaoReutilizada, setIdentificacaoReutilizada] = useState(false);
+  const [dataIdentificacao, setDataIdentificacao] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -231,6 +248,115 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
           });
           setAnaliseReutilizada(false);
           setDataAnalise(null);
+          const respostas = gerarRespostaAcao(acaoId, contextoMock);
+          setMensagens((prev) => [...prev, ...respostas]);
+        } finally {
+          setCarregando(false);
+        }
+        return;
+      }
+
+      if (acaoId === "identificar-peca") {
+        const loadingId = `msg-${acaoId}-loading-${Date.now()}`;
+        setMensagens((prev) => [
+          ...prev,
+          {
+            id: loadingId,
+            tipo: "sistema",
+            titulo: "Identificando peça cabível",
+            conteudo: "Recuperando diagnóstico documental, analisando contexto do caso e inferindo a peça jurídica mais adequada. Aguarde...",
+            acaoId,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+
+        try {
+          const res = await fetch(`/api/peticoes/pipeline/${pedido.id}/identificar-peca`, {
+            method: "POST",
+          });
+          const data = (await res.json()) as {
+            identificacao: {
+              pecaCabivel: string;
+              tipoAcaoProvavel: string;
+              faseProcessualProvavel: string;
+              parteProvavelmenteRepresentada: string;
+              poloProvavel: "ativo" | "passivo" | "indefinido";
+              grauConfianca: "alta" | "media" | "baixa";
+              fundamentosDaInferencia: string[];
+              pontosDeIncerteza: string[];
+              perguntasDeConfirmacao: string[];
+              proximaAcaoRecomendada: string;
+              podeAvancarParaEstrategia: boolean;
+              fonte: "real" | "parcial" | "simulado";
+              observacoes?: string;
+            };
+            reutilizado: boolean;
+            criadoEm: string;
+          };
+
+          if (!res.ok) {
+            throw new Error("Falha na identificação de peça cabível");
+          }
+
+          const ident = data.identificacao;
+          setIdentificacaoPeca(ident);
+          setIdentificacaoReutilizada(data.reutilizado ?? false);
+          setDataIdentificacao(data.criadoEm ?? new Date().toISOString());
+
+          setMensagens((prev) => {
+            const filtered = prev.filter((m) => m.id !== loadingId);
+            const lines = [
+              `Peça cabível: ${ident.pecaCabivel}`,
+              `Tipo de ação provável: ${ident.tipoAcaoProvavel}`,
+              `Fase processual: ${ident.faseProcessualProvavel}`,
+              `Parte representada: ${ident.parteProvavelmenteRepresentada}`,
+              `Polo provável: ${ident.poloProvavel.toUpperCase()}`,
+              `Grau de confiança: ${ident.grauConfianca.toUpperCase()}`,
+              "",
+              "Fundamentos da inferência:",
+              ...ident.fundamentosDaInferencia.map((f) => `• ${f}`),
+              "",
+              "Pontos de incerteza:",
+              ...ident.pontosDeIncerteza.map((f) => `• ${f}`),
+              "",
+              "Perguntas de confirmação:",
+              ...ident.perguntasDeConfirmacao.map((f) => `• ${f}`),
+              "",
+              `Próxima ação recomendada: ${ident.proximaAcaoRecomendada}`,
+              ident.podeAvancarParaEstrategia
+                ? "✅ Pode avançar para estratégia"
+                : "⚠️ Não avance para estratégia sem confirmação do advogado",
+            ];
+            lines.push("", `Fonte: ${ident.fonte}${ident.observacoes ? ` — ${ident.observacoes}` : ""}`);
+            const newMessages: MensagemAssistente[] = [
+              {
+                id: `msg-${acaoId}-result-${Date.now()}`,
+                tipo: "acao",
+                titulo: "Peça cabível identificada",
+                conteudo: lines.join("\n"),
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+            return [...filtered, ...newMessages];
+          });
+        } catch (err) {
+          setMensagens((prev) => {
+            const filtered = prev.filter((m) => m.id !== loadingId);
+            return [
+              ...filtered,
+              {
+                id: `msg-${acaoId}-error-${Date.now()}`,
+                tipo: "alerta",
+                titulo: "Erro na identificação de peça cabível",
+                conteudo: err instanceof Error ? err.message : "Não foi possível identificar a peça. Tente novamente.",
+                acaoId,
+                timestamp: new Date().toISOString(),
+              },
+            ];
+          });
+          setIdentificacaoReutilizada(false);
+          setDataIdentificacao(null);
           const respostas = gerarRespostaAcao(acaoId, contextoMock);
           setMensagens((prev) => [...prev, ...respostas]);
         } finally {
@@ -555,6 +681,64 @@ export function AssistenteSection({ pedido, documentos, dossie, contextoAtual }:
               {contextoAtual.dossieJuridico.diagnosticoEstrategico.alavancas.slice(0, 3).map((a) => (
                 <p key={a} className="text-xs text-[var(--color-muted)]">• {a}</p>
               ))}
+            </div>
+          </Card>
+        ) : null}
+
+        {identificacaoPeca ? (
+          <Card
+            title={identificacaoReutilizada ? "Peça reutilizada" : "Peça cabível"}
+            subtitle={`Confiança: ${identificacaoPeca.grauConfianca.toUpperCase()}${identificacaoReutilizada ? " • Reutilizado" : ""}`}
+            eyebrow="Peça"
+          >
+            {dataIdentificacao ? (
+              <p className="mb-2 text-[10px] text-[var(--color-muted)]">
+                {identificacaoReutilizada ? "Última identificação: " : "Identificado em: "}
+                {formatarDataHora(dataIdentificacao)}
+              </p>
+            ) : null}
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Peça</span>
+                <span className="text-right font-semibold text-[var(--color-ink)]">{identificacaoPeca.pecaCabivel}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Ação</span>
+                <span className="font-semibold text-[var(--color-ink)]">{identificacaoPeca.tipoAcaoProvavel}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Fase</span>
+                <span className="font-semibold text-[var(--color-ink)]">{identificacaoPeca.faseProcessualProvavel}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-[var(--color-muted)]">Polo</span>
+                <span className="font-semibold text-[var(--color-ink)]">{identificacaoPeca.poloProvavel.toUpperCase()}</span>
+              </div>
+              {identificacaoPeca.pontosDeIncerteza.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-amber-700">Pontos de incerteza</p>
+                  {identificacaoPeca.pontosDeIncerteza.slice(0, 3).map((f, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {f}</p>
+                  ))}
+                </div>
+              )}
+              {identificacaoPeca.perguntasDeConfirmacao.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-[var(--color-ink)]">Confirmações pendentes</p>
+                  {identificacaoPeca.perguntasDeConfirmacao.slice(0, 3).map((f, i) => (
+                    <p key={i} className="text-xs text-[var(--color-muted)]">• {f}</p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex items-center gap-1">
+                {identificacaoPeca.podeAvancarParaEstrategia ? (
+                  <>
+                    <span className="text-[10px] font-medium text-emerald-700">✅ Pode avançar para estratégia</span>
+                  </>
+                ) : (
+                  <span className="text-[10px] font-medium text-amber-700">⚠️ Aguardando confirmação do advogado</span>
+                )}
+              </div>
             </div>
           </Card>
         ) : null}
